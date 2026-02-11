@@ -20,6 +20,7 @@ public:
 	set<Position> liberties;
  };
 
+ 
 class Board {
 private:
 	vector<vector<Color>> grid;
@@ -134,7 +135,7 @@ public:
 			grid[p.y][p.x] = Color::None;
 			return false;
 		}
-		// ко при помощи хэширования Зобриста(хуета ебаная)
+		// ко при помощи хэширования Зобриста
 
 	}
 
