@@ -1,7 +1,7 @@
 ﻿#include <vector>
 #include <queue>
 #include <set>
-#include "../../mango.core/mango.core/mango.core.h"
+#include "Board.h"
 
 using namespace std;
 class Game {
