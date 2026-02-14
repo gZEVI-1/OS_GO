@@ -1,3 +1,5 @@
+#!!! Эта хрень не работает, иди в v1 !!!
+
 import subprocess
 import sys
 import os
