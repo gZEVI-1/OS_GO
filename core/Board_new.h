@@ -19,10 +19,10 @@ inline ostream &operator<<(ostream &os, const Color &color)
         os << "+";
         break;
     case Color::Black:
-        os << "B"; // или "X" или "B"
+        os << "B";
         break;
     case Color::White:
-        os << "W"; // или "O" или "W"
+        os << "W";
         break;
     }
     return os;
@@ -134,6 +134,13 @@ private:
 
 public:
     Board(int n) : size(n), grid(n, vector<Color>(n, Color::None)) {}
+
+     Color getColor(const Position& p) const {
+        if (inBounds(p)) {
+            return grid[p.x][p.y];
+        }
+        return Color::None;
+    }
 
     bool addStone(const Position &p, Color c)
     {
@@ -298,6 +305,161 @@ public:
         }
 
         return true;
+    }
+ // Метод 1: Простая заливка для получения списка территорий
+    vector<vector<Position>> getTerritories() const {
+        vector<vector<Position>> territories;
+        vector<vector<bool>> visited(size, vector<bool>(size, false));
+        
+        for (int x = 0; x < size; ++x) {
+            for (int y = 0; y < size; ++y) {
+                // Если нашли пустую клетку
+                if (grid[x][y] == Color::None && !visited[x][y]) {
+                    vector<Position> territory;
+                    queue<Position> q;
+                    
+                    q.push({x, y});
+                    visited[x][y] = true;
+                    
+                    // Заливка
+                    while (!q.empty()) {
+                        Position current = q.front();
+                        q.pop();
+                        
+                        territory.push_back(current);
+                        
+                        // Проверяем всех соседей
+                        for (const Position& n : neighbors(current)) {
+                            if (grid[n.x][n.y] == Color::None && !visited[n.x][n.y]) {
+                                visited[n.x][n.y] = true;
+                                q.push(n);
+                            }
+                        }
+                    }
+                    
+                    territories.push_back(territory);
+                }
+            }
+        }
+        
+        return territories;
+    }
+
+     pair<set<Position>, set<Position>> findDeadStones() const {
+        set<Position> deadBlack;
+        set<Position> deadWhite;
+        
+        // Проверяем каждую группу на доске
+        for (const Group& group : groups) {
+            if (!group.empty()) {
+                bool isAlive = isGroupAlive(group);
+                
+                if (!isAlive) {
+                    // Группа мертва, все ее камни считаются захваченными
+                    for (const Position& stone : group.stones) {
+                        if (group.color == Color::Black) {
+                            deadBlack.insert(stone);
+                        } else {
+                            deadWhite.insert(stone);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return {deadBlack, deadWhite};
+    }
+
+    // Метод 2: Определение владельца территории
+   Color getTerritoryOwner(const vector<Position>& territory, 
+                                   const set<Position>& deadBlackStones,
+                                   const set<Position>& deadWhiteStones) const {
+        
+        set<Color> surroundingColors;
+        
+        // Проверяем все соседние точки территории
+        for (const Position& p : territory) {
+            for (const Position& n : neighbors(p)) {
+                if (grid[n.x][n.y] != Color::None) {
+                    // Проверяем, жив ли камень, который окружает территорию
+                    Color stoneColor = grid[n.x][n.y];
+                    bool isStoneDead = (stoneColor == Color::Black && 
+                                        deadBlackStones.count(n) > 0) ||
+                                       (stoneColor == Color::White && 
+                                        deadWhiteStones.count(n) > 0);
+                    
+                    // Если камень мертв, он не считается при определении территории
+                    if (!isStoneDead) {
+                        surroundingColors.insert(stoneColor);
+                    }
+                }
+            }
+        }
+        
+        // Территория принадлежит тому цвету, чьи живые камни ее окружают
+        if (surroundingColors.size() == 1) {
+            return *surroundingColors.begin();
+        }
+        
+        return Color::None; // Нейтральная или спорная территория
+    }
+    
+    // Проверка жива ли группа
+     bool isGroupAlive(const Group& group) const {
+        if (group.liberties.size() >= 2) {
+            // Проверяем, являются ли свободы настоящими глазами
+            int eyeCount = 0;
+            set<Position> checkedLiberties;
+            
+            for (const Position& liberty : group.liberties) {
+                if (isRealEye(liberty, group.color)) {
+                    eyeCount++;
+                }
+            }
+            
+            // Если есть два настоящих глаза - группа точно жива
+            if (eyeCount >= 2) return true;
+            
+            // Проверяем форму группы (может жить и без двух явных глаз)
+            // return hasGoodShape(group);
+        }
+        
+        return false; // Нет свобод или одна свобода (в атари)
+    }
+    
+    bool isRealEye(const Position& p, Color groupColor) const {
+        // Проверяем все соседние точки
+        for (const Position& n : neighbors(p)) {
+            if (grid[n.x][n.y] != groupColor && grid[n.x][n.y] != Color::None) {
+                return false; // Есть камень противника рядом
+            }
+        }
+        
+        // Проверяем диагонали для предотвращения ложных глаз
+        int diagonalCount = 0;
+        int diagonalFriendly = 0;
+        
+        int dx[] = {-1, -1, 1, 1};
+        int dy[] = {-1, 1, -1, 1};
+        
+        for (int i = 0; i < 4; ++i) {
+            Position d{p.x + dx[i], p.y + dy[i]};
+            if (inBounds(d)) {
+                diagonalCount++;
+                if (grid[d.x][d.y] == groupColor) {
+                    diagonalFriendly++;
+                }
+            }
+        }
+        
+        // В зависимости от позиции (центр/край/угол) проверяем диагонали
+        if (neighbors(p).size() == 4) { // В центре
+            return diagonalFriendly >= 3; // Нужны свои на 3 из 4 диагоналей
+        } else if (neighbors(p).size() == 3) { // На краю
+            return diagonalFriendly >= 2;
+        } else { // В углу
+            return diagonalFriendly >= 1;
+        }
     }
 
     // ПОТОМ УБРАТЬ
