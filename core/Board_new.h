@@ -28,6 +28,8 @@ inline ostream &operator<<(ostream &os, const Color &color)
     return os;
 }
 
+//УБРАТЬ ВСЕ НЕНУЖНОЕ, ОСТАВИТЬ ПРОВЕРКУ НА КОРРЕКТНОСТЬ И ЗАПИСЬ ДОСКИ
+
 struct Position
 {
     int x;
@@ -306,7 +308,10 @@ public:
 
         return true;
     }
- // Метод 1: Простая заливка для получения списка территорий
+
+
+//УЖЕ НЕ НУЖНО, ( ЗАЛИВКУ ОСТАВИТЬ НА ВСЯКИЙ ) ПОДСЧЕТ ТЕРРИТОРИЙ И МЕРТВЫХ КАМНЕЙ МОЖНО СДЕЛАТЬ ЧЕРЕЗ GNU GO 
+    // Метод 1: Простая заливка для получения списка территорий
     vector<vector<Position>> getTerritories() const {
         vector<vector<Position>> territories;
         vector<vector<bool>> visited(size, vector<bool>(size, false));

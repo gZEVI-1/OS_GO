@@ -7,7 +7,11 @@
 #include "Board_new.h"
 using namespace std;
 
-// Структура для хранения хода
+
+//КЛЮЧЕВОЕ: НЕТ ПРОВЕРКИ НА КОРРЕКТНОСТЬ ХОДОВ
+//МОЖНО ДОБАВИТЬ РАБОТУ С ПИТОНОМ ЧЕРЕЗ ПОТОК
+
+//НОРМ
 struct Move {
     Position pos;
     Color color;
@@ -19,7 +23,7 @@ struct Move {
     Move(Color c, int num) : pos{-1, -1}, color(c), moveNumber(num), isPass(true) {} // пас
 };
 
-// Класс для работы с SGF
+//ДОДЕЛАТЬ
 class SGFGame {
 private:
     vector<Move> moves;
@@ -31,6 +35,7 @@ private:
     string date;
     
 public:
+    // ПОТОМ ДОРАБОТАТЬ
     SGFGame(int size = 9) : boardSize(size), komi("6.5") {
         // // Установить текущую дату
         // time_t t = time(nullptr);
@@ -40,6 +45,7 @@ public:
         // date = buf;
     }
     
+    //ПРОВЕРКА
     void addMove(const Move& move) {
         moves.push_back(move);
     }
@@ -53,7 +59,7 @@ public:
         result = res;
     }
     
-    // Конвертировать координаты в SGF формат
+    // ПЕРЕДЕЛАТЬ( ДЛЯ ВСЕХ РАЗМЕРОВ ДОСОК(ВКЛЮЧАЯ НЕСТАНДАРНТНЫЕ) УЧИТЫВАЯ ОТСУТСТВИЕ БУКВЫ i)
     string posToSGF(const Position& p) const {
         if (p.x == -1 || p.y == -1) return ""; // пас
         
@@ -65,7 +71,7 @@ public:
         return string(1, x) + string(1, y);
     }
     
-    // Генерация SGF строки
+    // НОРМ
     string generateSGF() const {
         ostringstream sgf;
         
@@ -105,7 +111,7 @@ public:
         return sgf.str();
     }
     
-    // Сохранить SGF в файл
+    //НОРМ
     bool saveToFile(const string& filename) const {
         ofstream file(filename);
         if (!file.is_open()) return false;
@@ -115,14 +121,13 @@ public:
         return true;
     }
     
-    // Получить историю ходов
+    
     const vector<Move>& getMoves() const { return moves; }
     
-    // Очистить историю
     void clear() { moves.clear(); }
 };
 
-// Обновленный класс Game с поддержкой истории
+//ДОРАБОТАТЬ
 class Game {
 private:
     Board board;
@@ -147,7 +152,7 @@ public:
         sgf.setPlayerNames("Human", "GNU Go"); // По умолчанию
     }
     
-    // Добавить ход в историю
+    // ДОБАВИТЬ ПРОВЕРКУ
     void recordMove(int x, int y, bool isPass = false) {
         Move move;
         if (isPass) {
@@ -161,7 +166,7 @@ public:
         moveNumber++;
     }
     
-    // Отменить последний ход
+    // НЕТ ПЕРЕЗАПИСИ SGF. ИЛИ ДОБАВИТЬ, ИЛИ УБРАТЬ В recordMove И ДОБАВИТЬ З
     bool undoLastMove() {
         if (moveHistory.empty()) return false;
         
@@ -181,29 +186,18 @@ public:
         return true;
     }
     
-    // Получить SGF текущей игры
+    // НОРМ
     string getSGF() const {
         return sgf.generateSGF();
     }
     
-    // Сохранить игру в файл
+    //ВРОДЕ НОРМ (ПРОВЕРИТЬ)
     bool saveGame(const string& filename) const {
         return sgf.saveToFile(filename);
     }
     
-    // Загрузить игру из SGF файла
-    // bool loadFromSGF(const string& filename) {
-    //     ifstream file(filename);
-    //     if (!file.is_open()) return false;
-        
-    //     string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
-    //     file.close();
-        
-       
-    //     return true;
-    // }
     
-    // Отправить игру в GnuGo через файл
+    // ПОСМОТРЕТЬ БОЛЬШЕ( МБ ЭТО НЕ БУДЕТ РАБОТАТЬ, НО ИДЕЯ С ВРЕМЕННЫМ ФАЙЛОМ ХОРОШАЯ)
     void sendToFile() {
         // Сохраняем текущую позицию в SGF
         string sgfContent = getSGF();
@@ -219,18 +213,9 @@ public:
         cout << "Игра сохранена в temp_game.sgf для GnuGo\n";
     }
     
-    // Получить совет от GnuGo
-    string getGnuGoAdvice() {
-        // Сохраняем позицию
-        saveGame("advice_temp.sgf");
-        
-        // Здесь можно вызвать GnuGo в режиме анализа
-        // FILE* pipe = popen("gnugo -l advice_temp.sgf --mode gtp --analyse", "r");
-        
-        return "Здесь будет совет от GnuGo";
-    }
     
-    // Модифицированный makeMove_console с записью истории
+    
+    // НЕТ СМЫСЛА (У НАС СВЯЗЬ С ПИТОНОМ ЧЕРЕЗ МЕТОДЫ , НО НЕ ЧЕРЕЗ КОНСОЛЬ)(МОЖНО ОСТАВИТЬ ДЛЯ ТЕСТОВ)(ПЕРЕДЕЛАТЬ ДЛЯ ПИТОНА)
     void makeMove_console() {
         int x, y;
         while (true) {
@@ -299,6 +284,7 @@ public:
         }
     }
     
+    //БУДЕТ ЧЕРЕЗ ПИТОН
     void showScore() {
         cout << "In progress";
         // auto [black, white] = board.countScore();
@@ -332,6 +318,7 @@ public:
         }
     }
 };
+//ОЧЕВИДНО АДАПТИРОВАТЬ
 int main(){
     Game game;
     game.loop();
