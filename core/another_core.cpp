@@ -7,11 +7,6 @@
 #include "Board_new.h"
 using namespace std;
 
-
-//КЛЮЧЕВОЕ: НЕТ ПРОВЕРКИ НА КОРРЕКТНОСТЬ ХОДОВ
-//МОЖНО ДОБАВИТЬ РАБОТУ С ПИТОНОМ ЧЕРЕЗ ПОТОК
-
-//НОРМ
 struct Move {
     Position pos;
     Color color;
@@ -23,7 +18,6 @@ struct Move {
     Move(Color c, int num) : pos{-1, -1}, color(c), moveNumber(num), isPass(true) {} // пас
 };
 
-//ДОДЕЛАТЬ
 class SGFGame {
 private:
     vector<Move> moves;
@@ -32,21 +26,30 @@ private:
     string playerWhite;
     string result;
     string komi;
-    string date;
     
 public:
-    // ПОТОМ ДОРАБОТАТЬ
-    SGFGame(int size = 9) : boardSize(size), komi("6.5") {
-        // // Установить текущую дату
-        // time_t t = time(nullptr);
-        // tm* tm = localtime(&t);
-        // char buf[16];
-        // strftime(buf, sizeof(buf), "%Y-%m-%d", tm);
-        // date = buf;
+    SGFGame(){
+        boardSize = 9;
+    }
+
+    SGFGame(int size){
+       if(size < 9) {cout << "размер доски должен быть не менее 9х9"; 
+            return; }
+            boardSize = size;
+    }
+
+    SGFGame(int size, string playerB, string playerW, string Komi){
+        if(size < 9) {cout << "размер доски должен быть не менее 9х9"; 
+            return; }
+        boardSize = size;
+        playerBlack = playerB;
+        playerWhite = playerW;
+        komi = Komi;
+
     }
     
-    //ПРОВЕРКА
-    void addMove(const Move& move) {
+    
+    void addMove(const Move& move) {// проверка там где метод используется строка 170
         moves.push_back(move);
     }
     
@@ -59,48 +62,51 @@ public:
         result = res;
     }
     
-    // ПЕРЕДЕЛАТЬ( ДЛЯ ВСЕХ РАЗМЕРОВ ДОСОК(ВКЛЮЧАЯ НЕСТАНДАРНТНЫЕ) УЧИТЫВАЯ ОТСУТСТВИЕ БУКВЫ i)
     string posToSGF(const Position& p) const {
         if (p.x == -1 || p.y == -1) return ""; // пас
         
-        char x = 'a' + p.x;
-        char y = 'a' + p.y;
+        // SGF использует буквы a-z, затем A-Z для больших досок
+        // a=0, b=1, ..., z=25, A=26, B=27, ..., Z=51
         
-        // Для досок больше 19 нужно использовать другую схему
-        // Но для 9x9 достаточно a-i
+        auto convert = [](int coord) -> char {
+            if (coord < 0) return '?';
+            else
+            if (coord < 26) return 'a' + coord;        // a-z для 0-25
+            else
+            if (coord < 52) return 'A' + (coord - 26); // A-Z для 26-51
+            return '?'; // больше 52 - ошибка
+        };
+        
+        if (p.x >= 52 || p.y >= 52) {
+            cout << "Ошибка: координаты выходят за пределы поддерживаемого SGF формата\n";
+            return "??";
+        }
+        
+        char x = convert(p.x);
+        char y = convert(p.y);
+        
         return string(1, x) + string(1, y);
     }
     
-    // НОРМ
     string generateSGF() const {
         ostringstream sgf;
         
-        // Заголовок
         sgf << "(;GM[1]FF[4]SZ[" << boardSize << "]";
         
-        // Информация об игроках
         if (!playerBlack.empty()) sgf << "PB[" << playerBlack << "]";
         if (!playerWhite.empty()) sgf << "PW[" << playerWhite << "]";
-        
-        // Правила и коми
+
         sgf << "KM[" << komi << "]";
-        sgf << "RU[Chinese]"; // или Japanese
+        sgf << "RU[Chinese]"; // !!!!
         
-        // Дата
-        // sgf << "DT[" << date << "]";
-        
-        // Результат
         if (!result.empty()) sgf << "RE[" << result << "]";
         
-        // Ходы
         for (size_t i = 0; i < moves.size(); ++i) {
             const Move& m = moves[i];
             
             if (m.isPass) {
-                // Пас
                 sgf << ";" << (m.color == Color::Black ? "B" : "W") << "[]";
             } else {
-                // Обычный ход
                 string coords = posToSGF(m.pos);
                 sgf << ";" << (m.color == Color::Black ? "B" : "W") << "[" << coords << "]";
             }
@@ -111,7 +117,6 @@ public:
         return sgf.str();
     }
     
-    //НОРМ
     bool saveToFile(const string& filename) const {
         ofstream file(filename);
         if (!file.is_open()) return false;
@@ -121,13 +126,12 @@ public:
         return true;
     }
     
-    
     const vector<Move>& getMoves() const { return moves; }
     
     void clear() { moves.clear(); }
+
 };
 
-//ДОРАБОТАТЬ
 class Game {
 private:
     Board board;
@@ -139,7 +143,6 @@ private:
     int moveNumber;
     const double KOMI = 6.5;
     
-    // История игры
     SGFGame sgf;
     vector<Move> moveHistory;
     
@@ -149,10 +152,9 @@ public:
                       passes(0), gameOver(false), moveNumber(1),
                       sgf(n) {
         
-        sgf.setPlayerNames("Human", "GNU Go"); // По умолчанию
+        sgf.setPlayerNames("Игрок1", "Игрок2"); // По умолчанию
     }
     
-    // ДОБАВИТЬ ПРОВЕРКУ
     void recordMove(int x, int y, bool isPass = false) {
         Move move;
         if (isPass) {
@@ -162,44 +164,121 @@ public:
         }
         
         moveHistory.push_back(move);
+        Position h;
+        h.x = x;
+        h.y = y;
+        if(!isSuicide(h,currentPlayer))
+        {
         sgf.addMove(move);
         moveNumber++;
     }
+        else{
+            return;
+        }
+        
+    }
     
-    // НЕТ ПЕРЕЗАПИСИ SGF. ИЛИ ДОБАВИТЬ, ИЛИ УБРАТЬ В recordMove И ДОБАВИТЬ З
-    bool undoLastMove() {
-        if (moveHistory.empty()) return false;
+    
+     bool wouldCaptureOpponent(Position p, Color color) const {
+        for (Position neighbor : board.neighbors(p)) {
+            if (board.getColor(neighbor) == getOpponentColor(color)) {
+                const Group opponentGroup = board.groups[board.findGroupIndex(neighbor)];
+                // Если у группы противника только одно дыхание - это наша позиция
+                if (opponentGroup.liberties.size() == 1) {
+                    if (opponentGroup.liberties.find(p) != opponentGroup.liberties.end()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    
+    bool hasLibertiesAfterMove(Position p, Color color) const {
+        for (Position neighbor : board.neighbors(p)) {
+            if (board.getColor(neighbor) == Color::None) {
+                return true;
+            }
+        }
+        
+        for (Position neighbor : board.neighbors(p)) {
+            if (board.getColor(neighbor) == color) {
+                const Group friendlyGroup = board.groups[board.findGroupIndex(neighbor)];
+                // У союзной группы есть дыхания, не считая нашу позицию?
+                for (Position lib : friendlyGroup.liberties) {
+                    if (!(lib.x == p.x && lib.y == p.y)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    bool isSuicide(Position p, Color color) const {
+        // Если ход захватывает камни противника - разрешен
+        if (wouldCaptureOpponent(p, color)) {
+            return false;
+        }
+        
+        // Иначе проверяем, будут ли дыхания после хода
+        return !hasLibertiesAfterMove(p, color);
+    }
+
+   bool undoLastMove() {
+        if (moveHistory.empty()) {
+            cout << "Нет ходов для отмены\n";
+            return false;
+        }
         
         Move lastMove = moveHistory.back();
         
-        // Удаляем камень с доски
         if (!lastMove.isPass) {
-            board.removeStone(lastMove.pos);
+            if (!board.removeStone(lastMove.pos)) {
+                cout << "Ошибка при удалении камня\n";
+                return false;
+            }
+            cout << "Удален камень с позиции (" << lastMove.pos.x + 1 << "," 
+                 << lastMove.pos.y + 1 << ")\n";
+        } else {
+            cout << "Отменен пас\n";
         }
         
         moveHistory.pop_back();
-        moveNumber--;
+        SGFGame newSgf(board.getSize());
+        // newSgf.setPlayerNames("хз", "хз");
         
-        // Меняем игрока обратно
+        // Перекопируем все ходы кроме последнего
+        for (size_t i = 0; i < moveHistory.size(); ++i) {
+            newSgf.addMove(moveHistory[i]);
+        }
+        sgf = newSgf;
+        moveNumber--;
         currentPlayer = lastMove.color;
+        
+        if (lastMove.isPass) {
+            passes--;
+            if (passes < 0) passes = 0;
+        }
+        
+        cout << "Ход отменен. Текущий игрок: " 
+             << (currentPlayer == Color::Black ? "Черные" : "Белые") << "\n";
+        
+        // saveGame("temp_undo.sgf");
         
         return true;
     }
     
-    // НОРМ
     string getSGF() const {
         return sgf.generateSGF();
     }
     
-    //ВРОДЕ НОРМ (ПРОВЕРИТЬ)
     bool saveGame(const string& filename) const {
         return sgf.saveToFile(filename);
     }
     
-    
-    // ПОСМОТРЕТЬ БОЛЬШЕ( МБ ЭТО НЕ БУДЕТ РАБОТАТЬ, НО ИДЕЯ С ВРЕМЕННЫМ ФАЙЛОМ ХОРОШАЯ)
     void sendToFile() {
-        // Сохраняем текущую позицию в SGF
         string sgfContent = getSGF();
         
         // Можно сохранить во временный файл
@@ -207,16 +286,10 @@ public:
         temp << sgfContent;
         temp.close();
         
-        // Здесь можно вызвать GnuGo с этим файлом
-        // system("gnugo -l temp_game.sgf --mode gtp");
-        
         cout << "Игра сохранена в temp_game.sgf для GnuGo\n";
     }
     
-    
-    
-    // НЕТ СМЫСЛА (У НАС СВЯЗЬ С ПИТОНОМ ЧЕРЕЗ МЕТОДЫ , НО НЕ ЧЕРЕЗ КОНСОЛЬ)(МОЖНО ОСТАВИТЬ ДЛЯ ТЕСТОВ)(ПЕРЕДЕЛАТЬ ДЛЯ ПИТОНА)
-    void makeMove_console() {
+    void makeMove_console() {// пусть пока останется для тестов
         int x, y;
         while (true) {
             cout << "Введите x y (0 0 для паса, u для отмены, s для сохранения): ";
@@ -268,14 +341,12 @@ public:
                 break;
             }
             
-            x--; y--; // в 0-индексацию
+            x--; y--;
             Position p{x, y};
             
             if (board.addStone(p, currentPlayer)) {
-                recordMove(x, y, false); // Записываем обычный ход
+                recordMove(x, y, false);
                 passes = 0;
-                
-                // Здесь можно обновить счет захваченных
                 currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
                 break;
             } else {
@@ -283,31 +354,7 @@ public:
             }
         }
     }
-    
-    //БУДЕТ ЧЕРЕЗ ПИТОН
-    void showScore() {
-        cout << "In progress";
-        // auto [black, white] = board.countScore();
-        
-        // cout << "\n=== СЧЕТ ===\n";
-        // cout << "Территория черных: " << black << "\n";
-        // cout << "Территория белых: " << white << "\n";
-        
-        // double finalBlack = black + whiteCaptured;
-        // double finalWhite = white + blackCaptured + KOMI;
-        
-        // cout << "ИТОГО:\n";
-        // cout << "Черные: " << finalBlack << "\n";
-        // cout << "Белые: " << finalWhite << "\n";
-        
-        // if (finalBlack > finalWhite) {
-        //     cout << "Победили черные!\n";
-        //     sgf.setResult("B+" + to_string(finalBlack - finalWhite));
-        // } else {
-        //     cout << "Победили белые!\n";
-        //     sgf.setResult("W+" + to_string(finalWhite - finalBlack));
-        // }
-    }
+    void showScore(){}// через питон
     
     void loop() {
         while (!gameOver) {
@@ -318,8 +365,7 @@ public:
         }
     }
 };
-//ОЧЕВИДНО АДАПТИРОВАТЬ
-int main(){
+int main(){// тоже наверно через питон
     Game game;
     game.loop();
     return 0;
