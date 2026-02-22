@@ -1,7 +1,0 @@
-B:/FOLDER/study/4tm/OS/GO/OS_GO/core/build/CMakeFiles/go_engine.dir
-B:/FOLDER/study/4tm/OS/GO/OS_GO/core/build/CMakeFiles/edit_cache.dir
-B:/FOLDER/study/4tm/OS/GO/OS_GO/core/build/CMakeFiles/rebuild_cache.dir
-B:/FOLDER/study/4tm/OS/GO/OS_GO/core/build/CMakeFiles/list_install_components.dir
-B:/FOLDER/study/4tm/OS/GO/OS_GO/core/build/CMakeFiles/install.dir
-B:/FOLDER/study/4tm/OS/GO/OS_GO/core/build/CMakeFiles/install/local.dir
-B:/FOLDER/study/4tm/OS/GO/OS_GO/core/build/CMakeFiles/install/strip.dir
