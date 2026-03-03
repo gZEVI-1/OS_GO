@@ -1,9 +1,15 @@
 import go_engine as go
-
+from enum import Enum
 # Создание игры 19x19
 game = go.Game(19)
 
-# Получение доски
+
+
+print(go.Color.Black)
+
+
+
+
 board = game.get_board()
 print(f"Board size: {board.get_size()}")
 

@@ -12,10 +12,10 @@ PYBIND11_MODULE(go_engine, m) {
     m.doc() = "Go game engine with SGF support";
     
     // Color enum
-    // py::enum_<Color>(m, "Color")
-    //     .value("None", Color::None)
-    //     .value("Black", Color::Black)
-    //     .value("White", Color::White);
+    py::enum_<Color>(m, "Color")
+        .value("None", Color::None)
+        .value("Black", Color::Black)
+        .value("White", Color::White);
     
     // Position struct
     py::class_<Position>(m, "Position")
