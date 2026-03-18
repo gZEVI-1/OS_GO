@@ -49,7 +49,7 @@ def sgf(cmd: str) -> str:
     while True:
         line = gtp_process.stdout.readline()
         if not line:
-            break  # процесс завершился
+            break  
         line = line.rstrip("\n")
         if line == "":
             break
@@ -70,11 +70,11 @@ def load_sgf_file(sgf_path: str) -> str:
 
     
 
-"""
+
 def gtp_game():
     print(gtp("boardsize 9"))
     print(gtp("clear_board"))
-    print(gtp("showboard"))  # Показать доску
+    print(gtp("showboard"))  
     while True:
 
         move = gtp("genmove b")[1::]
@@ -90,8 +90,7 @@ def gtp_game():
         print(f"Ход белых: {move}")
         print(gtp("showboard"))
 
-"""
 
-#
+gtp_game()
 gtp_process.stdin.close()
 gtp_process.wait()
