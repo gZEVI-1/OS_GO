@@ -5,7 +5,7 @@
 #include <set>
 #include <iostream>
 #include <algorithm>
-
+using namespace std;
 enum class Color
 {
     None,
@@ -140,6 +140,26 @@ public:
           koPoint{-1, -1},
           hasKo(false)
     {
+    }
+    
+    Board(const Board& other) 
+        : grid(other.grid),
+          groups(other.groups),
+          size(other.size),
+          koPoint(other.koPoint),
+          hasKo(other.hasKo)
+    {}
+    
+    // Оператор присваивания (для полноты)
+    Board& operator=(const Board& other) {
+        if (this != &other) {
+            grid = other.grid;
+            groups = other.groups;
+            size = other.size;
+            koPoint = other.koPoint;
+            hasKo = other.hasKo;
+        }
+        return *this;
     }
 
     int getSize() const { return size; }
@@ -370,4 +390,5 @@ public:
             std::cout << "\n";
         }
     }
+    friend class Game;
 };

@@ -39,6 +39,7 @@ public:
 class Game {
 private:
     Board board;
+    Board legalMoves;
     Color currentPlayer = Color::Black;
     int passes = 0;
     bool gameOver = false;
@@ -48,6 +49,9 @@ private:
     
 public:
     Game(int n = 9);
+    bool isOk(Position& p, Board& b, Color playerColor);// функция проверки хода на возможность
+    Board rePosMoves(Board& releBoard, Color playerColor);// функция, которая подсчитывает доску возможных ходов 
+    Board& getLegalMoves(){ return legalMoves;}// функция, которая возвращает доску возможных ходов
     void recordMove(int x, int y, bool isPass = false);
     bool undoLastMove();
     std::string getSGF() const;
