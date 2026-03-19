@@ -1,3 +1,4 @@
 /core/build
 game.sgf
 /interface/.qtcreator
+/core/__pycache__
