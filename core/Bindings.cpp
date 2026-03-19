@@ -80,8 +80,8 @@ PYBIND11_MODULE(go_engine, m) {
     // Game class
     py::class_<Game>(m, "Game")
         .def(py::init<int>(), py::arg("size") = 9)
-        .def("is_ok", &Game::isOk, py::arg("pos"), py::arg("board"))
-        .def("re_pos_moves", &Game::rePosMoves, py::arg("rele_board"))
+        .def("is_ok", &Game::isOk, py::arg("pos"), py::arg("board"), py::arg("player_color"))
+        .def("re_pos_moves", &Game::rePosMoves, py::arg("rele_board"), py::arg("player_color"))
         .def("get_legal_moves", &Game::getLegalMoves, py::return_value_policy::reference)
         .def("record_move", &Game::recordMove, py::arg("x"), py::arg("y"), py::arg("is_pass") = false)
         .def("undo_last_move", &Game::undoLastMove)
