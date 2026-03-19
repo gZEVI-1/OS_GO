@@ -112,7 +112,7 @@ def play_game():
     
     while game_active:
         clear_screen()
-        
+        legal_moves = game.get_legal_moves()################################
         current_player = game.get_current_player()
         if current_player == go.Color.Black:
             player_name = black_name
@@ -130,6 +130,7 @@ def play_game():
         print("-" * 60)
         
         print_board(board)
+        print_board(legal_moves)#########################################1
         
         if game.is_game_over():
             print("\n" + "=" * 60)

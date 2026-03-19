@@ -100,6 +100,7 @@ bool SGFGame::saveToFile(const std::string& filename) const
 
 Game::Game(int n)
     : board(n),
+      legalMoves(n),
       currentPlayer(Color::Black),
       passes(0),
       gameOver(false),
@@ -175,6 +176,77 @@ bool Game::saveGame(const std::string& filename) const
     return sgf.saveToFile(filename);
 }
 
+// bool Game::isOk(Position& p, Board& b)
+// {
+//     // Проверка: не занята ли клетка
+//     if (b.getColor(p) != Color::None)
+//         return false;
+    
+//     // Проверка: не является ли ход запрещенным правилом ко
+//     if (b.hasKo && p.x == b.koPoint.x && p.y == b.koPoint.y)
+//         return false;
+    
+//     Board tempBoard = b;  // Предполагается, что у Board есть конструктор копирования
+    
+//     return tempBoard.addStone(p, getCurrentPlayer());// addStone сама проверит не приводит ли ход к самоубийству
+// }
+
+
+
+
+// Board Game::rePosMoves(Board& releBoard)
+// {///////////////////
+//     int bSize = releBoard.getSize();
+//     Board posMoves(bSize);
+//     Position pos;
+//     for(int i = 0; i < bSize; i++)
+//     {
+//         for(int j =0; j < bSize; j++)
+//         {
+//             pos.x = i;
+//             pos.y = j;
+//         posMoves.grid[i][j] = (isOk(pos,releBoard)) ? Color::Black : Color::None;
+//             }
+//         }
+//     return posMoves;
+// }
+
+bool Game::isOk(Position& p, Board& b, Color playerColor)
+{
+    // Проверка: не занята ли клетка
+    if (b.getColor(p) != Color::None)
+        return false;
+    
+    // Проверка: не является ли ход запрещенным правилом ко
+    if (b.hasKo && p.x == b.koPoint.x && p.y == b.koPoint.y)
+        return false;
+    
+    // Проверка на самоубийство через временную копию
+    // addStone вернет false, если после хода группа игрока будет без дамэ
+    Board tempBoard = b;
+    return tempBoard.addStone(p, playerColor);
+}
+
+Board Game::rePosMoves(Board& releBoard, Color playerColor)
+{
+    int bSize = releBoard.getSize();
+    Board posMoves(bSize);
+    Position pos;
+    
+    for(int i = 0; i < bSize; i++)
+    {
+        for(int j = 0; j < bSize; j++)
+        {
+            pos.x = i;
+            pos.y = j;
+            // Явно передаем цвет игрока для проверки
+            bool isLegal = isOk(pos, releBoard, playerColor);
+            posMoves.grid[i][j] = isLegal ? Color::Black : Color::None;
+        }
+    }
+    return posMoves;
+}
+
 void Game::makeMove(int x, int y, bool isPass)
 {
     if (isPass || (x == -1 && y == -1))
@@ -189,15 +261,46 @@ void Game::makeMove(int x, int y, bool isPass)
         else
         {
             currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
+            // Обновляем legalMoves для нового текущего игрока
+            legalMoves = rePosMoves(board, currentPlayer);
         }
         return;
     }
 
     Position p{x, y};
     if (board.addStone(p, currentPlayer))
-    {
+    {   
         recordMove(x, y, false);
         passes = 0;
+        // Переключаем игрока ПЕРЕД вычислением ходов
         currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
+        // Теперь legalMoves содержит ходы для нового текущего игрока
+        legalMoves = rePosMoves(board, currentPlayer);
     }
 }
+// void Game::makeMove(int x, int y, bool isPass)
+// {
+//     if (isPass || (x == -1 && y == -1))
+//     {
+//         recordMove(-1, -1, true);
+//         passes++;
+//         if (passes >= 2)
+//         {
+//             gameOver = true;
+//             sgf.setResult("Void");
+//         }
+//         else
+//         {
+//             currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
+//         }
+//         return;
+//     }
+
+//     Position p{x, y};
+//     if (board.addStone(p, currentPlayer))
+//     {   legalMoves = rePosMoves(board);
+//         recordMove(x, y, false);
+//         passes = 0;
+//         currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
+//     }
+//}
