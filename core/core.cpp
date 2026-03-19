@@ -188,8 +188,11 @@ bool Game::isOk(Position& p, Board& b)
     
     Board tempBoard = b;  // Предполагается, что у Board есть конструктор копирования
     
-     return tempBoard.addStone(p, getCurrentPlayer());
+    return tempBoard.addStone(p, getCurrentPlayer());// addStone сама проверит не приводит ли ход к самоубийству
 }
+
+
+
 
 Board Game::rePosMoves(Board& releBoard)
 {///////////////////
