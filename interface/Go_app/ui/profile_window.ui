@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>profile_window</class>
+ <widget class="QDialog" name="profile_window">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>156</width>
+    <height>250</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QDialog {
+    background-color: white;
+    border: 2px solid #4CAF50;
+    border-radius: 10px;
+}
+
+QLabel#avatarLabel {
+    border: 2px solid #4CAF50;
+    border-radius: 25px;
+
+}
+
+QPushButton#closeButton {
+    background-color: #4CAF50;
+    border-radius: 5px;
+    color: white;
+    padding: 8px 16px;
+    font-weight: bold;
+    min-width: 100px;
+}
+
+QPushButton#buttonClose:hover {
+    background-color: #45a049;
+}</string>
+  </property>
+  <widget class="QLabel" name="avatarLabel">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>10</y>
+     <width>51</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>avatarLabel</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="nameLabel">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>70</y>
+     <width>111</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>nameLabel</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="ratingLabel">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>100</y>
+     <width>111</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>ratingLabel</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="winsLabel">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>130</y>
+     <width>111</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>winsLabel</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lossesLabel">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>160</y>
+     <width>111</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>lossesLabel</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="countryLabel">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>190</y>
+     <width>111</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>countryLabel</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="buttonClose">
+   <property name="geometry">
+    <rect>
+     <x>92</x>
+     <y>218</y>
+     <width>51</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Close</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>751</width>
+    <height>543</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QPushButton#loginButton{
+    background-color: #4CAF50;
+    border-radius: 12px;  
+    color: white;
+}</string>
+  </property>
+  <widget class="QPushButton" name="guestButton">
+   <property name="geometry">
+    <rect>
+     <x>290</x>
+     <y>200</y>
+     <width>161</width>
+     <height>61</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#guestButton{
+    background-color: #4CAF50;
+    border-radius: 10px;  
+    color: white;
+}</string>
+   </property>
+   <property name="text">
+    <string>openMainWind</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="loginButton">
+   <property name="geometry">
+    <rect>
+     <x>290</x>
+     <y>270</y>
+     <width>161</width>
+     <height>61</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#loginButton{
+    background-color: #4CAF50;
+    border-radius: 10px;  
+    color: white;
+}</string>
+   </property>
+   <property name="text">
+    <string>openLoginWind</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

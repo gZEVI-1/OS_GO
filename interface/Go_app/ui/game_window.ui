@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>main</class>
+ <widget class="QWidget" name="main">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>752</width>
+    <height>543</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="GoBoardWidget" name="boardWidget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>30</y>
+     <width>421</width>
+     <height>421</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="playerAvatar">
+   <property name="geometry">
+    <rect>
+     <x>480</x>
+     <y>390</y>
+     <width>54</width>
+     <height>54</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#playerAvatar {
+    border: 2px solid #4CAF50;           /* зеленая рамка */
+    border-radius: 25px;                  /* половина от ширины/высоты */
+    background-color: transparent;        /* прозрачный фон */
+    min-width: 50px;                      /* фиксированный размер */
+    min-height: 50px;
+    max-width: 50px;
+    max-height: 50px;
+}
+
+/* Эффект при наведении */
+QPushButton#playerAvatar:hover{
+    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+    opacity: 0.8;
+}</string>
+   </property>
+   <property name="text">
+    <string>playerAvatar</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="opponentAvatar">
+   <property name="geometry">
+    <rect>
+     <x>480</x>
+     <y>30</y>
+     <width>54</width>
+     <height>54</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#opponentAvatar {
+    border: 2px solid #4CAF50;           /* зеленая рамка */
+    border-radius: 25px;                  /* половина от ширины/высоты */
+    background-color: transparent;        /* прозрачный фон */
+    min-width: 50px;                      /* фиксированный размер */
+    min-height: 50px;
+    max-width: 50px;
+    max-height: 50px;
+}
+
+/* Эффект при наведении */
+QPushButton#opponentAvatar:hover{
+    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+    opacity: 0.8;
+}</string>
+   </property>
+   <property name="text">
+    <string>opponentAvatar</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="playerName">
+   <property name="geometry">
+    <rect>
+     <x>540</x>
+     <y>400</y>
+     <width>81</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>playerName</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="opponentName">
+   <property name="geometry">
+    <rect>
+     <x>540</x>
+     <y>40</y>
+     <width>81</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>opponentName</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="timer">
+   <property name="geometry">
+    <rect>
+     <x>660</x>
+     <y>120</y>
+     <width>81</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>timer</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="buttonPass">
+   <property name="geometry">
+    <rect>
+     <x>640</x>
+     <y>220</y>
+     <width>101</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#buttonPass {
+    background-color: #4CAF50;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 15px;
+    font-size: 12px;
+}
+QPushButton#buttonPass:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+   </property>
+   <property name="text">
+    <string>Pass</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="buttonResign">
+   <property name="geometry">
+    <rect>
+     <x>640</x>
+     <y>280</y>
+     <width>101</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#buttonResign {
+    background-color: #4CAF50;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 15px;
+    font-size: 12px;
+}
+QPushButton#buttonResign:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+   </property>
+   <property name="text">
+    <string>Resign</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="buttonChat">
+   <property name="geometry">
+    <rect>
+     <x>500</x>
+     <y>270</y>
+     <width>101</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#buttonChat {
+    background-color: #2196F3;
+    border-radius: 5px;
+    color: white;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+QPushButton#buttonChat:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+   </property>
+   <property name="text">
+    <string>Chat</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="capturedBTplayer">
+   <property name="geometry">
+    <rect>
+     <x>660</x>
+     <y>400</y>
+     <width>51</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>capPlayer</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="capturedBToppnent">
+   <property name="geometry">
+    <rect>
+     <x>660</x>
+     <y>40</y>
+     <width>51</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>capOppnent</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="buttonPrevMove">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>460</y>
+     <width>201</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#buttonPrevMove {
+    background-color: #FF9800;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 20px;
+    font-size: 12px;
+}
+QPushButton#buttonPrevMove:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+   </property>
+   <property name="text">
+    <string>PrevMove</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="buttonNextMove">
+   <property name="geometry">
+    <rect>
+     <x>260</x>
+     <y>460</y>
+     <width>201</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton#buttonNextMove {
+    background-color: #FF9800;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 20px;
+    font-size: 12px;
+}
+QPushButton#buttonNextMove:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+   </property>
+   <property name="text">
+    <string>NextMove</string>
+   </property>
+  </widget>
+  <widget class="QListWidget" name="historyList">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>500</y>
+     <width>421</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>GoBoardWidget</class>
+   <extends>QWidget</extends>
+   <header>core.go_board_widget</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
