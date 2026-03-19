@@ -1,4 +1,10 @@
 /core/build
+game.sgf
+/interface/.qtcreator
+/core/__pycache__
+/interface/Go_app/generated/__pycache__
+/interface/Go_app/core/__pycache__
+/interface/Go_app/windows/__pycache__
 
 /core/__pycache__
 /.vscode
