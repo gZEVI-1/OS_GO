@@ -4,5 +4,4 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "go_engine"
-version = "1.0.0"
 description = "Go game engine with SGF support"

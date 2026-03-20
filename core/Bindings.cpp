@@ -6,11 +6,17 @@
 #include "Board_new.h"
 #include "core.h"
 
+#ifndef PROJECT_VERSION
+#define PROJECT_VERSION "1.1.0"
+#endif
+
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(go_engine, m) {
     m.doc() = "Go game engine with SGF support";
-    
+    m.attr("__version__") = PROJECT_VERSION;
+
     py::enum_<Color>(m, "Color")
         .value("None", Color::None)
         .value("Black", Color::Black)
