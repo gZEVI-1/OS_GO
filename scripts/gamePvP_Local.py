@@ -117,10 +117,10 @@ def play_game():
         current_player = game.get_current_player()
         if current_player == go.Color.Black:
             player_name = black_name
-            player_symbol = "● Черные"
+            player_symbol = "○ Черные"
         else:
             player_name = white_name
-            player_symbol = "○ Белые"
+            player_symbol = "● Белые"
         
         print("=" * 60)
         print(f"           ИГРА ГО ({size}x{size})")
