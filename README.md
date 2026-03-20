@@ -25,7 +25,6 @@
         -DPython3_FIND_STRATEGY=LOCATION \
         -G "MinGW Makefiles"
         cmake --build build
-    
     потом:
         cd build
         cp go_engine*.pyd /mingw64/lib/python3.14/site-packages/

@@ -6,11 +6,17 @@
 #include "Board_new.h"
 #include "core.h"
 
+#ifndef PROJECT_VERSION
+#define PROJECT_VERSION "1.1.4"
+#endif
+
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(go_engine, m) {
     m.doc() = "Go game engine with SGF support";
-    
+    m.attr("__version__") = PROJECT_VERSION;
+
     py::enum_<Color>(m, "Color")
         .value("None", Color::None)
         .value("Black", Color::Black)
@@ -86,8 +92,9 @@ PYBIND11_MODULE(go_engine, m) {
         .def("record_move", &Game::recordMove, py::arg("x"), py::arg("y"), py::arg("is_pass") = false)
         .def("undo_last_move", &Game::undoLastMove)
         .def("get_sgf", &Game::getSGF)
-        .def("save_game", &Game::saveGame)
-        .def("make_move", &Game::makeMove, py::arg("x"), py::arg("y"), py::arg("is_pass") = false)
+        .def("save_game", [](Game& self, const std::string& filepath) {
+                return self.saveGame(filepath);
+            }, py::arg("filepath"), "Сохраняет игру в SGF файл по указанному пути (создаёт директории при необходимости)")        .def("make_move", &Game::makeMove, py::arg("x"), py::arg("y"), py::arg("is_pass") = false)
         .def("is_game_over", &Game::isGameOver)
         .def("get_current_player", &Game::getCurrentPlayer)
         .def("get_move_number", &Game::getMoveNumber)
