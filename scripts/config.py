@@ -19,4 +19,4 @@ def get_sgf_path(game_mode: str="autosave", filename: str = None) -> Path:
     else:
         filename = f"{filename}.sgf"
     
-    return GAMES_DIR / game_mode / filename
+    return str(GAMES_DIR / game_mode / filename)
