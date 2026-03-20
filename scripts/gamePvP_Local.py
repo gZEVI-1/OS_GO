@@ -2,6 +2,7 @@ import go_engine as go
 import os
 import time
 import GnuGo_Integration as gnugo
+import config as cfg
 GNUGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bot", "gnugo-3.8", "gnugo.exe")
 
 def clear_screen():
@@ -213,15 +214,11 @@ def play_game():
             print("Попробуйте снова.")
             time.sleep(1)
     
-    if input("\n💾 Сохранить игру в SGF файл? (y/n): ").lower() == 'y':
-        filename = f"go_game_{time.strftime('%Y%m%d_%H%M%S')}.sgf"
-        if game.save_game(filename):
-            print(f"✅ Игра сохранена в {filename}")
-        else:
-            print("❌ Ошибка при сохранении")
-        
-        print("\n📄 SGF содержимое:")
-        print(game.get_sgf())
+    
+    filename = cfg.get_sgf_path(game_mode="pvp")
+    print(filename)
+    if game.save_game(filename):
+        print(f"✅ Игра сохранена в {filename}")
     
     print("\n👋 До свидания!")
 

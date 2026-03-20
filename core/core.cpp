@@ -1,6 +1,7 @@
 // core.cpp
 #include "core.h"
 #include <iostream>
+#include <filesystem>
 
 SGFGame::SGFGame(int size)
 {
@@ -90,7 +91,7 @@ std::string SGFGame::generateSGF() const
 
 bool SGFGame::saveToFile(const std::string& filename) const
 {
-    std::ofstream file(filename);
+    std::ofstream file(filename); 
     if (!file.is_open())
         return false;
     file << generateSGF();
@@ -171,9 +172,17 @@ std::string Game::getSGF() const
     return sgf.generateSGF();
 }
 
-bool Game::saveGame(const std::string& filename) const
+bool Game::saveGame(const std::string& filepath) const
 {
-    return sgf.saveToFile(filename);
+    // Создаём директории если нужно
+    std::filesystem::path p(filepath);
+    if (!p.parent_path().empty())
+    {
+        std::filesystem::create_directories(p.parent_path());
+    }
+    
+    // Передаём полный путь в sgf.saveToFile
+    return sgf.saveToFile(filepath);
 }
 
 // bool Game::isOk(Position& p, Board& b)

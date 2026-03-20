@@ -55,7 +55,7 @@ public:
     void recordMove(int x, int y, bool isPass = false);
     bool undoLastMove();
     std::string getSGF() const;
-    bool saveGame(const std::string& filename) const;
+    bool saveGame(const std::string& filepath) const;
     void makeMove(int x, int y, bool isPass = false);
     bool isGameOver() const { return gameOver; }
     Color getCurrentPlayer() const { return currentPlayer; }

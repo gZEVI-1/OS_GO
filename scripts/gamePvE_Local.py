@@ -3,6 +3,7 @@ import os
 import time
 import subprocess
 import GnuGo_Integration as gnugo
+import config as cfg
 
 GNUGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bot", "gnugo-3.8", "gnugo.exe")
 
@@ -414,10 +415,10 @@ def play_vs_gnugo():
     stop_gnugo()
     
     #в файл sgf
-    if input("\n💾 Сохранить игру в SGF файл? (y/n): ").lower() == 'y':
-        filename = f"go_vs_gnugo_{time.strftime('%Y%m%d_%H%M%S')}.sgf"
-        if game.save_game(filename):
-            print(f"✅ Игра сохранена в {filename}")
+    
+    filename = cfg.get_sgf_path(game_mode="pve")
+    if game.save_game(filename):
+        print(f"✅ Игра сохранена в {filename}")
     
     print("\n👋 До свидания!")
 
