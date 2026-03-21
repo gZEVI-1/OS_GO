@@ -106,74 +106,74 @@ class GnuGoAnalyzer:
         
         return None
     
-    # def get_detailed_scores(self, sgf_content, board_size=19):
-    #     """
-    #     Получает детальный подсчет очков с оценкой территории
-    #     """
-    #     try:
-    #         #SGF во временный файл
-    #         sgf_file = os.path.join(self.temp_dir, "game_detailed.sgf")
-    #         with open(sgf_file, 'w', encoding='utf-8') as f:
-    #             f.write(sgf_content)
+    def get_detailed_scores(self, sgf_content, board_size=19):
+        """
+        Получает детальный подсчет очков с оценкой территории
+        """
+        try:
+            #SGF во временный файл
+            sgf_file = os.path.join(self.temp_dir, "game_detailed.sgf")
+            with open(sgf_file, 'w', encoding='utf-8') as f:
+                f.write(sgf_content)
             
-    #         #командный файл
-    #         cmd_file = os.path.join(self.temp_dir, "commands_detailed.txt")
-    #         with open(cmd_file, 'w') as f:
-    #             f.write(f"loadsgf {sgf_file}\n")
-    #             f.write("estimate_score\n")
-    #             f.write("final_score\n")
-    #             f.write("quit\n")
+            #командный файл
+            cmd_file = os.path.join(self.temp_dir, "commands_detailed.txt")
+            with open(cmd_file, 'w') as f:
+                f.write(f"loadsgf {sgf_file}\n")
+                f.write("estimate_score\n")
+                f.write("final_score\n")
+                f.write("quit\n")
             
-    #         #команды в консоль
-    #         cmd = f'type "{cmd_file}" | "{self.gnugo_path}" --mode gtp --boardsize {board_size} --chinese-rules --capture-all-dead --komi 6.5'
+            #команды в консоль
+            cmd = f'type "{cmd_file}" | "{self.gnugo_path}" --mode gtp --boardsize {board_size} --chinese-rules --capture-all-dead --komi 6.5'
             
-    #         result = subprocess.run(
-    #             cmd,
-    #             shell=True,
-    #             capture_output=True,
-    #             text=True,
-    #         )
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
             
-    #         #парсинг
-    #         return self._parse_detailed_output(result.stdout)
+            #парсинг
+            return self._parse_detailed_output(result.stdout)
             
-    #     except Exception as e:
-    #         print(f"❌ Ошибка при детальном анализе: {e}")
-    #         return None
+        except Exception as e:
+            print(f"❌ Ошибка при детальном анализе: {e}")
+            return None
     
-    # def _parse_detailed_output(self, output):
-    #     """
-    #     Парсит детальный вывод с оценкой территории
-    #     """
-    #     if not output:
-    #         return None
+    def _parse_detailed_output(self, output):
+        """
+        Парсит детальный вывод с оценкой территории
+        """
+        if not output:
+            return None
         
-    #     lines = output.strip().split('\n')
-    #     result = {}
+        lines = output.strip().split('\n')
+        result = {}
         
-    #     for line in lines:
-    #         line = line.strip()
+        for line in lines:
+            line = line.strip()
             
-    #         if 'estimate_score' in line.lower() and '=' in line:
-    #             continue
-    #         elif '=' in line and ('black' in line.lower() or 'white' in line.lower()):
-    #             estimate = line.replace('=', '').strip()
-    #             result['estimate'] = estimate
+            if 'estimate_score' in line.lower() and '=' in line:
+                continue
+            elif '=' in line and ('black' in line.lower() or 'white' in line.lower()):
+                estimate = line.replace('=', '').strip()
+                result['estimate'] = estimate
             
-    #         elif 'B+' in line or 'W+' in line:
-    #             final = line.replace('=', '').strip()
-    #             result['final'] = final
+            elif 'B+' in line or 'W+' in line:
+                final = line.replace('=', '').strip()
+                result['final'] = final
                 
-    #             if '+' in final:
-    #                 color, points = final.split('+')
-    #                 try:
-    #                     points = float(points)
-    #                     result['winner'] = 'Черные' if color.upper() == 'B' else 'Белые'
-    #                     result['margin'] = points
-    #                 except:
-    #                     pass
+                if '+' in final:
+                    color, points = final.split('+')
+                    try:
+                        points = float(points)
+                        result['winner'] = 'Черные' if color.upper() == 'B' else 'Белые'
+                        result['margin'] = points
+                    except:
+                        pass
         
-    #     return result
+        return result
     
     def cleanup(self):
         """Очищает временные файлы"""

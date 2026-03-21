@@ -1,7 +1,7 @@
 import go_engine as go
 import os
 import time
-import GnuGo_Integration as gnugo
+import scripts.GnuGo_Analyzer as gnugo
 import config as cfg
 GNUGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bot", "gnugo-3.8", "gnugo.exe")
 
@@ -59,7 +59,7 @@ def get_player_move(player_name, move_number):
                 return {'is_pass': False, 'quit': True}
             
             
-            letter = move_input[0].upper()
+            letter = move_input[0].upper()############ выспринимает i как h( поменять)
             if letter >= 'I':
                 x = ord(letter) - ord('A') - 1
             else:
