@@ -28,6 +28,12 @@
     потом:
         cd build
         cp go_engine*.pyd /mingw64/lib/python3.14/site-packages/
+        cp go_engine*.pyd ..
+        cd ..
+        mv go_engine*.pyd ..
+        cd ..
+        mv go_engine*.pyd scripts
+        cd core
     если python  не 3.14й то поменять путь 
 
     (впоследствии pacman команды можно не выполнять )
