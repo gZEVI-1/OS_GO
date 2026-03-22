@@ -2,6 +2,7 @@ import os
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QPixmap
 from PySide6.QtCore import Qt, QRect, QPoint, Signal
+import go_engine as go
 
 class GoBoardWidget(QWidget):
     cell_clicked = Signal(int, int)
@@ -10,33 +11,26 @@ class GoBoardWidget(QWidget):
     invalid_move = Signal(int, int)
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(421, 421)
-        self.board_size = 19
-        self.margin = 20
-        self.cell_size = 0
-        self.board_state = None
-        self.last_move = None
-        self.current_player = 1
-        
-        # CORE_API_HERE 
-        self.core_api = None
-        
-        self.board_color = QColor(222, 184, 135)
-        self.line_color = Qt.black
-        self.black_stone_color = QColor(30, 30, 30)
-        self.white_stone_color = Qt.white
-        self.highlight_color = QColor(255, 0, 0, 100)
-        self.use_images = False
-        self.black_stone = None
-        self.white_stone = None
-        self.update_cell_size()
-        self.board_state = [[0 for _ in range(self.board_size)] for _ in range(self.board_size)]
+            super().__init__(parent)
+            self.setFixedSize(421, 421)
+            self.board_size = 19
+            self.margin = 20
+            self.cell_size = 0
+            self.board_state = [[0 for _ in range(self.board_size)] for _ in range(self.board_size)]
+            self.last_move = None
+            self.current_player = 1
+            self.core_api = None
+            self.board_color = QColor(222, 184, 135)
+            self.line_color = Qt.black
+            self.black_stone_color = QColor(30, 30, 30)
+            self.white_stone_color = Qt.white
+            self.highlight_color = QColor(255, 0, 0, 100)
+            self.update_cell_size()
 
     def set_core_api(self, core_api):
-        # REAL_CORE_CONNECT 
         self.core_api = core_api
         self.update_from_core()
+
 
     def set_board_size(self, size):
         self.board_size = size
@@ -57,18 +51,11 @@ class GoBoardWidget(QWidget):
         super().resizeEvent(event)
 
     def update_from_core(self):
-        # CORE_STATE_SYNC 
         if self.core_api:
-            self.board_state = self.core_api.get_board()
-            self.current_player = self.core_api.get_current_player()
-        self.update()
-
-    def clear_board(self):
-        if self.core_api:
-            self.board_state = [[0 for _ in range(self.board_size)] for _ in range(self.board_size)]
-        else:
-            self.board_state = [[0 for _ in range(self.board_size)] for _ in range(self.board_size)]
-        self.last_move = None
+            board = self.core_api.get_board()
+            self.board_state = board.get_board_array()
+            player = self.core_api.get_current_player()
+            self.current_player = 1 if player == go.Color.Black else 2
         self.update()
 
     def mousePressEvent(self, event):
@@ -78,22 +65,35 @@ class GoBoardWidget(QWidget):
         if 0 <= row < self.board_size and 0 <= col < self.board_size:
             self.cell_clicked.emit(row, col)
 
+
     def request_move(self, row, col):
-        #CORE_MOVE_CALL
         if not self.core_api:
             return False
-        result = self.core_api.make_move(row, col)
-        if result and result.get('success'):
+        
+        player = self.current_player
+        success = self.core_api.make_move(col, row, False)
+        
+        if success:
             self.last_move = (row, col)
             self.update_from_core()
-            self.move_made.emit(row, col, self.current_player)
+            self.move_made.emit(row, col, player)
+            
             if self.core_api.is_game_over():
-                winner = self.core_api.get_winner()
-                self.game_over.emit(winner)
+                self.game_over.emit(0)  
             return True
         else:
             self.invalid_move.emit(row, col)
             return False
+
+    def pass_move(self):
+        if not self.core_api:
+            return False
+        success = self.core_api.make_move(0, 0, True)
+        if success:
+            self.update_from_core()
+            return True
+        return False
+    
 
     def paintEvent(self, event):
         painter = QPainter(self)
