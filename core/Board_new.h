@@ -134,6 +134,21 @@ private:
     }
 
 public:
+
+    // Возвращает массив состояния доски: 0=пусто, 1=чёрные, 2=белые
+    std::vector<std::vector<int>> getBoardArray() const {
+        std::vector<std::vector<int>> result(size, std::vector<int>(size, 0));
+        for (int y = 0; y < size; ++y) {
+            for (int x = 0; x < size; ++x) {
+                Color c = grid[x][y];
+                if (c == Color::Black) result[x][y] = 1;
+                else if (c == Color::White) result[x][y] = 2;
+                // else остаётся 0 (пусто)
+            }
+        }
+        return result;
+    }
+
     Board(int n)
         : grid(n, std::vector<Color>(n, Color::None)),
           size(n),

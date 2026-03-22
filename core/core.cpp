@@ -256,7 +256,7 @@ Board Game::rePosMoves(Board& releBoard, Color playerColor)
     return posMoves;
 }
 
-void Game::makeMove(int x, int y, bool isPass)
+bool Game::makeMove(int x, int y, bool isPass)
 {
     if (isPass || (x == -1 && y == -1))
     {
@@ -273,7 +273,7 @@ void Game::makeMove(int x, int y, bool isPass)
             // Обновляем legalMoves для нового текущего игрока
             legalMoves = rePosMoves(board, currentPlayer);
         }
-        return;
+        return true;
     }
 
     Position p{x, y};
@@ -281,11 +281,11 @@ void Game::makeMove(int x, int y, bool isPass)
     {   
         recordMove(x, y, false);
         passes = 0;
-        // Переключаем игрока ПЕРЕД вычислением ходов
         currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
-        // Теперь legalMoves содержит ходы для нового текущего игрока
         legalMoves = rePosMoves(board, currentPlayer);
+        return true;  // ход успешен
     }
+    return false;  // ход отклонён
 }
 // void Game::makeMove(int x, int y, bool isPass)
 // {

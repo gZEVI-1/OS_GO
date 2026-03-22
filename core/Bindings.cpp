@@ -7,7 +7,7 @@
 #include "core.h"
 
 #ifndef PROJECT_VERSION
-#define PROJECT_VERSION "1.1.4"
+#define PROJECT_VERSION "1.1.6"
 #endif
 
 
@@ -50,6 +50,8 @@ PYBIND11_MODULE(go_engine, m) {
     // Board class
     py::class_<Board>(m, "Board")
         .def(py::init<int>())
+        
+        .def("get_board_array", py::overload_cast<>(&Board::getBoardArray, py::const_))
         .def("get_size", &Board::getSize)
         .def("get_color", py::overload_cast<const Position&>(&Board::getColor, py::const_))
         .def("get_color", py::overload_cast<int, int>(&Board::get_color, py::const_))
@@ -94,7 +96,8 @@ PYBIND11_MODULE(go_engine, m) {
         .def("get_sgf", &Game::getSGF)
         .def("save_game", [](Game& self, const std::string& filepath) {
                 return self.saveGame(filepath);
-            }, py::arg("filepath"), "Сохраняет игру в SGF файл по указанному пути (создаёт директории при необходимости)")        .def("make_move", &Game::makeMove, py::arg("x"), py::arg("y"), py::arg("is_pass") = false)
+            }, py::arg("filepath"), "Сохраняет игру в SGF файл по указанному пути (создаёт директории при необходимости)")        
+        .def("make_move", &Game::makeMove, py::arg("x"), py::arg("y"), py::arg("is_pass") = false, "Делает ход. Возвращает True если ход принят, False если отклонён")
         .def("is_game_over", &Game::isGameOver)
         .def("get_current_player", &Game::getCurrentPlayer)
         .def("get_move_number", &Game::getMoveNumber)

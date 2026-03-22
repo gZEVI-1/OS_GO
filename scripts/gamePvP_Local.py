@@ -1,7 +1,7 @@
 import go_engine as go
 import os
 import time
-import scripts.GnuGo_Analyzer as gnugo
+import GnuGo_Analyzer as gnugo
 import config as cfg
 GNUGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bot", "gnugo-3.8", "gnugo.exe")
 
@@ -199,13 +199,17 @@ def play_game():
         
         try:
             if move['is_pass']:
-                game.make_move(-1, -1, True)
+                fl=game.make_move(-1, -1, True)
+                #print('\\\\\\\\\\\\\\\\',fl)
                 print(f"\n⏸️ {player_name} сделал пас")
                 if game.get_passes() >= 2:
                     print("🎯 Два паса подряд - игра окончена!")
                 time.sleep(1)
             else:
-                game.make_move(move['x'], move['y'], False)
+                fl=game.make_move(move['x'], move['y'], False)
+                # print('\\\\\\\\\\\\\\\\',fl)
+                # print(game.get_board().get_board_array())
+                
                 print(f"\n✅ {player_name} сходил в {chr(65 + move['x'])}{move['y'] + 1}")
                 time.sleep(0.5)
                 
