@@ -55,13 +55,19 @@ class GoBoardWidget(QWidget):
         self.update()
         super().resizeEvent(event)
 
+   
     def update_from_core(self):
         if self.core_api:
             board = self.core_api.get_board()
-            self.board_state = board.get_board_array()
+            raw_board = board.get_board_array()   
+            self.board_state = [
+                [raw_board[x][y] for x in range(self.board_size)]
+                for y in range(self.board_size)
+            ]
             player = self.core_api.get_current_player()
             self.current_player = 1 if player == go.Color.Black else 2
         self.update()
+
 
     def mousePressEvent(self, event):
         pos = event.position().toPoint()
