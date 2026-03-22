@@ -2,6 +2,11 @@ import os
 from PySide6.QtWidgets import QDialog
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
+# from generated.ui_profile_window import Ui_profile_window
+import sys
+from pathlib import Path
+root_path = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.append(str(root_path / "interface" / "Go_app" ))
 from generated.ui_profile_window import Ui_profile_window
 
 class ProfileWindow(QDialog):
