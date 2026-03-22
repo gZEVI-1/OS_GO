@@ -18,3 +18,8 @@ game.sgf
 /.vscode
 >>>>>>> Stashed changes
 /.vscode
+/scripts/__pycache__
+/interface/Go_app/generated/__pycache__
+/interface/Go_app/windows/__pycache__
+/interface/Go_app/windows/__pycache__
+*/__pycache__
