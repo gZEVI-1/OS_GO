@@ -1,6 +1,7 @@
 // core.cpp
 #include "core.h"
 #include <iostream>
+#include <filesystem>
 
 SGFGame::SGFGame(int size)
 {
@@ -90,7 +91,7 @@ std::string SGFGame::generateSGF() const
 
 bool SGFGame::saveToFile(const std::string& filename) const
 {
-    std::ofstream file(filename);
+    std::ofstream file(filename); 
     if (!file.is_open())
         return false;
     file << generateSGF();
@@ -171,9 +172,17 @@ std::string Game::getSGF() const
     return sgf.generateSGF();
 }
 
-bool Game::saveGame(const std::string& filename) const
+bool Game::saveGame(const std::string& filepath) const
 {
-    return sgf.saveToFile(filename);
+    // Создаём директории если нужно
+    std::filesystem::path p(filepath);
+    if (!p.parent_path().empty())
+    {
+        std::filesystem::create_directories(p.parent_path());
+    }
+    
+    // Передаём полный путь в sgf.saveToFile
+    return sgf.saveToFile(filepath);
 }
 
 // bool Game::isOk(Position& p, Board& b)
@@ -247,7 +256,7 @@ Board Game::rePosMoves(Board& releBoard, Color playerColor)
     return posMoves;
 }
 
-void Game::makeMove(int x, int y, bool isPass)
+bool Game::makeMove(int x, int y, bool isPass)
 {
     if (isPass || (x == -1 && y == -1))
     {
@@ -264,7 +273,7 @@ void Game::makeMove(int x, int y, bool isPass)
             // Обновляем legalMoves для нового текущего игрока
             legalMoves = rePosMoves(board, currentPlayer);
         }
-        return;
+        return true;
     }
 
     Position p{x, y};
@@ -272,11 +281,11 @@ void Game::makeMove(int x, int y, bool isPass)
     {   
         recordMove(x, y, false);
         passes = 0;
-        // Переключаем игрока ПЕРЕД вычислением ходов
         currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
-        // Теперь legalMoves содержит ходы для нового текущего игрока
         legalMoves = rePosMoves(board, currentPlayer);
+        return true;  // ход успешен
     }
+    return false;  // ход отклонён
 }
 // void Game::makeMove(int x, int y, bool isPass)
 // {
