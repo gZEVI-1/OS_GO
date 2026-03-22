@@ -2,12 +2,29 @@ import sys
 import os
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Qt
-from generated.ui_game_window import Ui_main 
+
+#НЕ ТАК
+# from generated.ui_game_window import Ui_main 
+# from windows.base_window import BaseWindow
+# from windows.profile_window import ProfileWindow
+# import go_engine  as go
+# from GnuGo_Analyzer import get_winner
+
+
+import sys
+from pathlib import Path
+root_path = Path(__file__).resolve().parent.parent.parent.parent
+# print(f"Project root: {root_path}")
+
+sys.path.append(str(root_path / "scripts"))
+import go_engine as go
+from GnuGo_Analyzer import get_winner
+
+sys.path.append(str(root_path / "interface" / "Go_app" ))
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
-import go_engine as go
-sys.path.append("D:\GO\OS_GO\scripts")
-from GnuGo_Analyzer import get_winner
+from generated.ui_game_window import Ui_main 
+
 
 class GameWindow(BaseWindow):
     def __init__(self, navigation, board_size=19, core_api=None):

@@ -1,6 +1,11 @@
 import sys
 from PySide6.QtWidgets import QApplication
 from windows.game_window import GameWindow
+import sys
+from pathlib import Path
+root_path = Path(__file__).resolve().parent.parent.parent
+print(f"Project root: {root_path}")
+sys.path.append(str(root_path / "scripts"))
 import go_engine as go
 
 

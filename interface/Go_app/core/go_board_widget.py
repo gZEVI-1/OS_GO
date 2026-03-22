@@ -2,6 +2,11 @@ import os
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QPixmap
 from PySide6.QtCore import Qt, QRect, QPoint, Signal
+import sys
+from pathlib import Path
+root_path = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.append(str(root_path / "scripts"))
+
 import go_engine as go
 
 class GoBoardWidget(QWidget):
