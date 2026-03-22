@@ -1,3 +1,4 @@
+
 import subprocess
 import os
 import tempfile
@@ -13,6 +14,7 @@ class GnuGoAnalyzer:
         self.gnugo_path = gnugo_path
         self.temp_dir = os.path.join(tempfile.gettempdir(), f"gnugo_analysis_{int(time.time())}")
         os.makedirs(self.temp_dir, exist_ok=True)
+    
     
     def analyze_sgf(self, sgf_content, board_size=19):
         """
@@ -232,8 +234,7 @@ def get_winner(sgf_content: str, board_size: int = 19) -> int:
             cmd,
             shell=True,
             capture_output=True,
-            text=True,
-            timeout=30
+            text=True
         )
         
         # Парсинг результата
@@ -287,8 +288,8 @@ def get_score(sgf_content: str, board_size: int = 19) -> dict:
             cmd,
             shell=True,
             capture_output=True,
-            text=True,
-            timeout=30
+            text=True
+            
         )
         
         scores = {'black': 0, 'white': 0, 'komi': 6.5, 'diff': 0, 'winner': 0}
