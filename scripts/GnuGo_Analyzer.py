@@ -199,3 +199,154 @@ def check_gnugo_available(gnugo_path):
         return result.returncode == 0
     except:
         return False
+    
+
+def get_winner(sgf_content: str, board_size: int = 19) -> int:
+
+    """
+    Определяет победителя через GNU Go.
+    Возвращает: 1 (чёрные), 2 (белые), 0 (ничья), -1 (ошибка)
+    """
+    if not os.path.exists(gnugo_path):
+        print(f"❌ GNU Go не найден: {gnugo_path}")
+        return -1
+    
+    temp_dir = tempfile.mkdtemp()
+    try:
+        # SGF во временный файл
+        sgf_file = os.path.join(temp_dir, "game.sgf")
+        with open(sgf_file, 'w', encoding='utf-8') as f:
+            f.write(sgf_content)
+        
+        # Команды для GNU Go
+        cmd_file = os.path.join(temp_dir, "commands.txt")
+        with open(cmd_file, 'w') as f:
+            f.write(f"loadsgf {sgf_file}\n")
+            f.write("final_score\n")
+            f.write("quit\n")
+        
+        # Запуск
+        cmd = f'type "{cmd_file}" | "{gnugo_path}" --mode gtp --boardsize {board_size} --chinese-rules --komi 6.5'
+        
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        # Парсинг результата
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if line.startswith('='):
+                result_str = line[1:].strip()
+                
+                if result_str.startswith('B+'):
+                    return 1  # чёрные победили
+                elif result_str.startswith('W+'):
+                    return 2  # белые победили
+                elif result_str == '0' or 'jigo' in result_str.lower():
+                    return 0  # ничья
+        
+        return -1  # не удалось определить
+        
+    except Exception as e:
+        print(f"❌ Ошибка при определении победителя: {e}")
+        return -1
+    finally:
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+def get_score(sgf_content: str, board_size: int = 19) -> dict:
+    """
+    Возвращает словарь с очками: {'black': X, 'white': Y, 'diff': Z}
+    или None при ошибке
+    """
+    if not os.path.exists(gnugo_path):
+        print(f"❌ GNU Go не найден: {gnugo_path}")
+        return None
+    
+    temp_dir = tempfile.mkdtemp()
+    try:
+        sgf_file = os.path.join(temp_dir, "game.sgf")
+        with open(sgf_file, 'w', encoding='utf-8') as f:
+            f.write(sgf_content)
+        
+        # Используем estimate_score для живых групп + territory для деталей
+        cmd_file = os.path.join(temp_dir, "commands.txt")
+        with open(cmd_file, 'w') as f:
+            f.write(f"loadsgf {sgf_file}\n")
+            f.write("estimate_score\n")  # оценка территории
+            f.write("final_score\n")    # финальный счёт
+            f.write("quit\n")
+        
+        cmd = f'type "{cmd_file}" | "{gnugo_path}" --mode gtp --boardsize {board_size} --chinese-rules --komi 6.5'
+        
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        scores = {'black': 0, 'white': 0, 'komi': 6.5, 'diff': 0, 'winner': 0}
+        
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            
+            # Парсим estimate_score (пример: "= Black wins by 12.5 points")
+            if 'estimate_score' in line.lower() or ('black' in line.lower() and 'wins by' in line.lower()):
+                # Можно извлечь примерную разницу
+                match = re.search(r'(\d+\.?\d*)', line)
+                if match:
+                    scores['estimated_diff'] = float(match.group(1))
+            
+            # Парсим final_score (пример: "= B+12.5" или "= W+3.5")
+            if line.startswith('=') and ('B+' in line or 'W+' in line or line.strip() == '= 0'):
+                result_str = line[1:].strip()
+                
+                if result_str.startswith('B+'):
+                    margin = float(result_str[2:])
+                    scores['winner'] = 1
+                    scores['diff'] = margin
+                    # Приблизительно: чёрные получили коми + разницу
+                    scores['black'] = margin + 6.5  # условно
+                    scores['white'] = 6.5
+                    
+                elif result_str.startswith('W+'):
+                    margin = float(result_str[2:])
+                    scores['winner'] = 2
+                    scores['diff'] = margin
+                    scores['white'] = margin + 6.5
+                    scores['black'] = 0
+                    
+                elif result_str == '0':
+                    scores['winner'] = 0
+                    scores['diff'] = 0
+                    scores['black'] = 6.5
+                    scores['white'] = 6.5
+        
+        return scores if scores['winner'] != 0 or scores['diff'] != 0 else None
+        
+    except Exception as e:
+        print(f"❌ Ошибка при подсчёте очков: {e}")
+        return None
+    finally:
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+def get_score_simple(sgf_content: str, board_size: int = 19) -> float:
+    """
+    Возвращает разницу очков: положительная = чёрные впереди, отрицательная = белые
+    """
+    scores = get_score(sgf_content, board_size)
+    if not scores:
+        return 0.0
+    
+    if scores['winner'] == 1:
+        return scores['diff']  # +X чёрные побеждают
+    elif scores['winner'] == 2:
+        return -scores['diff']  # -X белые побеждают
+    return 0.0  # ничья
