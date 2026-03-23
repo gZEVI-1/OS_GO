@@ -1,51 +1,76 @@
-=============РАЗДЕЛ 1===============
-1) УСТАНОВКА БИБЛИОТЕКИ GO_ENGINE 
+# === РАЗДЕЛ 1 (Для разработчиков)===
+## 0) Про MSYS2 и MinGW
 
-    0. установить msys2 в с:\msys64    (https://www.msys2.org)
+Для более быстрой и удобной скачки, сборки и настройки библиотек и фреймворков мы используем (и вам рекомендуем) платформу для разработки MSYS2
+с набором инструментов MinGW64. В дальнейшем все инструкции по скачке и настройке написаны для него
 
-    1. отктыть mingw64.exe
+### Установка и настройка
 
-    2. выполнить :
-        cd /буква диска(маленькая)/Пусть/к/проекту/.../core
-    обязательно / вместо \, маленькая буква диска без : и без кирилицы
+-  С сайта https://www.msys2.org скачать версию соответствующую вашей архитектуре 
+-  Установить msys2 в с:\msys64
+-  Прописать с:\msys64\mingw64\bin в path
+-  Открыть mingw64.exe и прописать 
+```
+pacman -Syu
+```
+Команда обновляет базу данных пакетов и затем обновляет всю установленную систему до последних версий. Советуем выполнять её регулярно.
 
-    3. последовательно выполнить группы команд :
-        pacman -Syu
-        
+**Все дальнейшие bash команды в инструкции производятся именно в mingw64.exe**
 
-    потом :
-        pacman -S mingw-w64-x86_64-python
-        pacman -S mingw-w64-x86_64-python-pip
-        pacman -S mingw-w64-x86_64-pybind11
-        pacman -S mingw-w64-x86_64-cmake
-        pacman -S mingw-w64-x86_64-gcc
-        pacman -S mingw-w64-x86_64-pyside6
+# 1) Установка необходимых инструментов для разработки  
 
-    потом:
-        rm -rf build/*
-        cmake -S . -B build \
-        -DPython3_EXECUTABLE="/mingw64/bin/python.exe" \
-        -DPython3_FIND_STRATEGY=LOCATION \
-        -G "MinGW Makefiles"
-        cmake --build build
-    потом:
-        cd build
-        cp go_engine*.pyd /mingw64/lib/python3.14/site-packages/
-        cp go_engine*.pyd ..
-        cd ..
-        mv go_engine*.pyd ..
-        cd ..
-        mv go_engine*.pyd scripts
-        cd core
-    если python  не 3.14й то поменять путь 
+-  В mingw64 выполнить следующие команды 
+```
+pacman -S mingw-w64-x86_64-python
+pacman -S mingw-w64-x86_64-python-pip
+pacman -S mingw-w64-x86_64-gcc
+pacman -S mingw-w64-x86_64-g++
+pacman -S mingw-w64-x86_64-pybind11
+pacman -S mingw-w64-x86_64-cmake       
+pacman -S mingw-w64-x86_64-pyside6
+```
+Должны установиться соответствующие инструменты. Если произошла какая-то ошибка, попробуйте повторить действия из п.0
 
-    (впоследствии pacman команды можно не выполнять )
+*в mingw64 (как и в любом unix терминале) не работает ctrl+c/v, для вставки команд используйте win+v для копирования из буфера или shift+insert (как ctrl+v)* 
+	
+-  Проверить установку с:\msys64\mingw64\bin
+-  Поставить в вашей IDE необходимую версию Python из mingw64
 
-    в core должна появиться папка build а в ней файл с расширением .pyd
+# 2) Сборка и установка нашей библиотеки GO_ENGINE
 
-    4. в path выбрать питон из msys64\mingw64\bin
-    5. в IDE выбрать тот же питон 
-        (с VS code могут быть ошибки, нужно удалить из path все остальные варианты питона, возможно поменять данные в json файле)
-    6. запустить core\test_lib.py и убедиться в установке 
+-  Открыть **mingw64.exe** и выполнить:
+```
+cd /буква диска(маленькая)/.../Пусть/к/проекту/.../core
+```
+Обязательно / вместо \ , маленькая буква диска без ":" и без кириллицы 
 
+-  Собрать *go_engine* с помощью следующих команд:
+```
+rm -rf build/*
+cmake -S . -B build \
+	-DPython3_EXECUTABLE="/mingw64/bin/python.exe" \
+	-DPython3_FIND_STRATEGY=LOCATION \
+	-G "MinGW Makefiles"
+cmake --build build
+```
+В */core* должна появиться папка *build* , а в ней файл *go_engine.pyd*
 
+-  Установим библиотеку глобально:
+```
+cd build
+cp go_engine*.pyd /mingw64/lib/python3.14/site-packages/
+```
+Если python не 3.14-й ,то поменять путь 
+
+-  Запустить core\test_lib.py и убедиться в установке
+-  Опционально:
+```
+cp go_engine*.pyd ..
+cd ..
+mv go_engine*.pyd ..
+cd ..
+mv go_engine*.pyd scripts
+cd core
+```
+Данные команды закинут файл с библиотекой в нужную папку проекта
+(опционально т.к. и так стоит глобально)
