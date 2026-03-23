@@ -10,13 +10,16 @@
     обязательно / вместо \, маленькая буква диска без : и без кирилицы
 
     3. последовательно выполнить группы команд :
+        pacman -Syu
+        
+
+    потом :
         pacman -S mingw-w64-x86_64-python
         pacman -S mingw-w64-x86_64-python-pip
         pacman -S mingw-w64-x86_64-pybind11
         pacman -S mingw-w64-x86_64-cmake
-
-    потом :
-        pacman -Syu
+        pacman -S mingw-w64-x86_64-gcc
+        pacman -S mingw-w64-x86_64-pyside6
 
     потом:
         rm -rf build/*
