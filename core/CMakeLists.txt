@@ -5,6 +5,18 @@ project(go_engine)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+execute_process(
+    COMMAND python -c "import pybind11; print(pybind11.get_cmake_dir())"
+    OUTPUT_VARIABLE PYBIND11_CMAKE_DIR
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(PYBIND11_CMAKE_DIR)
+    list(APPEND CMAKE_PREFIX_PATH ${PYBIND11_CMAKE_DIR})
+    message(STATUS "pybind11 CMake dir found: ${PYBIND11_CMAKE_DIR}")
+endif()
+
 # Находим Python и pybind11
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11  REQUIRED)
