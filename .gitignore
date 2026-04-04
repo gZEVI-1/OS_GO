@@ -26,3 +26,6 @@ game.sgf
 /interface/Go_app/windows/__pycache__
 /interface/Go_app/windows/__pycache__
 /interface/Go_app/windows/__pycache__
+/scripts
+/core/.vscode
+/interface/Go_app/core/__pycache__
