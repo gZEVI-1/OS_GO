@@ -157,6 +157,7 @@ python -m pip install --upgrade pip
 pip install pybind11
 
 source venv/Scripts/activate
+pip install pyside6
 pip install cmake
 ```
 #### 4) Собрать библиотеку GO_ENGINE
