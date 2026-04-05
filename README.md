@@ -154,10 +154,7 @@ source venv/Scripts/activate
 ```bash
 python -m pip install --upgrade pip
 
-deactivate 
 pip install pybind11
-source venv/Scripts/activate
-
 pip install pyside6
 pip install cmake
 ```
