@@ -236,7 +236,7 @@ def get_winner(sgf_content: str, board_size: int = 19) -> int:
             cmd,
             shell=True,
             capture_output=True,
-            text=True
+            text=True,
             timeout=None
         )
         
@@ -291,7 +291,7 @@ def get_score(sgf_content: str, board_size: int = 19) -> dict:
             cmd,
             shell=True,
             capture_output=True,
-            text=True
+            text=True,
             timeout=None
             
         )
