@@ -44,6 +44,7 @@ class GnuGoAnalyzer:
                 shell=True,
                 capture_output=True,
                 text=True,
+                timeout=None
             )
             
             # print(f"✅ Процесс завершен с кодом: {result.returncode}")
@@ -134,6 +135,7 @@ class GnuGoAnalyzer:
                 shell=True,
                 capture_output=True,
                 text=True,
+                timeout=None
             )
             
             #парсинг
@@ -196,7 +198,7 @@ def check_gnugo_available(gnugo_path):
             shell=True,
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=115
         )
         return result.returncode == 0
     except:
@@ -235,6 +237,7 @@ def get_winner(sgf_content: str, board_size: int = 19) -> int:
             shell=True,
             capture_output=True,
             text=True
+            timeout=None
         )
         
         # Парсинг результата
@@ -289,6 +292,7 @@ def get_score(sgf_content: str, board_size: int = 19) -> dict:
             shell=True,
             capture_output=True,
             text=True
+            timeout=None
             
         )
         
