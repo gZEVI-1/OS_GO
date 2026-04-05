@@ -198,7 +198,7 @@ def check_gnugo_available(gnugo_path):
             shell=True,
             capture_output=True,
             text=True,
-            timeout=115
+            timeout=100
         )
         return result.returncode == 0
     except:
