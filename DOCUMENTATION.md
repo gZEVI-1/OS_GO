@@ -10,56 +10,58 @@
 
 # Документация
 
-- [[#Перечисления|Перечисления]]
-	- [[#Перечисления#`Color`|`Color`]]
-- [[#Структуры данных|Структуры данных]]
-	- [[#Структуры данных#`Position`|`Position`]]
-	- [[#Структуры данных#`Move`|`Move`]]
-- [[#Классы|Классы]]
-	- [[#Классы#`Group`|`Group`]]
-		- [[#`Group`#`contains(x: int, y: int) -> bool`|`contains(x: int, y: int) -> bool`]]
-		- [[#`Group`#`add_stone(x: int, y: int) -> None`|`add_stone(x: int, y: int) -> None`]]
-		- [[#`Group`#`remove_stone(x: int, y: int) -> None`|`remove_stone(x: int, y: int) -> None`]]
-		- [[#`Group`#`empty() -> bool`|`empty() -> bool`]]
-	- [[#Классы#`Board`|`Board`]]
-		- [[#`Board`#`get_board_array() -> list[list[int]]`|`get_board_array() -> list[list[int]]`]]
-		- [[#`Board`#`get_size() -> int`|`get_size() -> int`]]
-		- [[#`Board`#`get_color(pos: Position) -> Color`|`get_color(pos: Position) -> Color`]]
-		- [[#`Board`#`get_color(x: int, y: int) -> Color`|`get_color(x: int, y: int) -> Color`]]
-		- [[#`Board`#`add_stone(pos: Position, color: Color) -> bool`|`add_stone(pos: Position, color: Color) -> bool`]]
-		- [[#`Board`#`add_stone(x: int, y: int, color: Color) -> bool`|`add_stone(x: int, y: int, color: Color) -> bool`]]
-		- [[#`Board`#`remove_stone(pos: Position) -> bool`|`remove_stone(pos: Position) -> bool`]]
-		- [[#`Board`#`remove_stone(x: int, y: int) -> bool`|`remove_stone(x: int, y: int) -> bool`]]
-		- [[#`Board`#`simple_print() -> None`|`simple_print() -> None`]]
-		- [[#`Board`#`find_group_index(pos: Position) -> int`|`find_group_index(pos: Position) -> int`]]
-	- [[#Классы#`SGFGame`|`SGFGame`]]
-		- [[#`SGFGame`#`add_move(move: Move) -> None`|`add_move(move: Move) -> None`]]
-		- [[#`SGFGame`#`set_player_names(black: str, white: str) -> None`|`set_player_names(black: str, white: str) -> None`]]
-		- [[#`SGFGame`#`set_result(result: str) -> None`|`set_result(result: str) -> None`]]
-		- [[#`SGFGame`#`pos_to_sgf(pos: Position) -> str`|`pos_to_sgf(pos: Position) -> str`]]
-		- [[#`SGFGame`#`generate_sgf() -> str`|`generate_sgf() -> str`]]
-		- [[#`SGFGame`#`save_to_file(filename: str) -> bool`|`save_to_file(filename: str) -> bool`]]
-		- [[#`SGFGame`#`get_moves() -> list[Move]`|`get_moves() -> list[Move]`]]
-		- [[#`SGFGame`#`clear() -> None`|`clear() -> None`]]
-	- [[#Классы#`Game`|`Game`]]
-		- [[#`Game`#`is_ok(pos: Position, board: Board, player_color: Color) -> bool`|`is_ok(pos: Position, board: Board, player_color: Color) -> bool`]]
-		- [[#`Game`#`re_pos_moves(rele_board: Board, player_color: Color) -> Board`|`re_pos_moves(rele_board: Board, player_color: Color) -> Board`]]
-		- [[#`Game`#`get_legal_moves() -> Board`|`get_legal_moves() -> Board`]]
-		- [[#`Game`#`record_move(x: int, y: int, is_pass: bool = False) -> None`|`record_move(x: int, y: int, is_pass: bool = False) -> None`]]
-		- [[#`Game`#`undo_last_move() -> bool`|`undo_last_move() -> bool`]]
-		- [[#`Game`#`get_sgf() -> str`|`get_sgf() -> str`]]
-		- [[#`Game`#`save_game(filepath: str) -> bool`|`save_game(filepath: str) -> bool`]]
-		- [[#`Game`#`make_move(x: int, y: int, is_pass: bool = False) -> bool`|`make_move(x: int, y: int, is_pass: bool = False) -> bool`]]
-		- [[#`Game`#`is_game_over() -> bool`|`is_game_over() -> bool`]]
-		- [[#`Game`#`get_current_player() -> Color`|`get_current_player() -> Color`]]
-		- [[#`Game`#`get_move_number() -> int`|`get_move_number() -> int`]]
-		- [[#`Game`#`get_passes() -> int`|`get_passes() -> int`]]
-		- [[#`Game`#`get_board() -> Board`|`get_board() -> Board`]]
-		- [[#`Game`#`get_board_const() -> Board`|`get_board_const() -> Board`]]
-- [[#Утилитарные функции|Утилитарные функции]]
-	- [[#Утилитарные функции#`get_opponent_color(color: Color) -> Color`|`get_opponent_color(color: Color) -> Color`]]
 
-
+- [Обзор библиотеки `go_engine`](#обзор-библиотекиgo_engine)
+- [Документация](#документация)
+	- [Перечисления](#перечисления)
+		- [`Color`](#color)
+	- [Структуры данных](#структуры-данных)
+		- [`Position`](#position)
+		- [`Move`](#move)
+	- [Классы](#классы)
+		- [`Group`](#group)
+			- [`contains(x: int, y: int) -> bool`](#containsx-int-y-int---bool)
+			- [`add_stone(x: int, y: int) -> None`](#add_stonex-int-y-int---none)
+			- [`remove_stone(x: int, y: int) -> None`](#remove_stonex-int-y-int---none)
+			- [`empty() -> bool`](#empty---bool)
+		- [`Board`](#board)
+			- [`get_board_array() -> list[list[int]]`](#get_board_array---listlistint)
+			- [`get_size() -> int`](#get_size---int)
+			- [`get_color(pos: Position) -> Color`](#get_colorpos-position---color)
+			- [`get_color(x: int, y: int) -> Color`](#get_colorx-int-y-int---color)
+			- [`add_stone(pos: Position, color: Color) -> bool`](#add_stonepos-position-color-color---bool)
+			- [`add_stone(x: int, y: int, color: Color) -> bool`](#add_stonex-int-y-int-color-color---bool)
+			- [`remove_stone(pos: Position) -> bool`](#remove_stonepos-position---bool)
+			- [`remove_stone(x: int, y: int) -> bool`](#remove_stonex-int-y-int---bool)
+			- [`simple_print() -> None`](#simple_print---none)
+			- [`find_group_index(pos: Position) -> int`](#find_group_indexpos-position---int)
+		- [`SGFGame`](#sgfgame)
+			- [`add_move(move: Move) -> None`](#add_movemove-move---none)
+			- [`set_player_names(black: str, white: str) -> None`](#set_player_namesblack-str-white-str---none)
+			- [`set_result(result: str) -> None`](#set_resultresult-str---none)
+			- [`pos_to_sgf(pos: Position) -> str`](#pos_to_sgfpos-position---str)
+			- [`generate_sgf() -> str`](#generate_sgf---str)
+			- [`save_to_file(filename: str) -> bool`](#save_to_filefilename-str---bool)
+			- [`get_moves() -> list[Move]`](#get_moves---listmove)
+			- [`clear() -> None`](#clear---none)
+		- [`Game`](#game)
+			- [`is_ok(pos: Position, board: Board, player_color: Color) -> bool`](#is_okpos-position-board-board-player_color-color---bool)
+			- [`re_pos_moves(rele_board: Board, player_color: Color) -> Board`](#re_pos_movesrele_board-board-player_color-color---board)
+			- [`get_legal_moves() -> Board`](#get_legal_moves---board)
+			- [`record_move(x: int, y: int, is_pass: bool = False) -> None`](#record_movex-int-y-int-is_pass-bool--false---none)
+			- [`undo_last_move() -> bool`](#undo_last_move---bool)
+			- [`get_sgf() -> str`](#get_sgf---str)
+			- [`save_game(filepath: str) -> bool`](#save_gamefilepath-str---bool)
+			- [`make_move(x: int, y: int, is_pass: bool = False) -> bool`](#make_movex-int-y-int-is_pass-bool--false---bool)
+			- [`is_game_over() -> bool`](#is_game_over---bool)
+			- [`get_current_player() -> Color`](#get_current_player---color)
+			- [`get_move_number() -> int`](#get_move_number---int)
+			- [`get_passes() -> int`](#get_passes---int)
+			- [`get_board() -> Board`](#get_board---board)
+			- [`get_board_const() -> Board`](#get_board_const---board)
+	- [Утилитарные функции](#утилитарные-функции)
+		- [`get_opponent_color(color: Color) -> Color`](#get_opponent_colorcolor-color---color)
+- [Примечания по реализации](#примечания-по-реализации)
 ## Перечисления
 
 ### `Color`
