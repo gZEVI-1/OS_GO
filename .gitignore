@@ -1,9 +1,10 @@
 /core/build
-game.sgf
+
+
 **/__pycache__/
 __pycache__/
 *.pyc
-<<<<<<< Updated upstream
+
 /interface/.qtcreator
 /core/__pycache__
 /interface/Go_app/generated/__pycache__
@@ -16,16 +17,12 @@ __pycache__/
 /interface/Go_app/core/__pycache__
 /interface/Go_app/generated/__pycache__
 /interface/Go_app/windows/__pycache__
-=======
-/.vscode
-/.vscode
->>>>>>> Stashed changes
 /.vscode
 /scripts/__pycache__
 /interface/Go_app/generated/__pycache__
 /interface/Go_app/windows/__pycache__
 /interface/Go_app/windows/__pycache__
-*/__pycache__
+
 /interface/Go_app/windows/__pycache__
 /interface/Go_app/windows/__pycache__
 /interface/Go_app/windows/__pycache__
