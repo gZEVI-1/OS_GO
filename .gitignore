@@ -1,5 +1,8 @@
 /core/build
 game.sgf
+**/__pycache__/
+__pycache__/
+*.pyc
 <<<<<<< Updated upstream
 /interface/.qtcreator
 /core/__pycache__
