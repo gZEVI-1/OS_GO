@@ -292,8 +292,12 @@ def get_score(sgf_content: str, board_size: int = 19) -> dict:
             shell=True,
             capture_output=True,
             text=True,
+<<<<<<< Updated upstream
             timeout=None
             
+=======
+            timeout=None    
+>>>>>>> Stashed changes
         )
         
         scores = {'black': 0, 'white': 0, 'komi': 6.5, 'diff': 0, 'winner': 0}
