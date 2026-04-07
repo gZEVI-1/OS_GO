@@ -1,10 +1,10 @@
 
+import re
 import subprocess
 import os
 import tempfile
-import re
-import time
 gnugo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bot", "gnugo-3.8", "gnugo.exe")
+
 class GnuGoAnalyzer:
     def __init__(self, gnugo_path):
         """
@@ -12,7 +12,7 @@ class GnuGoAnalyzer:
         :param gnugo_path: путь к исполняемому файлу GNU Go
         """
         self.gnugo_path = gnugo_path
-        self.temp_dir = os.path.join(tempfile.gettempdir(), f"gnugo_analysis_{int(time.time())}")
+        self.temp_dir = os.path.join(tempfile.gettempdir(), f"TEMP_gnugo_analysis")
         os.makedirs(self.temp_dir, exist_ok=True)
     
     
@@ -200,8 +200,7 @@ def check_gnugo_available(gnugo_path):
         )
         return result.returncode == 0
     except:
-        return False
-    
+        return False   
 
 def get_winner(sgf_content: str, board_size: int = 19) -> int:
 
@@ -339,9 +338,6 @@ def get_score(sgf_content: str, board_size: int = 19) -> dict:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 def get_score_simple(sgf_content: str, board_size: int = 19) -> float:
-    """
-    Возвращает разницу очков: положительная = чёрные впереди, отрицательная = белые
-    """
     scores = get_score(sgf_content, board_size)
     if not scores:
         return 0.0
