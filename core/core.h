@@ -36,6 +36,19 @@ public:
     void clear() { moves.clear(); }
 };
 
+class SGFParser {
+public:
+    static std::vector<Move> parseFile(const std::string& filename);
+    static std::vector<Move> parseString(const std::string& sgfContent);
+    
+    // Загружает партию в Game объект
+    static bool loadGame(Game& game, const std::string& filename);
+    
+private:
+    static std::string extractProperty(const std::string& sgf, const std::string& propName, size_t startPos);
+    static Position parsePosition(const std::string& coordStr);
+};
+
 class Game {
 private:
     Board board;
@@ -63,4 +76,6 @@ public:
     int getPasses() const { return passes; }
     Board& getBoard() { return board; }
     const Board& getBoard() const { return board; }
+    void reset(int newSize = 9);
+    bool loadFromSGF(const std::string& filename);
 };
