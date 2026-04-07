@@ -30,7 +30,7 @@ sgf = game.get_sgf()
 print(sgf)
 
 # Сохранение в файл
-game.save_game("game.sgf")
+#game.save_game("game.sgf")
 
 # Работа с цветами
  # White

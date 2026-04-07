@@ -1,0 +1,10 @@
+{
+	"python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+    "python.terminal.activateEnvironment": true,
+    "cmake.sourceDirectory": "${workspaceFolder}/core",
+    "cmake.buildDirectory": "${workspaceFolder}/core/build",
+    "files.associations": {
+        "*.cpp": "cpp",
+        "*.h": "cpp"
+    }
+}

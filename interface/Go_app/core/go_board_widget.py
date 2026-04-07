@@ -16,9 +16,8 @@ class GoBoardWidget(QWidget):
     invalid_move = Signal(int, int)
 
     def __init__(self, parent=None):
-            super().__init__(parent)
-            self.setFixedSize(421, 421)
-            self.board_size = 19
+            super().__init__(parent) 
+            self.board_size = 9
             self.margin = 20
             self.cell_size = 0
             self.board_state = [[0 for _ in range(self.board_size)] for _ in range(self.board_size)]
@@ -89,8 +88,8 @@ class GoBoardWidget(QWidget):
             self.update_from_core()
             self.move_made.emit(row, col, player)
             
-            if self.core_api.is_game_over():
-                self.game_over.emit(0)  
+            #if self.core_api.is_game_over():
+            #    self.game_over.emit(0)  
             return True
         else:
             self.invalid_move.emit(row, col)

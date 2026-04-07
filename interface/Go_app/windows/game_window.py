@@ -1,7 +1,8 @@
 import sys
 import os
-from PySide6.QtWidgets import QMessageBox
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QProgressDialog
+from PySide6.QtCore import Qt,  QThread, Signal
+
 
 #НЕ ТАК
 # from generated.ui_game_window import Ui_main 
@@ -18,16 +19,43 @@ root_path = Path(__file__).resolve().parent.parent.parent.parent
 
 sys.path.append(str(root_path / "scripts"))
 import go_engine as go
-from GnuGo_Analyzer import get_winner
 
 sys.path.append(str(root_path / "interface" / "Go_app" ))
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
 from generated.ui_game_window import Ui_main 
+import GnuGo_Analyzer as gnugo
+root_path = Path(__file__).resolve().parent.parent.parent.parent
+GNUGO_PATH = os.path.join(root_path, "bot", "gnugo-3.8", "gnugo.exe")
+print(f"GNUGO_PATH: {GNUGO_PATH}")
+print(f"Существует: {os.path.exists(GNUGO_PATH)}")
 
 
 class GameWindow(BaseWindow):
-    def __init__(self, navigation, board_size=19, core_api=None):
+    game_finished = Signal()
+
+    class GnuGoAnalysisTask(QThread):
+        finished = Signal(object)  # результат анализа
+        error = Signal(object)     # исключение
+
+        def __init__(self, sgf, board_size, gnugo_path):
+            super().__init__()
+            self.sgf = sgf
+            self.board_size = board_size
+            self.gnugo_path = gnugo_path
+
+        def run(self):
+            try:
+                analyzer = gnugo.GnuGoAnalyzer(gnugo_path=self.gnugo_path)
+                try:
+                    result = analyzer.analyze_sgf(self.sgf, self.board_size)
+                finally:
+                    analyzer.cleanup()
+                self.finished.emit(result)
+            except Exception as e:
+                self.error.emit(e)
+
+    def __init__(self, navigation, board_size=9, core_api=None):
         super().__init__(navigation)
         self.ui = Ui_main()
         self.ui.setupUi(self)
@@ -40,8 +68,8 @@ class GameWindow(BaseWindow):
         
         self.board_widget.cell_clicked.connect(self.on_cell_clicked)
         self.board_widget.move_made.connect(self.on_move_made)
-        self.board_widget.game_over.connect(self.on_game_over)
-        self.board_widget.invalid_move.connect(self.on_invalid_move)
+        #self.board_widget.game_over.connect(self.on_game_over)
+        #self.board_widget.invalid_move.connect(self.on_invalid_move)
 
         self.player_data = {
             'name': 'Игрок', 'rating': 1600, 'wins': 42, 'losses': 17,
@@ -57,10 +85,16 @@ class GameWindow(BaseWindow):
         self.ui.opponentAvatar.clicked.connect(self.show_opponent_profile)
         self.ui.buttonPass.clicked.connect(self.pass_move)
         self.ui.buttonResign.clicked.connect(self.resign)
-        self.ui.timer.setText("15:00")
+        self.ui.timerOpponent.setText("15:00")
+        self.ui.timerPlayer.setText("15:00")
         self.ui.buttonPrevMove.clicked.connect(self.prev_move)
         self.ui.buttonNextMove.clicked.connect(self.next_move)
         self.move_history = []
+        
+        self.consecutive_passes = 0  #Счетчик последовательных пасов
+        self.game_ended = False  #Флаг окончания игры
+        self.winner = None  #Победитель (1 - черные, 2 - белые)
+
         self.setWindowTitle(f"Игра Го {board_size}×{board_size}")
 
     def show_player_profile(self):
@@ -72,17 +106,130 @@ class GameWindow(BaseWindow):
         profile.exec_()
 
     def on_cell_clicked(self, row, col):
-        self.board_widget.request_move(row, col)
+        if not self.game_ended: 
+            self.board_widget.request_move(row, col)
+
 
     def on_move_made(self, row, col, player):
+        if self.game_ended:
+            return
+            
         player_name = "Черные" if player == 1 else "Белые"
         print(f"Ход {player_name}: ({row}, {col})")
+        
+        #Сбрасываем счетчик пасов при обычном ходе
+        self.consecutive_passes = 0
+        
         move_number = self.ui.historyList.count() + 1
         col_letter = chr(65 + col)
         move_text = f"{move_number}. {col_letter}{row + 1}"
         self.ui.historyList.addItem(move_text)
+        
+        #Прокручиваем историю к последнему ходу
+        self.ui.historyList.scrollToBottom()
 
-    def on_game_over(self, _):
+    def end_game_by_passes(self):
+            if self.game_ended:
+                return
+
+            self.game_ended = True
+
+            if not os.path.exists(GNUGO_PATH):
+                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
+                self.game_finished.emit()
+                return
+
+            if not gnugo.check_gnugo_available(GNUGO_PATH):
+                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
+                self.game_finished.emit()
+                return
+
+            if not self.core_api:
+                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
+                self.game_finished.emit()
+                return
+
+            sgf = self.core_api.get_sgf()
+            if not sgf or len(sgf) < 30:
+                QMessageBox.information(
+                    self, "Игра окончена",
+                    "Игра завершена двумя пасами.\nАнализ недоступен: слишком короткая партия."
+                )
+                self.game_finished.emit()
+                return
+
+            dialog = QProgressDialog("Анализируем позицию с помощью GNU Go...", "Отмена", 0, 0, self)
+            dialog.setWindowModality(Qt.WindowModal)
+            dialog.show()
+
+            self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
+            self.analysis_task.finished.connect(lambda result: self._on_analysis_finished(result, dialog))
+            self.analysis_task.error.connect(lambda e: self._on_analysis_error(e, dialog))
+            self.analysis_task.start()
+
+
+    def _on_analysis_finished(self, result, dialog):
+        dialog.close()
+
+        if result and isinstance(result, dict):
+            winner_text = result.get('winner', 'Не определен')
+            QMessageBox.information(self, "Игра окончена", f"Победитель: {winner_text}!")
+        else:
+            QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
+
+        self.game_finished.emit()
+
+
+    def _on_analysis_error(self, exception, dialog):
+        dialog.close()
+        QMessageBox.warning(
+            self, "Ошибка анализа",
+            f"Ошибка при анализе партии:\n{exception}\nИгра завершена без анализа."
+        )
+        self.game_finished.emit()
+
+    def pass_move(self):
+        print(f"=== pass_move, game_ended={self.game_ended}, consecutive_passes={self.consecutive_passes} ===")
+        
+        if self.game_ended:
+            print("Игра окончена, пас игнорируется")
+            return
+            
+        if self.board_widget.pass_move():
+            self.consecutive_passes += 1
+            move_number = self.ui.historyList.count() + 1
+            self.ui.historyList.addItem(f"{move_number}. pass")
+            self.ui.historyList.scrollToBottom()
+            print(f"Пас выполнен ({self.consecutive_passes}/2)")
+            
+            if self.consecutive_passes >= 2:
+                print("Достигнуто 2 паса, вызываем end_game_by_passes()")
+                self.end_game_by_passes()
+        else:
+            print("Пас не удался") 
+             
+
+    #def on_invalid_move(self, row, col):
+    #    print(f" Недопустимый ход в ({row}, {col})")
+
+
+    def resign(self):
+        reply = QMessageBox.question(self, "Сдаться",
+                                   "Вы уверены, что хотите сдаться?",
+                                   QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.game_ended = True 
+            QMessageBox.information(self, "Игра окончена", "Вы сдались. Победил противник!")
+            self.game_finished.emit()
+
+
+
+    '''def on_game_over(self, _):
+        if self.game_ended:
+            return
+            
+        self.game_ended = True 
+        
         if self.core_api:
             try:
                 sgf = self.core_api.get_sgf()
@@ -105,26 +252,10 @@ class GameWindow(BaseWindow):
             except Exception as e:
                 print(f" Ошибка анализа SGF: {e}")
                 QMessageBox.warning(self, "Ошибка", f"Ошибка анализа партии: {e}")
+        self.game_finished.emit()
 
-    def on_invalid_move(self, row, col):
-        print(f" Недопустимый ход в ({row}, {col})")
-
-    def pass_move(self):
-        if self.board_widget.pass_move():
-            move_number = self.ui.historyList.count() + 1
-            self.ui.historyList.addItem(f"{move_number}. pass")
-            print("Пас выполнен")
-        else:
-            print(" Пас не удался")
-
-
-    def resign(self):
-        reply = QMessageBox.question(self, "Сдаться",
-                                   "Вы уверены, что хотите сдаться?",
-                                   QMessageBox.Yes | QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            QMessageBox.information(self, "Игра окончена", "Вы сдались. Победил противник!")
-
+             
+    '''    
 
     def prev_move(self):
         current = self.ui.historyList.currentRow()
