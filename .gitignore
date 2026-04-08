@@ -1,5 +1,45 @@
 /core/build
 
+# Environment variables (КРИТИЧЕСКИ ВАЖНО)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+pip-log.txt
+
+# Database
+*.sqlite3
+*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (если есть локальные данные)
+postgres_data/
+
 
 **/__pycache__/
 __pycache__/
@@ -30,3 +70,4 @@ __pycache__/
 /core/.vscode
 /interface/Go_app/core/__pycache__
 *.pyc
+/Reg
