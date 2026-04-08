@@ -14,7 +14,7 @@
 
 namespace py = pybind11;
 
-//конвертации KataGoResult в Python dict
+// Вспомогательная функция для конвертации KataGoResult в Python dict
 py::dict kataGoResultToDict(const KataGoResult& result) {
     py::dict d;
     d["success"] = result.success;
@@ -35,6 +35,10 @@ py::dict kataGoResultToDict(const KataGoResult& result) {
 PYBIND11_MODULE(go_engine, m) {
     m.doc() = "Go game engine with SGF support and KataGo analysis";
     m.attr("__version__") = PROJECT_VERSION;
+
+    // ============================================
+    // Существующие биндинги
+    // ============================================
     
     py::enum_<Color>(m, "Color")
         .value("None", Color::None)
@@ -131,7 +135,7 @@ PYBIND11_MODULE(go_engine, m) {
         .def("get_board_const", py::overload_cast<>(&Game::getBoard, py::const_))
         .def("reset", &Game::reset, py::arg("newSize") = 9)
         .def("load_from_sgf", &Game::loadFromSGF);
-
+    
     // Структура конфигурации KataGo
     py::class_<KataGoConfig>(m, "KataGoConfig")
         .def(py::init<>())
@@ -153,8 +157,8 @@ PYBIND11_MODULE(go_engine, m) {
     
     // Результат анализа (будет возвращаться как dict, но можно и как объект)
     py::class_<KataGoResult>(m, "KataGoResult")
-        .def(py::init<>())
-        .def_readwrite("winrate", &KataGoResult::winrate)
+        .def(py::init<>())// так методы
+        .def_readwrite("winrate", &KataGoResult::winrate)// так записываются поля
         .def_readwrite("score_lead", &KataGoResult::scoreLead)
         .def_readwrite("winner", &KataGoResult::winner)
         .def_readwrite("black_score", &KataGoResult::blackScore)
