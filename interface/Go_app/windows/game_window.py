@@ -1,5 +1,6 @@
 import sys
 import os
+from copy import deepcopy
 from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QProgressDialog
 from PySide6.QtCore import Qt,  QThread, Signal
 
@@ -11,8 +12,6 @@ from PySide6.QtCore import Qt,  QThread, Signal
 # import go_engine  as go
 # from GnuGo_Analyzer import get_winner
 
-
-import sys
 from pathlib import Path
 root_path = Path(__file__).resolve().parent.parent.parent.parent
 # print(f"Project root: {root_path}")
@@ -71,6 +70,12 @@ class GameWindow(BaseWindow):
         #self.board_widget.game_over.connect(self.on_game_over)
         #self.board_widget.invalid_move.connect(self.on_invalid_move)
 
+        self.board_snapshots = []
+        self.current_snapshot_index = -1
+        self.is_navigating = False
+        self.move_descriptions = []
+
+
         self.player_data = {
             'name': 'Игрок', 'rating': 1600, 'wins': 42, 'losses': 17,
             'country': 'Россия', 'avatar_path': None
@@ -96,6 +101,112 @@ class GameWindow(BaseWindow):
         self.winner = None  #Победитель (1 - черные, 2 - белые)
 
         self.setWindowTitle(f"Игра Го {board_size}×{board_size}")
+        self.save_initial_snapshot()
+
+
+    def save_initial_snapshot(self):
+        snapshot = self.create_snapshot()
+        self.board_snapshots.append(snapshot)
+        self.current_snapshot_index = 0
+        
+        self.move_descriptions.append("Начало партии")
+        
+        self.update_navigation_buttons()
+
+    def create_snapshot(self):
+        return {
+               
+            'board_state': deepcopy(self.board_widget.board_state),
+            'current_player': self.board_widget.current_player,
+            'last_move': self.board_widget.last_move
+        }
+    
+    def restore_snapshot(self, index):
+        if not (0 <= index < len(self.board_snapshots)):
+            return False
+        snapshot = self.board_snapshots[index]
+
+        self.board_widget.board_state = deepcopy(snapshot['board_state'])
+        self.board_widget.current_player = snapshot['current_player']
+        self.board_widget.last_move = snapshot['last_move']
+        
+
+        self.board_widget.update()
+        
+        self.update_history_selection(index)
+        
+        return True
+    
+    def save_initial_snapshot(self):
+        snapshot = self.create_snapshot()
+        self.board_snapshots.append(snapshot)
+        self.current_snapshot_index = 0
+        self.move_descriptions.append("Начало партии")
+        self.update_navigation_buttons()
+
+    def save_snapshot_after_move(self, move_description):
+        if self.is_navigating:
+            return
+        if self.current_snapshot_index < len(self.board_snapshots) - 1:
+                self.board_snapshots = self.board_snapshots[:self.current_snapshot_index + 1]
+                self.move_descriptions = self.move_descriptions[:self.current_snapshot_index + 1]
+
+                self.ui.historyList.clear()
+                for desc in self.move_descriptions:
+                    self.ui.historyList.addItem(desc)
+            
+        snapshot = self.create_snapshot()
+        self.board_snapshots.append(snapshot)
+        self.move_descriptions.append(move_description)
+        self.current_snapshot_index = len(self.board_snapshots) - 1
+        
+        self.update_navigation_buttons()
+
+    def update_history_selection(self, snapshot_index):
+        if snapshot_index > 0:
+            history_index = snapshot_index - 1
+            if 0 <= history_index < self.ui.historyList.count():
+                self.ui.historyList.setCurrentRow(history_index)
+        else:
+            self.ui.historyList.clearSelection()
+
+    def update_navigation_buttons(self):
+        self.ui.buttonPrevMove.setEnabled(self.current_snapshot_index > 0)
+        self.ui.buttonNextMove.setEnabled(self.current_snapshot_index < len(self.board_snapshots) - 1)
+
+    def jump_to_latest(self):
+        if self.current_snapshot_index != len(self.board_snapshots) - 1:
+            self.is_navigating = True
+            self.current_snapshot_index = len(self.board_snapshots) - 1
+            self.restore_snapshot(self.current_snapshot_index)
+            self.is_navigating = False
+            self.update_navigation_buttons()
+            print(f"Возврат к актуальному состоянию")
+
+
+    def prev_move(self):
+        #Переход на один ход назад (только просмотр)
+        if self.current_snapshot_index > 0:
+            self.is_navigating = True
+            self.current_snapshot_index -= 1
+            self.restore_snapshot(self.current_snapshot_index)
+            self.is_navigating = False
+            self.update_navigation_buttons()
+            print(f"Навигация назад: ход {self.current_snapshot_index}/{len(self.board_snapshots)-1}")
+
+    def next_move(self):
+        #Переход на один ход вперед (только просмотр)
+        if self.current_snapshot_index < len(self.board_snapshots) - 1:
+            self.is_navigating = True
+            self.current_snapshot_index += 1
+            self.restore_snapshot(self.current_snapshot_index)
+            self.is_navigating = False
+            self.update_navigation_buttons()
+            print(f"Навигация вперед: ход {self.current_snapshot_index}/{len(self.board_snapshots)-1}")  
+
+
+
+
 
     def show_player_profile(self):
         profile = ProfileWindow(self.player_data, self)
@@ -105,28 +216,33 @@ class GameWindow(BaseWindow):
         profile = ProfileWindow(self.opponent_data, self)
         profile.exec_()
 
-    def on_cell_clicked(self, row, col):
-        if not self.game_ended: 
-            self.board_widget.request_move(row, col)
 
+    def on_cell_clicked(self, row, col):
+        if self.game_ended:
+            return
+        if self.current_snapshot_index != len(self.board_snapshots) - 1:
+            self.jump_to_latest()
+        self.board_widget.request_move(row, col)
 
     def on_move_made(self, row, col, player):
         if self.game_ended:
             return
-            
+
+        move_num = len(self.move_descriptions) - 1
+        if move_num % 2 == 0:  
+            move_number = move_num // 2 + 1
+        else:  
+            move_number = (move_num + 1) // 2
+        col_letter = chr(65 + col)
         player_name = "Черные" if player == 1 else "Белые"
-        print(f"Ход {player_name}: ({row}, {col})")
-        
+        move_desc = f"{move_number}. {player_name}: {col_letter}{row + 1}"
+        self.ui.historyList.addItem(move_desc)
+        self.ui.historyList.scrollToBottom()
+
+        self.save_snapshot_after_move(move_desc)
         #Сбрасываем счетчик пасов при обычном ходе
         self.consecutive_passes = 0
-        
-        move_number = self.ui.historyList.count() + 1
-        col_letter = chr(65 + col)
-        move_text = f"{move_number}. {col_letter}{row + 1}"
-        self.ui.historyList.addItem(move_text)
-        
-        #Прокручиваем историю к последнему ходу
-        self.ui.historyList.scrollToBottom()
+
 
     def end_game_by_passes(self):
             if self.game_ended:
@@ -194,14 +310,18 @@ class GameWindow(BaseWindow):
         if self.game_ended:
             print("Игра окончена, пас игнорируется")
             return
+        if self.current_snapshot_index != len(self.board_snapshots) - 1:
+            self.jump_to_latest()
             
         if self.board_widget.pass_move():
             self.consecutive_passes += 1
             move_number = self.ui.historyList.count() + 1
-            self.ui.historyList.addItem(f"{move_number}. pass")
+            move_desc = f"{move_number}. Пас"
+            self.ui.historyList.addItem(move_desc)
             self.ui.historyList.scrollToBottom()
             print(f"Пас выполнен ({self.consecutive_passes}/2)")
-            
+            self.save_snapshot_after_move(move_desc)
+
             if self.consecutive_passes >= 2:
                 print("Достигнуто 2 паса, вызываем end_game_by_passes()")
                 self.end_game_by_passes()
@@ -256,13 +376,3 @@ class GameWindow(BaseWindow):
 
              
     '''    
-
-    def prev_move(self):
-        current = self.ui.historyList.currentRow()
-        if current > 0:
-            self.ui.historyList.setCurrentRow(current - 1)
-
-    def next_move(self):
-        current = self.ui.historyList.currentRow()
-        if current < self.ui.historyList.count() - 1:
-            self.ui.historyList.setCurrentRow(current + 1)
