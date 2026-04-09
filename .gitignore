@@ -7,18 +7,14 @@
 .env.*.local
 .env.*
 !.env.example
+auth/.env
 
 # Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
 venv/
 ENV/
 env/
 .venv
-pip-log.txt
+
 
 # Database
 *.sqlite3
@@ -48,28 +44,11 @@ __pycache__/
 *.pyc
 
 /interface/.qtcreator
-/core/__pycache__
-/interface/Go_app/generated/__pycache__
-/interface/Go_app/core/__pycache__
-/interface/Go_app/windows/__pycache__
 
-/core/__pycache__
+
 /.vscode
 
-/interface/Go_app/core/__pycache__
-/interface/Go_app/generated/__pycache__
-/interface/Go_app/windows/__pycache__
-/.vscode
-/scripts/__pycache__
-/interface/Go_app/generated/__pycache__
-/interface/Go_app/windows/__pycache__
-/interface/Go_app/windows/__pycache__
-
-/interface/Go_app/windows/__pycache__
-/interface/Go_app/windows/__pycache__
-/interface/Go_app/windows/__pycache__
-/scripts
 /core/.vscode
-/interface/Go_app/core/__pycache__
-*.pyc
-/Reg
+
+
+
