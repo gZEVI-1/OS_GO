@@ -1,8 +1,11 @@
+# console_PVE.py
 from console_back import *
+from scripts.KataGoAdapter import KataGoGameAnalyzer, add_katago_analysis_to_session
+
 
 def run_pve_game():
-    """Запускает игру против GNUGo"""
-
+    """Запускает игру против GNU Go с поддержкой KataGo анализа"""
+    
     clear_screen()
     print("=" * 60)
     print("         ИГРА ПРОТИВ GNU GO (PvE)")
@@ -39,7 +42,6 @@ def run_pve_game():
     print("1. Играть черными (первые)")
     print("2. Играть белыми (вторые)")
     
-
     while True:
         choice = input("Ваш выбор (1-2) [1]: ").strip() or "1"
         if choice == '1':
@@ -53,8 +55,38 @@ def run_pve_game():
     
     player_name = input("\nВаше имя : ").strip() or "user"
     bot_name = "GNU Go"
+    
     # Создаем сессию
     session = create_pve_session(size, player_color, player_name, gnugo_path)
+    
+    # Добавляем KataGo анализ
+    def on_katago_analysis(result):
+        """Callback при завершении анализа KataGo"""
+        print("\n" + "=" * 60)
+        print("📊 АНАЛИЗ ОТ KATAGO")
+        print("=" * 60)
+        print(f"🏆 Победитель: {result.winner}")
+        print(f"📈 Счет: {result.full_result}")
+        print(f"⚫ Черные: {result.black_score:.1f} очков")
+        print(f"⚪ Белые: {result.white_score:.1f} очков")
+        
+        if result.best_move:
+            print(f"\n🏅 Лучший ход партии: {result.best_move} (ход #{result.best_move_number})")
+        
+        if result.top_moves:
+            print(f"\n🎯 Топ-5 ходов: {', '.join(result.top_moves[:5])}")
+        
+        # Определяем победителя для вывода сообщения
+        player_is_black = (player_color == go.Color.Black)
+        if (result.winner == "Черные" and player_is_black) or \
+           (result.winner == "Белые" and not player_is_black):
+            print("\n🎉 ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!")
+        elif result.winner != "Ничья":
+            print("\n🤖 GNU Go победил")
+        else:
+            print("\n🤝 Ничья!")
+    
+    add_katago_analysis_to_session(session, on_katago_analysis)
     
     if not session.start():
         print("❌ Не удалось запустить игру")
@@ -67,7 +99,7 @@ def run_pve_game():
             clear_screen()
             print_game_state(session)
             
-            state = session.get_current_state()#текущее состояние игры
+            state = session.get_current_state()
             
             if state['current_player_type'] == PlayerType.HUMAN:
                 move_input = get_human_move_input(
@@ -89,52 +121,15 @@ def run_pve_game():
                 
                 if not result['success']:
                     print(f"\n❌ {result['message']}")
-                    # time.sleep(1.5)
                 elif result.get('undo'):
                     print(f"\n {result['message']}")
-                    # time.sleep(0.5)
                 elif result['success'] and not result.get('game_over'):
-                    # Показываем результат хода человека
-                    print(f"\n Ход выполнен")
-                    
-                    # Если есть ответ бота
                     if result.get('bot_move'):
                         bot_move = result['bot_move']
-                        print(f"🤖 {bot_move['player_name']} сходил в {bot_move['coord_str']}")
-                        time.sleep(0.2)
+                        print(f"\n🤖 {bot_move['player_name']} сходил в {bot_move['coord_str']}")
             else:
-                # Ход бота
-                print(f"\n🤔 {state['current_player_name']} думает...")
-                time.sleep(0.5)
-                
-                # Бот ходит автоматически через make_human_move (который вызовет _make_bot_move)
+                # Ход бота происходит автоматически через make_human_move
                 pass
-        
-        # Игра окончена
-        if session.game.is_game_over():
-            clear_screen()
-            print_game_state(session)
-            
-            print("\n Анализ позиции...")
-            analyzer = gnugo.GnuGoAnalyzer(gnugo_path=gnugo_path)
-            try:
-                result = session.get_game_result(analyzer)
-                show_game_result(session, result)
-                
-                if result:
-                    winner = result.get('winner')
-                    player_is_black = (player_color == go.Color.Black)
-                    
-                    if (winner == "Черные" and player_is_black) or \
-                       (winner == "Белые" and not player_is_black):
-                        print("\n ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!")
-                    elif winner != "Ничья":
-                        print("\n GNU Go победил")
-                    else:
-                        print("\n Ничья!")
-                        
-            finally:
-                analyzer.cleanup()
         
         input("\nНажмите Enter для возврата в меню...")
         
