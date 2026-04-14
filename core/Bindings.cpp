@@ -9,7 +9,7 @@
 #include "KataGoAnalyzer.h"
 
 #ifndef PROJECT_VERSION
-#define PROJECT_VERSION "1.1.6"
+#define PROJECT_VERSION "1.1.7"
 #endif
 
 namespace py = pybind11;

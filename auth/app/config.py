@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     totp_digits: int = 6
     totp_interval: int = 30
     
+    # Email / SMTP
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_use_tls: bool = True
+    
+    # Верификация
+    verification_token_expire_hours: int = 24
+    app_url: str = "http://localhost:8000"
+    
     # НОВАЯ КОНФИГУРАЦИЯ для pydantic v2
     model_config = SettingsConfigDict(
         env_file=".env",
