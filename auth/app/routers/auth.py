@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from datetime import datetime, timedelta, timezone
 from app.database import get_db
@@ -35,6 +35,15 @@ class TOTPSetupResponse(BaseModel):
 
 class TOTPVerifyRequest(BaseModel):
     token: str  # 6-значный код
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=12)
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(..., min_length=1)
 
 
 class LoginResponse(BaseModel):
@@ -478,6 +487,67 @@ async def get_me(current_user: dict = Depends(get_current_user), db: AsyncSessio
         "is_verified": user.is_verified,
         "totp_enabled": user.totp_enabled,
     }
+
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Смена пароля"""
+    user_id = int(current_user["sub"])
+    
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one()
+    
+    # Проверка старого пароля
+    if not user.hashed_password or not password_service.verify_password(
+        data.old_password, user.hashed_password.decode()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid old password"
+        )
+    
+    # Хешируем новый пароль
+    new_hashed = password_service.hash_password(data.new_password)
+    user.hashed_password = new_hashed.encode()
+    
+    await db.commit()
+    return {"message": "Password changed successfully"}
+
+
+@router.delete("/delete-account")
+async def delete_account(
+    data: DeleteAccountRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Удаление аккаунта с подтверждением пароля"""
+    user_id = int(current_user["sub"])
+    
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one()
+    
+    # Проверка пароля
+    if not user.hashed_password or not password_service.verify_password(
+        data.password, user.hashed_password.decode()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid password"
+        )
+    
+    # Удаляем пользователя
+    await db.delete(user)
+    await db.commit()
+    
+    return {"message": "Account deleted successfully"}
 
 
 @router.get("/protected")

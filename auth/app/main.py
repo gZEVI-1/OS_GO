@@ -16,7 +16,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,10 +27,10 @@ static_path = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_path, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-# Редирект на регистрацию по корневому пути
+# Корневой путь — фронтенд
 @app.get("/")
 async def root():
-    return FileResponse(os.path.join(static_path, "register.html"))
+    return FileResponse(os.path.join(static_path, "index.html"))
 
 
 

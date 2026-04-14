@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Service</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 440px;
+            padding: 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 40px 32px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .logo p {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: #cbd5e1;
+            margin-bottom: 6px;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 14px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-size: 14px;
+            margin-bottom: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: #3b82f6;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .link {
+            color: #3b82f6;
+            cursor: pointer;
+            font-size: 13px;
+            background: none;
+            border: none;
+            text-decoration: underline;
+        }
+
+        .link:hover {
+            color: #60a5fa;
+        }
+
+        .text-center {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .alert-error {
+            background: #3b1219;
+            color: #fca5a5;
+            border: 1px solid #7f1d1d;
+        }
+
+        .alert-success {
+            background: #14532d;
+            color: #86efac;
+            border: 1px solid #166534;
+        }
+
+        .alert-info {
+            background: #1e3a5f;
+            color: #93c5fd;
+            border: 1px solid #1e40af;
+        }
+
+        .divider {
+            height: 1px;
+            background: #334155;
+            margin: 20px 0;
+        }
+
+        .code-input {
+            font-size: 24px;
+            letter-spacing: 8px;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .security-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .badge-on { color: #10b981; }
+        .badge-off { color: #f59e0b; }
+
+        .qr-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-container img,
+        .qr-container svg {
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        .secret-code {
+            font-family: monospace;
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 16px;
+            letter-spacing: 4px;
+            color: #3b82f6;
+            margin: 12px 0;
+            cursor: pointer;
+        }
+
+        .backup-codes {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #10b981;
+            line-height: 1.8;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .user-info {
+            background: #0f172a;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .user-info .email {
+            font-size: 16px;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .user-info .status {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="logo">
+                <h1>🔐 Auth Service</h1>
+                <p>FastAPI + JWT + 2FA</p>
+            </div>
+
+            <!-- ===== LOGIN ===== -->
+            <div id="page-login" class="page active">
+                <h2>Вход</h2>
+                <div id="login-alert" class="alert alert-error"></div>
+                <form id="login-form">
+                    <label>Email</label>
+                    <input type="email" id="login-email" required placeholder="you@example.com">
+                    <label>Пароль</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                    <button type="submit" class="btn btn-primary" id="login-btn">Войти</button>
+                </form>
+                <div class="text-center">
+                    Нет аккаунта? <button class="link" onclick="showPage('page-register')">Регистрация</button>
+                </div>
+            </div>
+
+            <!-- ===== REGISTER ===== -->
+            <div id="page-register" class="page">
+                <h2>Регистрация</h2>
+                <div id="register-alert" class="alert alert-error"></div>
+                <div id="register-success" class="alert alert-success"></div>
+                <form id="register-form">
+                    <label>Email</label>
+                    <input type="email" id="reg-email" required placeholder="you@example.com">
+                    <label>Пароль</label>
+                    <input type="password" id="reg-password" required placeholder="Мин. 12 символов">
+                    <label>Подтвердите пароль</label>
+                    <input type="password" id="reg-password-confirm" required placeholder="Повторите пароль">
+                    <button type="submit" class="btn btn-success" id="reg-btn">Зарегистрироваться</button>
+                </form>
+                <div class="text-center">
+                    Уже есть аккаунт? <button class="link" onclick="showPage('page-login')">Войти</button>
+                </div>
+            </div>
+
+            <!-- ===== 2FA VERIFY (at login) ===== -->
+            <div id="page-2fa-verify" class="page">
+                <h2>Код 2FA</h2>
+                <p style="color:#94a3b8; font-size:14px; margin-bottom:20px;">Введите 6-значный код из приложения</p>
+                <div id="twofa-alert" class="alert alert-error"></div>
+                <form id="twofa-verify-form">
+                    <input type="text" id="twofa-code" class="code-input" required maxlength="6" placeholder="000000">
+                    <button type="submit" class="btn btn-primary" id="twofa-btn">Подтвердить</button>
+                </form>
+                <div class="text-center">
+                    <button class="link" onclick="showPage('page-login')">← Назад</button>
+                </div>
+            </div>
+
+            <!-- ===== EMAIL VERIFY PENDING ===== -->
+            <div id="page-email-pending" class="page">
+                <h2>Подтвердите email</h2>
+                <div id="email-pending-alert" class="alert alert-info">
+                    Мы отправили письмо на <strong id="pending-email"></strong>.<br>
+                    Перейдите по ссылке для подтверждения.
+                </div>
+                <div id="email-resend-alert" class="alert alert-success" style="display:none;"></div>
+                <p style="color:#94a3b8; font-size:14px; margin-bottom:20px;">
+                    Не получили письмо?
+                </p>
+                <button class="btn btn-primary" id="resend-btn" onclick="resendVerification()">Отправить повторно</button>
+                <div class="text-center">
+                    <button class="link" onclick="showPage('page-login')">← Назад ко входу</button>
+                </div>
+            </div>
+
+            <!-- ===== VERIFY EMAIL (from link) ===== -->
+            <div id="page-email-verified" class="page">
+                <h2 id="verify-title">Проверка...</h2>
+                <div id="verify-alert" class="alert alert-info"></div>
+                <div class="text-center">
+                    <button class="btn btn-primary" onclick="showPage('page-login')">Перейти ко входу</button>
+                </div>
+            </div>
+
+            <!-- ===== 2FA SETUP ===== -->
+            <div id="page-2fa-setup" class="page">
+                <h2>Настройка 2FA</h2>
+                <p style="color:#94a3b8; font-size:14px; margin-bottom:12px;">Отсканируйте QR-код в Google Authenticator</p>
+                <div id="setup-alert" class="alert alert-error"></div>
+                <div class="qr-container" id="qr-display"></div>
+                <p style="color:#94a3b8; font-size:13px;">Или введите секрет вручную:</p>
+                <div class="secret-code" id="secret-display" onclick="copySecret()" title="Нажмите чтобы скопировать"></div>
+                <div class="divider"></div>
+                <p style="color:#94a3b8; font-size:13px; margin-bottom:8px;">Резервные коды (сохраните!):</p>
+                <div class="backup-codes" id="backup-display"></div>
+                <div class="divider"></div>
+                <form id="twofa-setup-form">
+                    <label>Введите код из приложения:</label>
+                    <input type="text" id="setup-code" class="code-input" required maxlength="6" placeholder="000000">
+                    <button type="submit" class="btn btn-success" id="setup-btn">Включить 2FA</button>
+                </form>
+                <div class="text-center">
+                    <button class="link" onclick="showPage('page-dashboard')">← Назад</button>
+                </div>
+            </div>
+
+            <!-- ===== DASHBOARD ===== -->
+            <div id="page-dashboard" class="page">
+                <h2>Личный кабинет</h2>
+                <div id="dash-alert" class="alert alert-success" style="display:none;"></div>
+                <div class="user-info">
+                    <div class="email" id="dash-email"></div>
+                    <div class="status">
+                        <span id="dash-verified"></span> · <span id="dash-2fa"></span>
+                    </div>
+                </div>
+                <div class="security-badge" id="badge-2fa"></div>
+                <div class="security-badge badge-on">✓ Пароль: Argon2id</div>
+                <div class="security-badge badge-on">✓ Сессия: JWT</div>
+                <div class="divider"></div>
+                <button class="btn btn-primary" id="setup-2fa-btn" onclick="start2faSetup()" style="margin-bottom:12px;">Включить 2FA</button>
+                <button class="btn btn-danger" id="disable-2fa-btn" onclick="disable2fa()" style="display:none; margin-bottom:12px;">Отключить 2FA</button>
+                <button class="btn btn-primary" onclick="showPage('page-change-password')" style="margin-bottom:12px;">Сменить пароль</button>
+                <button class="btn btn-danger" onclick="showDeleteConfirm()">Удалить аккаунт</button>
+                <button class="btn btn-danger" onclick="logout()">Выйти</button>
+            </div>
+            
+            <!-- ===== CHANGE PASSWORD ===== -->
+            <div id="page-change-password" class="page">
+                <h2>Смена пароля</h2>
+                <div id="changepass-alert" class="alert alert-error"></div>
+                <form id="change-password-form">
+                    <label>Старый пароль</label>
+                    <input type="password" id="old-password" required placeholder="••••••••">
+                    <label>Новый пароль</label>
+                    <input type="password" id="new-password" required placeholder="Мин. 12 символов">
+                    <label>Подтвердите новый пароль</label>
+                    <input type="password" id="new-password-confirm" required placeholder="••••••••">
+                    <button type="submit" class="btn btn-primary" id="change-pass-btn">Сменить пароль</button>
+                </form>
+                <div class="text-center">
+                    <button class="link" onclick="showPage('page-dashboard')">← Назад</button>
+                </div>
+            </div>
+            
+            <!-- ===== DELETE ACCOUNT ===== -->
+            <div id="page-delete-account" class="page">
+                <h2>Удаление аккаунта</h2>
+                <div id="delete-alert" class="alert alert-info">
+                    <strong>Внимание!</strong> Эта операция необратима. Все данные будут удалены.
+                </div>
+                <form id="delete-account-form">
+                    <label>Введите ваш текущий пароль для подтверждения</label>
+                    <input type="password" id="delete-password" required placeholder="••••••••">
+                    <button type="submit" class="btn btn-danger" id="delete-btn">Удалить аккаунт</button>
+                </form>
+                <div class="text-center">
+                    <button class="link" onclick="showPage('page-dashboard')">← Назад</button>
+                </div>
+            </div>
+        </div>
+    </div>
+                </div>
+                <div class="security-badge" id="badge-2fa"></div>
+                <div class="security-badge badge-on">✓ Пароль: Argon2id</div>
+                <div class="security-badge badge-on">✓ Сессия: JWT</div>
+                <div class="divider"></div>
+                <button class="btn btn-primary" id="setup-2fa-btn" onclick="start2faSetup()" style="margin-bottom:12px;">Включить 2FA</button>
+                <button class="btn btn-danger" id="disable-2fa-btn" onclick="disable2fa()" style="display:none; margin-bottom:12px;">Отключить 2FA</button>
+                <button class="btn btn-primary" onclick="showPage('page-change-password')" style="margin-bottom:12px;">Сменить пароль</button>
+                <button class="btn btn-danger" onclick="showDeleteConfirm()">Удалить аккаунт</button>
+                <button class="btn btn-danger" onclick="logout()">Выйти</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+        let accessToken = null;
+        let tempToken = null;
+        let setup2faData = null;
+
+        // ===== Navigation =====
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            hideAlerts();
+        }
+
+        function hideAlerts() {
+            document.querySelectorAll('.alert').forEach(a => {
+                a.style.display = 'none';
+                a.textContent = '';
+            });
+        }
+
+        function showError(elId, msg) {
+            const el = document.getElementById(elId);
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function showSuccess(elId, msg) {
+            const el = document.getElementById(elId);
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        // ===== Login =====
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlerts();
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.textContent = 'Вход...';
+
+            const body = new URLSearchParams();
+            body.append('username', document.getElementById('login-email').value);
+            body.append('password', document.getElementById('login-password').value);
+
+            try {
+                const res = await fetch(`${API}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    if (res.headers.get('x-email-verification-required')) {
+                        document.getElementById('pending-email').textContent = document.getElementById('login-email').value;
+                        showPage('page-email-pending');
+                        return;
+                    }
+                    showError('login-alert', data.detail || 'Ошибка входа');
+                    return;
+                }
+
+                if (data.requires_2fa) {
+                    tempToken = data.access_token;
+                    showPage('page-2fa-verify');
+                    return;
+                }
+
+                accessToken = data.access_token;
+                localStorage.setItem('access_token', accessToken);
+                localStorage.setItem('refresh_token', data.refresh_token);
+                loadDashboard();
+            } catch (err) {
+                showError('login-alert', 'Нет подключения к серверу');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Войти';
+            }
+        });
+
+        // ===== 2FA Verify =====
+        document.getElementById('twofa-verify-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlerts();
+            const code = document.getElementById('twofa-code').value.replace(/\D/g, '');
+
+            if (code.length !== 6) {
+                showError('twofa-alert', 'Введите 6 цифр');
+                return;
+            }
+
+            const btn = document.getElementById('twofa-btn');
+            btn.disabled = true;
+            btn.textContent = 'Проверка...';
+
+            try {
+                const res = await fetch(`${API}/auth/2fa/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tempToken}`
+                    },
+                    body: JSON.stringify({ token: code })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showError('twofa-alert', data.detail || 'Неверный код');
+                    return;
+                }
+
+                accessToken = data.access_token;
+                localStorage.setItem('access_token', accessToken);
+                localStorage.setItem('refresh_token', data.refresh_token);
+                loadDashboard();
+            } catch (err) {
+                showError('twofa-alert', 'Ошибка');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Подтвердить';
+            }
+        });
+
+        // ===== Register =====
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlerts();
+
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-password-confirm').value;
+
+            if (password !== confirm) {
+                showError('register-alert', 'Пароли не совпадают');
+                return;
+            }
+
+            if (password.length < 12) {
+                showError('register-alert', 'Пароль минимум 12 символов');
+                return;
+            }
+
+            const btn = document.getElementById('reg-btn');
+            btn.disabled = true;
+            btn.textContent = 'Создание...';
+
+            try {
+                const res = await fetch(`${API}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showError('register-alert', data.detail || 'Ошибка регистрации');
+                    return;
+                }
+
+                document.getElementById('pending-email').textContent = email;
+                showPage('page-email-pending');
+            } catch (err) {
+                showError('register-alert', 'Нет подключения к серверу');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Зарегистрироваться';
+            }
+        });
+
+        // ===== Resend Verification =====
+        async function resendVerification() {
+            hideAlerts();
+            const btn = document.getElementById('resend-btn');
+            btn.disabled = true;
+            btn.textContent = 'Отправка...';
+
+            const email = document.getElementById('pending-email').textContent;
+
+            try {
+                const res = await fetch(`${API}/auth/resend-verification`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showError('email-resend-alert', data.detail || 'Ошибка');
+                    document.getElementById('email-resend-alert').className = 'alert alert-error';
+                    return;
+                }
+
+                showSuccess('email-resend-alert', 'Письмо отправлено!');
+            } catch (err) {
+                showError('email-resend-alert', 'Ошибка');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Отправить повторно';
+            }
+        }
+
+        // ===== Verify Email (URL params) =====
+        (function checkVerifyToken() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+            if (!token) return;
+
+            window.history.replaceState({}, '', '/');
+            showPage('page-email-verified');
+
+            fetch(`${API}/auth/verify-email?token=${encodeURIComponent(token)}`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('verify-title').textContent = 'Email подтверждён!';
+                    document.getElementById('verify-alert').className = 'alert alert-success';
+                    document.getElementById('verify-alert').textContent = data.message;
+                    document.getElementById('verify-alert').style.display = 'block';
+                })
+                .catch(() => {
+                    document.getElementById('verify-title').textContent = 'Ошибка';
+                    document.getElementById('verify-alert').textContent = 'Не удалось подтвердить email';
+                    document.getElementById('verify-alert').style.display = 'block';
+                });
+        })();
+
+        // ===== 2FA Setup =====
+        async function start2faSetup() {
+            hideAlerts();
+
+            try {
+                const res = await fetch(`${API}/auth/2fa/setup`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Ошибка');
+                    return;
+                }
+
+                setup2faData = data;
+
+                document.getElementById('qr-display').innerHTML =
+                    `<img src="data:image/svg+xml;base64,${data.qr_code}" alt="QR">`;
+
+                const secret = data.secret;
+                const formatted = secret.match(/.{1,4}/g).join(' ');
+                document.getElementById('secret-display').textContent = formatted;
+
+                document.getElementById('backup-display').textContent = data.backup_codes.join('\n');
+
+                showPage('page-2fa-setup');
+            } catch (err) {
+                alert('Ошибка подключения');
+            }
+        }
+
+        document.getElementById('twofa-setup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlerts();
+            const code = document.getElementById('setup-code').value.replace(/\D/g, '');
+
+            if (code.length !== 6) {
+                showError('setup-alert', 'Введите 6 цифр');
+                return;
+            }
+
+            const btn = document.getElementById('setup-btn');
+            btn.disabled = true;
+            btn.textContent = 'Включение...';
+
+            try {
+                const res = await fetch(`${API}/auth/2fa/verify-setup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ token: code })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showError('setup-alert', data.detail || 'Неверный код');
+                    return;
+                }
+
+                showSuccess('dash-alert', '2FA включена!');
+                loadDashboard();
+            } catch (err) {
+                showError('setup-alert', 'Ошибка');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Включить 2FA';
+            }
+        });
+
+        // ===== Disable 2FA =====
+        async function disable2fa() {
+            const code = prompt('Введите текущий 6-значный код из приложения для подтверждения:');
+            if (!code || code.length !== 6) return;
+
+            try {
+                const res = await fetch(`${API}/auth/2fa/disable`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ token: code })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Ошибка');
+                    return;
+                }
+
+                showSuccess('dash-alert', '2FA отключена');
+                loadDashboard();
+            } catch (err) {
+                alert('Ошибка');
+            }
+        }
+
+        // ===== Copy Secret =====
+        function copySecret() {
+            const secret = setup2faData?.secret;
+            if (secret) {
+                navigator.clipboard.writeText(secret);
+                alert('Секрет скопирован!');
+            }
+        }
+
+        // ===== Dashboard =====
+        async function loadDashboard() {
+            if (!accessToken) {
+                const stored = localStorage.getItem('access_token');
+                if (stored) {
+                    accessToken = stored;
+                } else {
+                    showPage('page-login');
+                    return;
+                }
+            }
+
+            try {
+                const res = await fetch(`${API}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                if (!res.ok) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    accessToken = null;
+                    showPage('page-login');
+                    return;
+                }
+
+                const user = await res.json();
+                document.getElementById('dash-email').textContent = user.email;
+
+                document.getElementById('dash-verified').textContent =
+                    user.is_verified ? '✓ Email подтверждён' : '✗ Email не подтверждён';
+
+                document.getElementById('dash-2fa').textContent =
+                    user.totp_enabled ? '2FA ON' : '2FA OFF';
+
+                if (user.totp_enabled) {
+                    document.getElementById('badge-2fa').innerHTML = '<span class="badge-on">🔐 2FA активна</span>';
+                    document.getElementById('setup-2fa-btn').style.display = 'none';
+                    document.getElementById('disable-2fa-btn').style.display = 'block';
+                } else {
+                    document.getElementById('badge-2fa').innerHTML = '<span class="badge-off">⚠️ 2FA не включена</span>';
+                    document.getElementById('setup-2fa-btn').style.display = 'block';
+                    document.getElementById('disable-2fa-btn').style.display = 'none';
+                }
+
+                showPage('page-dashboard');
+            } catch (err) {
+                showPage('page-login');
+            }
+        }
+
+        // ===== Logout =====
+        function logout() {
+            accessToken = null;
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            showPage('page-login');
+            document.getElementById('login-email').value = '';
+            document.getElementById('login-password').value = '';
+        }
+
+        // ===== Auto-login on load =====
+        (function init() {
+            const stored = localStorage.getItem('access_token');
+            if (stored) {
+                accessToken = stored;
+                loadDashboard();
+            }
+        })();
+
+        // ===== Password Change =====
+        document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlerts();
+            
+            const oldPass = document.getElementById('old-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirmPass = document.getElementById('new-password-confirm').value;
+            
+            if (newPass !== confirmPass) {
+                showError('changepass-alert', 'Новые пароли не совпадают');
+                return;
+            }
+            
+            if (newPass.length < 12) {
+                showError('changepass-alert', 'Новый пароль минимум 12 символов');
+                return;
+            }
+            
+            const btn = document.getElementById('change-pass-btn');
+            btn.disabled = true;
+            btn.textContent = 'Смена...';
+            
+            try {
+                const res = await fetch(`${API}/auth/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        old_password: oldPass,
+                        new_password: newPass
+                    })
+                });
+                
+                const data = await res.json();
+                if (!res.ok) {
+                    showError('changepass-alert', data.detail || 'Ошибка смены пароля');
+                    return;
+                }
+                
+                showSuccess('dash-alert', 'Пароль успешно изменён!');
+                showPage('page-dashboard');
+                
+                // Очистить форму
+                document.getElementById('old-password').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('new-password-confirm').value = '';
+            } catch (err) {
+                showError('changepass-alert', 'Ошибка соединения');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Сменить пароль';
+            }
+        });
+        
+        // ===== Delete Account =====
+        function showDeleteConfirm() {
+            if (confirm('Вы уверены, что хотите удалить аккаунт? Это действие нельзя отменить.')) {
+                showPage('page-delete-account');
+            }
+        }
+        
+        document.getElementById('delete-account-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlerts();
+            
+            const password = document.getElementById('delete-password').value;
+            
+            const btn = document.getElementById('delete-btn');
+            btn.disabled = true;
+            btn.textContent = 'Удаление...';
+            
+            try {
+                const res = await fetch(`${API}/auth/delete-account`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ password })
+                });
+                
+                const data = await res.json();
+                if (!res.ok) {
+                    showError('delete-alert', data.detail || 'Ошибка удаления');
+                    return;
+                }
+                
+                alert('Аккаунт успешно удалён');
+                logout(); // Автоматический выход
+            } catch (err) {
+                showError('delete-alert', 'Ошибка соединения');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Удалить аккаунт';
+            }
+        });
+        
+        // ===== 2FA code formatting =====
+        document.getElementById('twofa-code').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        });
+        document.getElementById('setup-code').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        });
+    </script>
+</body>
+</html>
