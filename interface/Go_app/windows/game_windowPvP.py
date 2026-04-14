@@ -3,6 +3,7 @@ import os
 from copy import deepcopy
 from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QProgressDialog
 from PySide6.QtCore import Qt,  QThread, Signal
+from game_timer import GameTimer
 
 
 #НЕ ТАК
@@ -22,7 +23,8 @@ import go_engine as go
 sys.path.append(str(root_path / "interface" / "Go_app" ))
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
-from generated.ui_game_window import Ui_main 
+from generated.ui_game_windowPvP import Ui_main 
+from windows.game_setting_dialog import GameSettingsDialog
 import GnuGo_Analyzer as gnugo
 root_path = Path(__file__).resolve().parent.parent.parent.parent
 GNUGO_PATH = os.path.join(root_path, "bot", "gnugo-3.8", "gnugo.exe")
@@ -54,55 +56,145 @@ class GameWindow(BaseWindow):
             except Exception as e:
                 self.error.emit(e)
 
-    def __init__(self, navigation, board_size=9, core_api=None):
+    def __init__(self, navigation, core_api=None, settings=None):
         super().__init__(navigation)
+        
+        # ===== ЗАГРУЖАЕМ НАСТРОЙКИ =====
+        self.game_settings = settings or {
+            'board_size': 9,
+            'time': {'main_time': 900, 'byoyomi': 30},
+            'visual': {'show_legal_moves': True}
+        }
+        
+        #БЕРЕМ РАЗМЕР ИЗ НАСТРОЕК
+        self.board_size = self.game_settings['board_size']
+        
+        #БАЗОВЫЕ ПАРАМЕТРЫ
+        self.consecutive_passes = 0
+        self.game_ended = False
+        self.winner = None
+        self.is_navigating = False
+        
+        #ИНИЦИАЛИЗАЦИЯ UI
         self.ui = Ui_main()
         self.ui.setupUi(self)
-        self.board_size = board_size
-        self.core_api = core_api
-        self.board_widget = self.ui.boardWidget
-        self.board_widget.set_board_size(board_size)
-        if self.core_api:
-            self.board_widget.set_core_api(self.core_api)
         
+        #НАСТРОЙКА CORE API
+        if core_api is None:
+            import go_engine as go
+            self.core_api = go.Game(self.board_size)
+        else:
+            self.core_api = core_api
+        
+        #НАСТРОЙКА ВИДЖЕТА ДОСКИ
+        self.board_widget = self.ui.boardWidget 
+        self.board_widget.set_core_api(self.core_api)       
+        self.board_widget.set_board_size(self.board_size)
+
+        show_legal = self.game_settings.get('visual', {}).get('show_legal_moves', True)
+        self.board_widget.show_legal_moves = show_legal
+        self.board_widget.update_legal_moves() 
+        
+        #ПОДКЛЮЧЕНИЕ СИГНАЛОВ
         self.board_widget.cell_clicked.connect(self.on_cell_clicked)
         self.board_widget.move_made.connect(self.on_move_made)
-        #self.board_widget.game_over.connect(self.on_game_over)
-        #self.board_widget.invalid_move.connect(self.on_invalid_move)
-
+        
+        #НАСТРОЙКА ТАЙМЕРОВ
+        self.setup_timers()
+        
+        #НАСТРОЙКА НАВИГАЦИИ ПО ХОДАМ
         self.board_snapshots = []
         self.current_snapshot_index = -1
-        self.is_navigating = False
         self.move_descriptions = []
-
-
+        
+        #ДАННЫЕ ИГРОКОВ
         self.player_data = {
-            'name': 'Игрок', 'rating': 1600, 'wins': 42, 'losses': 17,
+            'name': 'Игрок1', 'rating': 1600, 'wins': 42, 'losses': 17,
             'country': 'Россия', 'avatar_path': None
         }
         self.opponent_data = {
-            'name': 'Противник', 'rating': 1850, 'wins': 127, 'losses': 83,
+            'name': 'Игрок2', 'rating': 1850, 'wins': 127, 'losses': 83,
             'country': 'США', 'avatar_path': None
         }
+        
+        #НАСТРОЙКА UI ЭЛЕМЕНТОВ
         self.ui.playerName.setText(self.player_data['name'])
         self.ui.opponentName.setText(self.opponent_data['name'])
         self.ui.playerAvatar.clicked.connect(self.show_player_profile)
         self.ui.opponentAvatar.clicked.connect(self.show_opponent_profile)
         self.ui.buttonPass.clicked.connect(self.pass_move)
         self.ui.buttonResign.clicked.connect(self.resign)
-        self.ui.timerOpponent.setText("15:00")
-        self.ui.timerPlayer.setText("15:00")
         self.ui.buttonPrevMove.clicked.connect(self.prev_move)
         self.ui.buttonNextMove.clicked.connect(self.next_move)
-        self.move_history = []
         
-        self.consecutive_passes = 0  #Счетчик последовательных пасов
-        self.game_ended = False  #Флаг окончания игры
-        self.winner = None  #Победитель (1 - черные, 2 - белые)
-
-        self.setWindowTitle(f"Игра Го {board_size}×{board_size}")
+        #ФИНАЛЬНЫЕ НАСТРОЙКИ
+        self.setWindowTitle(f"Игра Го {self.board_size}×{self.board_size}")
         self.save_initial_snapshot()
 
+        #НАСТРОЙКА ТАЙМЕРОВ
+        self.setup_timers()
+
+    def setup_timers(self):
+        time_settings = self.game_settings.get('time', {'main_time': 900, 'byoyomi': 30})
+        initial_time = time_settings.get('main_time', 900)
+        self.byoyomi = time_settings.get('byoyomi', 30)
+        
+        self.player_timer = GameTimer(1, initial_time, self)  # 1 - черные (игрок)
+        self.opponent_timer = GameTimer(2, initial_time, self)  # 2 - белые (противник)
+        
+        self.player_timer.time_changed.connect(self.on_time_changed)
+        self.opponent_timer.time_changed.connect(self.on_time_changed)
+        self.player_timer.time_expired.connect(self.on_time_expired)
+        self.opponent_timer.time_expired.connect(self.on_time_expired)
+        
+        self.update_timer_active()
+
+        self.update_timer_display()
+
+    def update_timer_active(self):
+        if self.game_ended:
+            self.player_timer.stop()
+            self.opponent_timer.stop()
+            return
+            
+        if self.board_widget.current_player == 1:  # Черные
+            self.player_timer.start()
+            self.opponent_timer.stop()
+        else:  # Белые
+            self.player_timer.stop()
+            self.opponent_timer.start()
+
+    def on_time_changed(self):
+        self.update_timer_display()
+
+    def on_time_expired(self, player):
+        #Время игрока истекло
+        if self.game_ended:
+            return
+            
+        self.game_ended = True
+        
+        if player == 1:
+            winner = "Белые"
+            self.winner = 2
+        else:
+            winner = "Черные"
+            self.winner = 1
+        
+        self.player_timer.stop()
+        self.opponent_timer.stop()
+        
+        QMessageBox.information(self, "Время вышло", f"Время {winner} вышло! {winner} победил")
+        self.game_finished.emit()                
+
+    def update_timer_display(self):
+        player_min = self.player_timer.time_remaining // 60
+        player_sec = self.player_timer.time_remaining % 60
+        self.ui.timerPlayer.setText(f"{player_min:02d}:{player_sec:02d}")
+
+        opponent_min = self.opponent_timer.time_remaining // 60
+        opponent_sec = self.opponent_timer.time_remaining % 60
+        self.ui.timerOpponent.setText(f"{opponent_min:02d}:{opponent_sec:02d}")
 
     def save_initial_snapshot(self):
         snapshot = self.create_snapshot()
@@ -240,6 +332,8 @@ class GameWindow(BaseWindow):
         self.ui.historyList.scrollToBottom()
 
         self.save_snapshot_after_move(move_desc)
+
+        self.update_timer_active()
         #Сбрасываем счетчик пасов при обычном ходе
         self.consecutive_passes = 0
 
@@ -321,6 +415,9 @@ class GameWindow(BaseWindow):
             self.ui.historyList.scrollToBottom()
             print(f"Пас выполнен ({self.consecutive_passes}/2)")
             self.save_snapshot_after_move(move_desc)
+
+
+            self.update_timer_active()
 
             if self.consecutive_passes >= 2:
                 print("Достигнуто 2 паса, вызываем end_game_by_passes()")
