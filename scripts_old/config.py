@@ -1,4 +1,6 @@
+# config.py (дополненная версия)
 
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -26,7 +28,7 @@ def get_saves_dir(game_mode: str = None):
     Возвращает путь к директории с сохранениями.
     
     Параметры:
-        game_mode:  'pvp', 'pve', 'loaded', 'autosave' и т.д.
+        game_mode: str - 'pvp', 'pve', 'loaded', 'autosave' и т.д.
                    Если None, возвращает корневую папку games
     """
     if game_mode is None:

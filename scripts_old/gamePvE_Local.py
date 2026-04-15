@@ -2,7 +2,7 @@ import go_engine as go
 import os
 import time
 import subprocess
-import GnuGo_Analyzer as gnugo
+import scripts2k.GnuGo_Analyzer as gnugo
 import config as cfg
 
 GNUGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bot", "gnugo-3.8", "gnugo.exe")
