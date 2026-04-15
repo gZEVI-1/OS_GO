@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>main</class>
+ <widget class="QWidget" name="main">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1059</width>
+    <height>785</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_3">
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,2,12,2,1">
+     <item>
+      <spacer name="verticalSpacer_3">
+       <property name="orientation">
+        <enum>Qt::Orientation::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="4,9,5">
+       <item>
+        <spacer name="horizontalSpacer_7">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout" stretch="2,3,7,1,5,1">
+         <item>
+          <widget class="QPushButton" name="opponentAvatar">
+           <property name="styleSheet">
+            <string notr="true">QPushButton#opponentAvatar {
+    border: 2px solid #4CAF50;           /* зеленая рамка */
+    border-radius: 25px;                  /* половина от ширины/высоты */
+    background-color: transparent;        /* прозрачный фон */
+    min-width: 50px;                      /* фиксированный размер */
+    min-height: 50px;
+    max-width: 50px;
+    max-height: 50px;
+}
+
+/* Эффект при наведении */
+QPushButton#opponentAvatar:hover{
+    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+    opacity: 0.8;
+}</string>
+           </property>
+           <property name="text">
+            <string>opponentAvatar</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="opponentName">
+           <property name="text">
+            <string>opponentName</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="timerOpponent">
+           <property name="text">
+            <string>OpponentTimer</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="capturedBToppnent">
+           <property name="text">
+            <string>capOppnent</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_8">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="24,1,8">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="8,1,18">
+         <item>
+          <widget class="QPushButton" name="buttonChat">
+           <property name="styleSheet">
+            <string notr="true">QPushButton#buttonChat {
+    background-color: #2196F3;
+    border-radius: 5px;
+    color: white;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+QPushButton#buttonChat:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+           </property>
+           <property name="text">
+            <string>Chat</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_5">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="GoBoardWidget" name="boardWidget" native="true"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_6">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="7">
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout" stretch="10,1,2,1">
+           <item>
+            <widget class="QListWidget" name="historyList">
+             <property name="styleSheet">
+              <string notr="true"/>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_4">
+             <item>
+              <widget class="QPushButton" name="buttonPrevMove">
+               <property name="styleSheet">
+                <string notr="true">QPushButton#buttonPrevMove {
+    background-color: #FF9800;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 20px;
+    font-size: 12px;
+}
+QPushButton#buttonPrevMove:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+               </property>
+               <property name="text">
+                <string>PrevMove</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="buttonNextMove">
+               <property name="styleSheet">
+                <string notr="true">QPushButton#buttonNextMove {
+    background-color: #FF9800;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 20px;
+    font-size: 12px;
+}
+QPushButton#buttonNextMove:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+               </property>
+               <property name="text">
+                <string>NextMove</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_10" stretch="4,9,5">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <item>
+        <spacer name="horizontalSpacer_9">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="2,3,7,1,5,1">
+         <item>
+          <widget class="QPushButton" name="playerAvatar">
+           <property name="styleSheet">
+            <string notr="true">QPushButton#playerAvatar {
+    border: 2px solid #4CAF50;           /* зеленая рамка */
+    border-radius: 25px;                  /* половина от ширины/высоты */
+    background-color: transparent;        /* прозрачный фон */
+    min-width: 50px;                      /* фиксированный размер */
+    min-height: 50px;
+    max-width: 50px;
+    max-height: 50px;
+}
+
+/* Эффект при наведении */
+QPushButton#playerAvatar:hover{
+    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+    opacity: 0.8;
+}</string>
+           </property>
+           <property name="text">
+            <string>playerAvatar</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="playerName">
+           <property name="text">
+            <string>playerName</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="timerPlayer">
+           <property name="text">
+            <string>PlayerTimer</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_4">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="capturedBTplayer">
+           <property name="text">
+            <string>capPlayer</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="1,8">
+         <item>
+          <spacer name="horizontalSpacer_10">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <widget class="QPushButton" name="buttonResign">
+             <property name="styleSheet">
+              <string notr="true">QPushButton#buttonResign {
+    background-color: #4CAF50;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 15px;
+    font-size: 12px;
+}
+QPushButton#buttonResign:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+             </property>
+             <property name="text">
+              <string>Resign</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="buttonPass">
+             <property name="styleSheet">
+              <string notr="true">QPushButton#buttonPass {
+    background-color: #4CAF50;
+    border-radius: 5px;
+    color: white;
+    padding: 5px 15px;
+    font-size: 12px;
+}
+QPushButton#buttonPass:hover {
+    opacity: 0.9;
+    filter: brightness(110%);
+}</string>
+             </property>
+             <property name="text">
+              <string>Pass</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <spacer name="verticalSpacer_4">
+       <property name="orientation">
+        <enum>Qt::Orientation::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>GoBoardWidget</class>
+   <extends>QWidget</extends>
+   <header>core.go_board_widget</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

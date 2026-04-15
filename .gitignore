@@ -29,5 +29,5 @@ __pycache__/
 /scripts
 /core/.vscode
 /interface/Go_app/core/__pycache__
-*.pyc
+
 auth/.env
