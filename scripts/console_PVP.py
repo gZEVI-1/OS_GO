@@ -1,6 +1,6 @@
 # console_PVP.py
 from console_back import *
-from scripts.KataGoAdapter import KataGoGameAnalyzer, add_katago_analysis_to_session
+from KataGoAdapter import KataGoGameAnalyzer, add_katago_analysis_to_session
 
 
 def run_pvp_game():
@@ -17,30 +17,30 @@ def run_pvp_game():
             size = int(size_input) if size_input else 19
             if size in [9, 13, 19]:
                 break
-            print(" Размер должен быть 9, 13 или 19")
+            print("❌ Размер должен быть 9, 13 или 19")
         except ValueError:
-            print(" Введите число")
+            print("❌ Введите число")
     
     # Имена игроков
-    print("\nВведите имена игроков:")
-    black_name = input("Черные: ").strip()
-    white_name = input("Белые: ").strip()
+    print("\n📝 Введите имена игроков:")
+    black_name = input("Черные: ").strip() or "Игрок 1"
+    white_name = input("Белые: ").strip() or "Игрок 2"
     
     # Создаем сессию
     session = create_pvp_session(size, black_name, white_name)
     
+    # Callback для анализа KataGo
     def on_katago_analysis(result):
-        """Callback при завершении анализа KataGo"""
         print("\n" + "=" * 60)
         print("📊 АНАЛИЗ ОТ KATAGO")
         print("=" * 60)
         print(f"🏆 Победитель: {result.winner}")
         print(f"📈 Счет: {result.full_result}")
-        print(f"⚫ Черные: {result.black_score:.1f} очков")
-        print(f"⚪ Белые: {result.white_score:.1f} очков")
+        print(f"⚫ Черные: {result.black_score:.1f}")
+        print(f"⚪ Белые: {result.white_score:.1f}")
         
         if result.best_move:
-            print(f"\n🏅 Лучший ход партии: {result.best_move} (ход #{result.best_move_number})")
+            print(f"\n💡 Лучший ход партии: {result.best_move}")
         
         if result.top_moves:
             print(f"\n🎯 Топ-5 ходов: {', '.join(result.top_moves[:5])}")
@@ -49,7 +49,7 @@ def run_pvp_game():
     add_katago_analysis_to_session(session, on_katago_analysis)
     
     if not session.start():
-        print("Не удалось запустить игру")
+        print("❌ Не удалось запустить игру")
         input("\nНажмите Enter...")
         return
     
@@ -75,28 +75,16 @@ def run_pvp_game():
             result = session.make_human_move(move_input)
             
             if result.get('quit'):
-                print("\n Игра прервана.")
+                print("\n👋 Игра прервана.")
                 break
             
             if not result['success']:
-                print(f"\n {result['message']}")
+                print(f"\n❌ {result['message']}")
             elif result.get('undo'):
-                print(f"\n {result['message']}")
+                print(f"\n↩️ {result['message']}")
         
-        # Если игра окончена, но анализатор еще не сработал (через callback)
-        if session.game.is_game_over() and not session.game_over_callbacks:
-            # Альтернативный способ - прямой анализ
-            print("\n Анализ позиции через KataGo...")
-            with KataGoGameAnalyzer(session) as katago:
-                if katago.initialize(size, 6.5):
-                    result = katago.analyze_current_game()
-                    if result and result.success:
-                        katago.print_analysis(result)
-                    else:
-                        print("❌ Не удалось выполнить анализ KataGo")
-                else:
-                    print("⚠️ KataGo не доступен")
-            
+        # Показываем результат (анализ уже через callback)
+        if session.game.is_game_over():
             show_game_result(session)
         
         input("\nНажмите Enter для возврата в меню...")

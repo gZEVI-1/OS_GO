@@ -1,152 +1,77 @@
 
 """
-Адаптер для интеграции KataGo анализа в игровые сессии
-Не изменяет существующие классы, а расширяет их функциональность
+Адаптер для интеграции KataGo в игровые сессии
 """
 
-from typing import Optional, Dict, List, Callable
-
-from scripts.KataGoAnalyzer import KataGoAnalyzer, KataGoAnalysisResult, is_available
+from typing import Optional, Callable
+from KataGoAnalyzer import KataGoAnalyzer, KataGoAnalysisResult, is_available
 
 
 class KataGoGameAnalyzer:
-    """
-    Анализатор для игровых сессий с использованием KataGo
-    """
+    """Анализатор для игровых сессий"""
     
     def __init__(self, session=None):
-        """
-        Args:
-            session: объект GameSession (опционально)
-        """
         self.session = session
-        self.analyzer = None
-        self._initialized = False
+        self._analyzer: Optional[KataGoAnalyzer] = None
+        self._initialized: bool = False
     
-    def initialize(self, board_size: int = 19, komi: float = 6.5) -> bool:
-        """Инициализирует KataGo анализатор"""
-        if not is_available():
-            print("❌ KataGo не доступен")
-            return False
+    def initialize(self) -> bool:
+        """Инициализация с автоопределением"""
+        # if not is_available():
+        #     print("❌ KataGo не доступен")
+        #     return False
         
-        self.analyzer = KataGoAnalyzer()
-        self._initialized = True
-        return True
+        self._analyzer = KataGoAnalyzer()
+        self._initialized = self._analyzer.initialize()
+        # if self._initialized:
+        #     print("✅ KataGo инициализирован")
+        # else:
+        #     print("❌ KataGo не доступен")
+        return self._initialized
     
     def analyze_current_game(self) -> Optional[KataGoAnalysisResult]:
-        """
-        Анализирует текущую игру в сессии
-        """
+        """Анализирует текущую игру"""
         if not self.session:
-            print("❌ Нет активной сессии")
+            # print("❌ Нет активной сессии")
             return None
         
-        if not self._initialized:
-            if not self.initialize(self.session.board_size, self.session.komi):
-                return None
-        
-        sgf_content = self.session.game.get_sgf()
-        return self.analyzer.analyze_sgf(sgf_content, self.session.board_size, self.session.komi)
-    
-    def analyze_sgf(self, sgf_content: str, board_size: int = 19, komi: float = 6.5) -> Optional[KataGoAnalysisResult]:
-        """Анализирует SGF файл"""
-        if not self._initialized:
-            if not self.initialize(board_size, komi):
-                return None
-        
-        return self.analyzer.analyze_sgf(sgf_content, board_size, komi)
-    
-    def get_winrate_at_position(self, moves: List[str]) -> Optional[float]:
-        """
-        Получает winrate для текущей позиции
-        """
-        if not self._initialized or not self.analyzer:
+        if not self._initialized and not self.initialize():
             return None
         
-        result = self.analyzer.analyze_position(moves, self.session.board_size, self.session.komi)
-        if result:
-            return result.get('winrate')
-        return None
+        if self._analyzer is None:
+            return None
+        
+        try:
+            sgf = self.session.game.get_sgf()
+            return self._analyzer.analyze_sgf(sgf, self.session.board_size, self.session.komi)
+        except Exception as e:
+            # print(f"❌ Ошибка анализа: {e}")
+            return None
     
-    def print_analysis(self, result: KataGoAnalysisResult):
-        """Выводит результат анализа в консоль"""
+    def print_analysis(self, result: KataGoAnalysisResult) -> None:
+        """Вывод результатов анализа"""
         if not result.success:
-            print(f"\n❌ Ошибка анализа: {result.error_message}")
+            # print(f"\n❌ Ошибка анализа: {result.error_message}")
             return
         
-        print("\n" + "=" * 70)
-        print("📊 РЕЗУЛЬТАТ АНАЛИЗА ПАРТИИ (KataGo)")
-        print("=" * 70)
+        print("\n" + "=" * 60)
+        print("📊 АНАЛИЗ KATAGO")
+        print("=" * 60)
         print(f"🏆 Победитель: {result.winner}")
-        print(f"📈 Счет: {result.full_result}")
-        print(f"⚫ Черные: {result.black_score:.1f} очков")
-        print(f"⚪ Белые: {result.white_score:.1f} очков")
+        print(f"📈 Результат: {result.full_result}")
+        print(f"⚫ Черные: {result.black_score:.1f}")
+        print(f"⚪ Белые: {result.white_score:.1f}")
         
         if result.best_move:
-            print("\n" + "=" * 70)
-            print("🏅 ЛУЧШИЙ ХОД ПАРТИИ")
-            print("=" * 70)
-            print(f"📍 Ход #{result.best_move_number}: {result.best_move}")
-            if result.best_move_improvement > 0:
-                print(f"📈 Улучшил вероятность победы на {result.best_move_improvement * 100:.1f}%")
+            print(f"💡 Лучший ход: {result.best_move}")
         
         if result.top_moves:
-            print("\n" + "=" * 70)
-            print("🎯 ТОП-5 ЛУЧШИХ ХОДОВ В ПАРТИИ")
-            print("=" * 70)
-            for i, move in enumerate(result.top_moves, 1):
-                print(f"  {i}. {move}")
-        
-        if result.critical_moments:
-            print("\n" + "=" * 70)
-            print("⚠️ КЛЮЧЕВЫЕ МОМЕНТЫ ПАРТИИ")
-            print("=" * 70)
-            for moment in result.critical_moments[:5]:
-                icon = "🔴" if moment['significance'] == 'high' else "🟡"
-                print(f"\n{icon} Ход #{moment['move_number']}: {moment['move']}")
-                print(f"   Winrate изменился с {moment['winrate_before'] * 100:.1f}% на {moment['winrate_after'] * 100:.1f}%")
-                print(f"   Изменение: {moment['change'] * 100:.1f}%")
-        
-        #шкала
-        if result.winrate_history:
-            self._print_winrate_scale(result.winrate_history)
+            print(f"🎯 Топ-5 ходов: {', '.join(result.top_moves[:5])}")
     
-    def _print_winrate_scale(self, history: List[Dict]):
-        """Выводит компактную шкалу winrate"""
-        print("\n" + "=" * 70)
-        print("📈 ДИНАМИКА WINRATE")
-        print("=" * 70)
-        
-        chars = []
-        for h in history:
-            wr = h['winrate']
-            if wr >= 0.75:
-                chars.append("█")
-            elif wr >= 0.60:
-                chars.append("▓")
-            elif wr >= 0.55:
-                chars.append("▒")
-            elif wr >= 0.45:
-                chars.append("░")
-            elif wr >= 0.40:
-                chars.append("▒")
-            elif wr >= 0.25:
-                chars.append("▓")
-            else:
-                chars.append("█")
-        
-        grouped = []
-        for i in range(0, len(chars), 10):
-            group = chars[i:i+10]
-            grouped.append("".join(group))
-        
-        print(f"  {' '.join(grouped)}")
-        print("  █=высокий winrate черных, ░=низкий winrate черных")
-    
-    def cleanup(self):
-        """Очистка ресурсов"""
-        if self.analyzer:
-            self.analyzer.cleanup()
+    def cleanup(self) -> None:
+        if self._analyzer:
+            self._analyzer.cleanup()
+            self._analyzer = None
         self._initialized = False
     
     def __enter__(self):
@@ -157,33 +82,29 @@ class KataGoGameAnalyzer:
 
 
 def add_katago_analysis_to_session(session, on_analysis_complete: Callable = None):
-    """
-    Добавляет возможность анализа KataGo к существующей сессии
-    
-    Args:
-        session: объект GameSession
-        on_analysis_complete: callback при завершении анализа
-    """
+    """Добавляет анализ KataGo к сессии"""
     def enhanced_game_over():
-        sgf_content = session.game.get_sgf()
-        
-        with KataGoGameAnalyzer(session) as katago:
-            if katago.initialize(session.board_size, session.komi):
-                result = katago.analyze_current_game()
+        print("\n🔍 Анализ партии с KataGo...")
+        analyzer = KataGoGameAnalyzer(session)
+        try:
+            if analyzer.initialize():
+                result = analyzer.analyze_current_game()
                 if result and result.success:
                     if on_analysis_complete:
                         on_analysis_complete(result)
                     else:
-                        katago.print_analysis(result)
+                        analyzer.print_analysis(result)
                 else:
-                    print("\n❌ Не удалось выполнить анализ KataGo")
+                    print("\n⚠️ Анализ не выполнен")
             else:
-                print("\n⚠️ KataGo не доступен, используется GNU Go анализ")
+                print("\n⚠️ KataGo недоступен")
+        except Exception as e:
+            print(f"\n❌ Ошибка анализа: {e}")
+        finally:
+            analyzer.cleanup()
     
-    original_callbacks = session.game_over_callbacks.copy()
+    original = list(session.game_over_callbacks)
     session.game_over_callbacks.clear()
-    
     session.add_game_over_callback(enhanced_game_over)
-    
-    for cb in original_callbacks:
+    for cb in original:
         session.add_game_over_callback(cb)
