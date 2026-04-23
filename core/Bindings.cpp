@@ -9,7 +9,7 @@
 #include "KataGoAnalyzer.h"
 
 #ifndef PROJECT_VERSION
-#define PROJECT_VERSION "1.1.6"
+#define PROJECT_VERSION "1.1.8"
 #endif
 
 namespace py = pybind11;
@@ -37,7 +37,7 @@ PYBIND11_MODULE(go_engine, m) {
     m.attr("__version__") = PROJECT_VERSION;
     
     py::enum_<Color>(m, "Color")
-        .value("None", Color::None)
+        .value("NONE", Color::None)
         .value("Black", Color::Black)
         .value("White", Color::White);
     
@@ -130,7 +130,8 @@ PYBIND11_MODULE(go_engine, m) {
         .def("get_board_const", py::overload_cast<>(&Game::getBoard, py::const_))
         .def("reset", &Game::reset, py::arg("newSize") = 9)
         .def("load_from_sgf", &Game::loadFromSGF);
-
+        
+    
     // KataGoConfig struct
     py::class_<KataGoConfig>(m, "KataGoConfig")
         .def(py::init<>())
@@ -260,4 +261,5 @@ PYBIND11_MODULE(go_engine, m) {
     
     // Utility functions
     m.def("get_opponent_color", &getOpponentColor);
+    m.def("getBoardSize",&getBoardSizeFromSGF);
 }
