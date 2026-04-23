@@ -1,0 +1,30 @@
+# FastAPI и сервер
+fastapi
+uvicorn[standard]
+
+# Pydantic и валидация
+pydantic
+pydantic-settings
+email-validator
+
+# База данных
+sqlalchemy[asyncio]
+asyncpg
+aiosqlite
+alembic
+
+# Аутентификация и безопасность
+python-jose[cryptography]
+passlib[bcrypt]
+argon2-cffi
+pyotp
+qrcode[pil]
+cryptography
+
+# Auth0 и HTTP
+authlib
+httpx
+
+# Утилиты
+python-multipart
+python-dotenv

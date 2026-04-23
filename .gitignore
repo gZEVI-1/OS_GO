@@ -1,33 +1,66 @@
 /core/build
 
+# Environment variables (КРИТИЧЕСКИ ВАЖНО)
+.env
+.env.local
+.env.production
+.env.*.local
+.env.*
+!.env.example
+auth/.env
+
+# Python
+venv/
+ENV/
+env/
+.venv
+
+
+# Database
+*.sqlite3
+*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (если есть локальные данные)
+postgres_data/
+
 
 **/__pycache__/
 __pycache__/
 *.pyc
 
 /interface/.qtcreator
-/core/__pycache__
-/interface/Go_app/generated/__pycache__
-/interface/Go_app/core/__pycache__
-/interface/Go_app/windows/__pycache__
 
-/core/__pycache__
+
 /.vscode
 
-/interface/Go_app/core/__pycache__
-/interface/Go_app/generated/__pycache__
-/interface/Go_app/windows/__pycache__
-/.vscode
-/scripts/__pycache__
-/interface/Go_app/generated/__pycache__
-/interface/Go_app/windows/__pycache__
-/interface/Go_app/windows/__pycache__
-
-/interface/Go_app/windows/__pycache__
-/interface/Go_app/windows/__pycache__
-/interface/Go_app/windows/__pycache__
-/scripts
 /core/.vscode
+
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS generated files
+.DS_Store
+Thumbs.db
 /interface/Go_app/core/__pycache__
 
 auth/.env
