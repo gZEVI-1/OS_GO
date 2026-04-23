@@ -50,5 +50,14 @@ __pycache__/
 
 /core/.vscode
 
+build/
+*.egg-info/
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
 
+# OS generated files
+.DS_Store
+Thumbs.db
