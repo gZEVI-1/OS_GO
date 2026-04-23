@@ -1,63 +1,53 @@
-/core/build
+# Examples 1:
 
-# Environment variables (КРИТИЧЕСКИ ВАЖНО)
-.env
-.env.local
-.env.production
-.env.*.local
-.env.*
-!.env.example
-auth/.env
+    Input:
+    ### Added files:
+    [src/main.py, README.md, config.json]
 
-# Python
-venv/
-ENV/
-env/
-.venv
+    ### Deleted files:
+    [old/unused.py]
+    ### Modified files:
+    [utils.py]
+    ###current .gitignore Content
+    (empty)
+    Expected Output:
+    (empty — output nothing)
 
+# Example 2 (Project with artifacts):
+Input:
+### Added files:
+[pycache/main.cpython-310.pyc, dist/app.js, .env.local, .vscode/settings.json
 
-# Database
-*.sqlite3
-*.db
+### Deleted files:
+    []
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+### Modified files:
+[]
+### current .gitignore Content
 *.log
-logs/
-
-# Docker volumes (если есть локальные данные)
-postgres_data/
-
-
-**/__pycache__/
-__pycache__/
-*.pyc
-
-/interface/.qtcreator
-
-
-/.vscode
-
-/core/.vscode
-
-build/
-*.egg-info/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# OS generated files
-.DS_Store
-Thumbs.db
+Expected Output:
+    #Compiled and build artifacts
+    *.pyc
+    pycache/
+    *.o
+    *.obj
+    dist/
+    build/
+    #Dependencies
+    .venv/
+    venv/
+    node_modules/
+    #Logs and temp files
+    *.log
+    *.tmp
+    *.swp
+    #Environment
+    .env
+    .env.local
+    .env.
+    #Editors
+    .vscode/
+    .idea/
+    #Original rules preserved
+    *.log
+Final reminder: Output ONLY the .gitignore content. If nothing should be ignored, output NOTHING.

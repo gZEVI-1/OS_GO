@@ -30,13 +30,15 @@ import json
 import uuid
 import time
 import logging
-from typing import Dict, Optional, List, Set
+import os
+from typing import Dict, Optional, List, Set, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import jwt
 
 from protocol import (
     MessageType, MessageBuilder, Messages,
@@ -64,18 +66,61 @@ class GameState:
     resigned: Optional[str] = None
     captured_black: int = 0
     captured_white: int = 0
+    _board: Optional[object] = field(default=None, repr=False)  # Go engine board
     
-    def apply_move(self, x: int, y: int, color: str) -> bool:
-        """Apply a move and update state. Returns True if valid."""
-        # TODO: Integrate with go_engine for real validation
-        # For now, basic validation
+    def __post_init__(self):
+        """Initialize go engine board after creation."""
+        self._init_board()
+    
+    def _init_board(self):
+        """Initialize the go engine board."""
+        try:
+            from core import Game as GoGame
+            self._board = GoGame(self.board_size)
+        except ImportError:
+            logger.warning("Go engine not available, using basic validation")
+            self._board = None
+    
+    def apply_move(self, x: int, y: int, color: str) -> Tuple[bool, Dict]:
+        """Apply a move and update state. Returns (success, info)."""
         if color != self.current_turn:
-            return False
+            return False, {"error": "wrong_turn"}
         
+        # Validate coordinates
+        if not (0 <= x < self.board_size and 0 <= y < self.board_size):
+            return False, {"error": "out_of_bounds"}
+        
+        # Use go engine for validation if available
+        if self._board is not None:
+            try:
+                # Convert color to engine format
+                from core import Color as GoColor
+                engine_color = GoColor.Black if color == "black" else GoColor.White
+                
+                # Check if move is legal using the engine
+                is_pass = (x == -1 and y == -1)
+                
+                if is_pass:
+                    # Pass move - always valid on your turn
+                    pass
+                else:
+                    # Try to make the move on the engine board
+                    # The engine handles ko, suicide, and capture rules
+                    if not self._board.makeMove(x, y, is_pass=False):
+                        return False, {"error": "invalid_move_engine"}
+                    
+                    # Update captured stones count
+                    # Note: This depends on how the engine exposes capture info
+            except Exception as e:
+                logger.error(f"Go engine error: {e}")
+                return False, {"error": "engine_error"}
+        
+        # Record the move
         self.moves.append({"x": x, "y": y, "color": color})
         self.current_turn = "white" if color == "black" else "black"
         self.pass_count = 0
-        return True
+        
+        return True, {"success": True}
     
     def apply_pass(self, color: str) -> None:
         """Apply a pass move."""
@@ -231,6 +276,11 @@ class RoomManager:
             
             if player_id in room.players:
                 del room.players[player_id]
+                
+                # CRITICAL FIX: Remove player from global players dictionary
+                if player_id in self.players:
+                    del self.players[player_id]
+                
                 player.room_id = None
                 
                 # Notify remaining players
@@ -309,6 +359,36 @@ app.add_middleware(
 # Global room manager
 room_manager = RoomManager(max_rooms=100)
 
+# JWT Configuration
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_MINUTES = int(os.getenv("JWT_EXPIRATION_MINUTES", "60"))
+
+
+def validate_jwt_token(token: str) -> Optional[Dict]:
+    """Validate JWT token and return payload if valid."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        logger.warning("Token has expired")
+        return None
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Invalid token: {e}")
+        return None
+
+
+def create_jwt_token(player_id: str, username: str) -> str:
+    """Create a JWT token for a player."""
+    from datetime import timedelta
+    payload = {
+        "player_id": player_id,
+        "username": username,
+        "exp": datetime.now() + timedelta(minutes=JWT_EXPIRATION_MINUTES),
+        "iat": datetime.now(),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
 
 @app.on_event("startup")
 async def startup():
@@ -363,9 +443,25 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_json(Messages.error("AUTH_REQUIRED", "First message must be connect"))
             return
         
-        # Create player (in production, validate JWT token here)
-        username = raw_msg.get("username", f"Player_{str(uuid.uuid4())[:6]}")
-        player_id = str(uuid.uuid4())
+        # JWT Token validation (optional for development, required in production)
+        token = raw_msg.get("token")
+        if os.getenv("PRODUCTION", "false").lower() == "true":
+            if not token:
+                await websocket.send_json(Messages.error("AUTH_REQUIRED", "Token required in production mode"))
+                return
+            
+            payload = validate_jwt_token(token)
+            if not payload:
+                await websocket.send_json(Messages.error("INVALID_TOKEN", "Token validation failed"))
+                return
+            
+            # Use validated user info from token
+            player_id = payload.get("player_id", str(uuid.uuid4()))
+            username = payload.get("username", f"Player_{player_id[:6]}")
+        else:
+            # Development mode: accept username without token or create new session
+            username = raw_msg.get("username", f"Player_{str(uuid.uuid4())[:6]}")
+            player_id = str(uuid.uuid4())
         
         player = PlayerConnection(
             websocket=websocket,
@@ -373,10 +469,12 @@ async def websocket_endpoint(websocket: WebSocket):
         )
         room_manager.players[player_id] = player
         
-        # Send confirmation
+        # Send confirmation with JWT token for future requests
+        jwt_token = create_jwt_token(player_id, username)
         await player.send(Messages.create(MessageType.CONNECTED, {
             "player_id": player_id,
             "username": username,
+            "token": jwt_token,  # Token for reconnection
         }))
         
         logger.info(f"Player connected: {username} ({player_id})")
