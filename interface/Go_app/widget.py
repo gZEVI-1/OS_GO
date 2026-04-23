@@ -3,8 +3,9 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QVBoxLayout, QWidget, QMessageBox
 from navigation import Navigation
-from windows.game_window import GameWindow
+from windows.game_windowPvP import GameWindow
 from generated.ui_form import Ui_mainWindow
+from windows.game_setting_dialog import GameSettingsDialog
 
 class Widget(QMainWindow):
     def __init__(self, parent=None):
@@ -81,6 +82,28 @@ class Widget(QMainWindow):
         
         # Возвращаемся в главное меню
         self.navigation.navigate_to("main_menu")
+
+    def open_windOffline(self):
+        dialog = GameSettingsDialog(self)
+        
+        def start_game(settings):
+            import go_engine as go
+            
+            core_api = go.Game(settings['board_size'])
+            
+            game_window = GameWindow(
+                navigation=self.navigation,
+                board_size=settings['board_size'],
+                core_api=core_api,
+                settings=settings
+            )
+            
+            self.navigation.add_window("offline_game", game_window)
+            game_window.game_finished.connect(lambda: self.return_to_menu("offline_game"))
+            self.navigation.navigate_to("offline_game")
+        
+        dialog.settings_applied.connect(start_game)
+        dialog.exec()    
 
 
 
