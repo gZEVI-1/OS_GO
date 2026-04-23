@@ -32,7 +32,7 @@ from console_back import (
     print_board as base_print_board, show_help
 )
 from client import NetworkClient, ConnectionState, GameState
-from protocol import RoomInfo
+from protocol import Message, RoomInfo
 import go_engine as go
 
 
@@ -131,7 +131,7 @@ async def lobby_menu(client: NetworkClient) -> bool:
     client.on_room_list = on_room_list
     
     # Запрашиваем список комнат (отправляем connect еще раз для обновления)
-    await client._send(client.protocol.Message.connect(client.player_name))
+    await client._send(Message.connect(client.player_name))
     
     # Ждем немного для получения списка
     try:
