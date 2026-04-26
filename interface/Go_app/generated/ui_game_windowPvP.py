@@ -25,9 +25,9 @@ class Ui_main(object):
     def setupUi(self, main):
         if not main.objectName():
             main.setObjectName(u"main")
-        main.resize(1059, 785)
-        self.verticalLayout_3 = QVBoxLayout(main)
-        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        main.resize(1108, 781)
+        self.horizontalLayout_11 = QHBoxLayout(main)
+        self.horizontalLayout_11.setObjectName(u"horizontalLayout_11")
         self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.verticalSpacer_3 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
@@ -99,44 +99,26 @@ class Ui_main(object):
 
         self.horizontalLayout_8.addItem(self.horizontalSpacer_8)
 
-        self.horizontalLayout_8.setStretch(0, 4)
-        self.horizontalLayout_8.setStretch(1, 9)
-        self.horizontalLayout_8.setStretch(2, 5)
+        self.horizontalLayout_8.setStretch(0, 1)
+        self.horizontalLayout_8.setStretch(1, 11)
+        self.horizontalLayout_8.setStretch(2, 12)
 
         self.verticalLayout_2.addLayout(self.horizontalLayout_8)
 
         self.horizontalLayout_7 = QHBoxLayout()
         self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
+        self.horizontalSpacer_11 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_7.addItem(self.horizontalSpacer_11)
+
         self.horizontalLayout_6 = QHBoxLayout()
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
-        self.buttonChat = QPushButton(main)
-        self.buttonChat.setObjectName(u"buttonChat")
-        self.buttonChat.setStyleSheet(u"QPushButton#buttonChat {\n"
-"    background-color: #2196F3;\n"
-"    border-radius: 5px;\n"
-"    color: white;\n"
-"    padding: 8px 15px;\n"
-"    font-size: 14px;\n"
-"}\n"
-"QPushButton#buttonChat:hover {\n"
-"    opacity: 0.9;\n"
-"    filter: brightness(110%);\n"
-"}")
-
-        self.horizontalLayout_6.addWidget(self.buttonChat)
-
-        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_6.addItem(self.horizontalSpacer_5)
-
         self.boardWidget = GoBoardWidget(main)
         self.boardWidget.setObjectName(u"boardWidget")
 
         self.horizontalLayout_6.addWidget(self.boardWidget)
 
-        self.horizontalLayout_6.setStretch(0, 8)
-        self.horizontalLayout_6.setStretch(1, 1)
-        self.horizontalLayout_6.setStretch(2, 18)
+        self.horizontalLayout_6.setStretch(0, 18)
 
         self.horizontalLayout_7.addLayout(self.horizontalLayout_6)
 
@@ -210,9 +192,13 @@ class Ui_main(object):
 
         self.horizontalLayout_7.addLayout(self.horizontalLayout_5)
 
-        self.horizontalLayout_7.setStretch(0, 24)
-        self.horizontalLayout_7.setStretch(1, 1)
-        self.horizontalLayout_7.setStretch(2, 8)
+        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_7.addItem(self.horizontalSpacer_5)
+
+        self.horizontalLayout_7.setStretch(1, 3)
+        self.horizontalLayout_7.setStretch(2, 1)
+        self.horizontalLayout_7.setStretch(3, 2)
 
         self.verticalLayout_2.addLayout(self.horizontalLayout_7)
 
@@ -318,17 +304,23 @@ class Ui_main(object):
 
         self.horizontalLayout_3.addWidget(self.buttonPass)
 
+        self.horizontalSpacer_12 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_3.addItem(self.horizontalSpacer_12)
+
+        self.horizontalLayout_3.setStretch(0, 2)
+        self.horizontalLayout_3.setStretch(1, 2)
 
         self.horizontalLayout_9.addLayout(self.horizontalLayout_3)
 
-        self.horizontalLayout_9.setStretch(0, 1)
-        self.horizontalLayout_9.setStretch(1, 8)
+        self.horizontalLayout_9.setStretch(0, 5)
+        self.horizontalLayout_9.setStretch(1, 12)
 
         self.horizontalLayout_10.addLayout(self.horizontalLayout_9)
 
-        self.horizontalLayout_10.setStretch(0, 4)
-        self.horizontalLayout_10.setStretch(1, 9)
-        self.horizontalLayout_10.setStretch(2, 5)
+        self.horizontalLayout_10.setStretch(0, 1)
+        self.horizontalLayout_10.setStretch(1, 11)
+        self.horizontalLayout_10.setStretch(2, 12)
 
         self.verticalLayout_2.addLayout(self.horizontalLayout_10)
 
@@ -342,7 +334,7 @@ class Ui_main(object):
         self.verticalLayout_2.setStretch(3, 2)
         self.verticalLayout_2.setStretch(4, 1)
 
-        self.verticalLayout_3.addLayout(self.verticalLayout_2)
+        self.horizontalLayout_11.addLayout(self.verticalLayout_2)
 
 
         self.retranslateUi(main)
@@ -356,7 +348,6 @@ class Ui_main(object):
         self.opponentName.setText(QCoreApplication.translate("main", u"opponentName", None))
         self.timerOpponent.setText(QCoreApplication.translate("main", u"OpponentTimer", None))
         self.capturedBToppnent.setText(QCoreApplication.translate("main", u"capOppnent", None))
-        self.buttonChat.setText(QCoreApplication.translate("main", u"Chat", None))
         self.buttonPrevMove.setText(QCoreApplication.translate("main", u"PrevMove", None))
         self.buttonNextMove.setText(QCoreApplication.translate("main", u"NextMove", None))
         self.playerAvatar.setText(QCoreApplication.translate("main", u"playerAvatar", None))
