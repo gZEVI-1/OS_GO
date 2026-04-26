@@ -220,35 +220,25 @@ class GameWindowPvE(BaseWindow):
         }
         
         # Настройка UI для PvE
-        self.ui.opponentAvatar.hide()
-        self.ui.opponentName.hide()
         self.ui.timerPlayer.hide()
         self.ui.timerOpponent.hide()
-        
-        # Создаем метку для бота
-        from PySide6.QtWidgets import QLabel
-        self.bot_label = QLabel("GNU Go Bot", self)
-        self.bot_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #333;")
-        
-        parent_layout = self.ui.opponentName.parent().layout()
-        if parent_layout:
-            index = parent_layout.indexOf(self.ui.opponentName)
-            if index >= 0:
-                parent_layout.insertWidget(index, self.bot_label)
-        
+
+        # Данные бота (только для отображения имени, профиль не открывается)
+        self.bot_data = {
+            'name': 'GNU Go Bot', 'rating': 2000, 'wins': 100, 'losses': 50,
+            'country': 'AI', 'avatar_path': None
+        }
+
+        # Настройка имен с цветом
         if self.player_is_black:
             self.ui.playerName.setText(f"{self.player_data['name']} (Черные)")
-            self.bot_label.setText("GNU Go Bot (Белые)")
+            self.ui.opponentName.setText(f"{self.bot_data['name']} (Белые)")
         else:
             self.ui.playerName.setText(f"{self.player_data['name']} (Белые)")
-            self.bot_label.setText("GNU Go Bot (Черные)")
+            self.ui.opponentName.setText(f"{self.bot_data['name']} (Черные)")
         
         self.ui.playerAvatar.clicked.connect(self.show_player_profile)
         
-        try:
-            self.ui.opponentAvatar.clicked.disconnect()
-        except:
-            pass
         
         self.ui.buttonPass.clicked.connect(self.pass_move)
         self.ui.buttonResign.clicked.connect(self.resign)
