@@ -1,7 +1,10 @@
+# console_PVP.py
 from console_back import *
+from KataGoAdapter import KataGoGameAnalyzer, add_katago_analysis_to_session
+
 
 def run_pvp_game():
-    """Запускает игру PvP"""
+    """Запускает игру PvP с поддержкой KataGo анализа"""
     clear_screen()
     print("=" * 60)
     print("         ИГРА ДВУХ ИГРОКОВ (PvP)")
@@ -14,33 +17,49 @@ def run_pvp_game():
             size = int(size_input) if size_input else 19
             if size in [9, 13, 19]:
                 break
-            print(" Размер должен быть 9, 13 или 19")
+            print("❌ Размер должен быть 9, 13 или 19")
         except ValueError:
-            print(" Введите число")
+            print("❌ Введите число")
     
     # Имена игроков
-    print("\nВведите имена игроков:")
-    black_name = input("Черные: ")
-    black_name = black_name.strip()
-    white_name = input("Белые: ")
-    white_name = white_name.strip()
-
+    print("\n📝 Введите имена игроков:")
+    black_name = input("Черные: ").strip() or "Игрок 1"
+    white_name = input("Белые: ").strip() or "Игрок 2"
+    
     # Создаем сессию
     session = create_pvp_session(size, black_name, white_name)
     
+    # Callback для анализа KataGo
+    def on_katago_analysis(result):
+        print("\n" + "=" * 60)
+        print("📊 АНАЛИЗ ОТ KATAGO")
+        print("=" * 60)
+        print(f"🏆 Победитель: {result.winner}")
+        print(f"📈 Счет: {result.full_result}")
+        print(f"⚫ Черные: {result.black_score:.1f}")
+        print(f"⚪ Белые: {result.white_score:.1f}")
+        
+        if result.best_move:
+            print(f"\n💡 Лучший ход партии: {result.best_move}")
+        
+        if result.top_moves:
+            print(f"\n🎯 Топ-5 ходов: {', '.join(result.top_moves[:5])}")
+    
+    # Добавляем анализатор к сессии
+    add_katago_analysis_to_session(session, on_katago_analysis)
+    
     if not session.start():
-        print("Не удалось запустить игру")
+        print("❌ Не удалось запустить игру")
         input("\nНажмите Enter...")
         return
     
-    #игра
+    # Игровой цикл
     try:
         while session.game_active and not session.game.is_game_over():
             clear_screen()
             print_game_state(session)
             
             state = session.get_current_state()
-            
             
             move_input = get_human_move_input(
                 state['current_player_name'],
@@ -56,42 +75,17 @@ def run_pvp_game():
             result = session.make_human_move(move_input)
             
             if result.get('quit'):
-                print("\n Игра прервана.")
+                print("\n👋 Игра прервана.")
                 break
             
             if not result['success']:
-                print(f"\n {result['message']}")
-                # time.sleep(1.5)
+                print(f"\n❌ {result['message']}")
             elif result.get('undo'):
-                print(f"\n {result['message']}")
-                # time.sleep(0.5)
-            # elif result['success'] and not result.get('game_over'):
-            #     # Показываем результат хода
-            #     if result.get('bot_move'):
-            #         bot_move = result['bot_move']
-            #         print(f"\n {bot_move['player_name']} сходил в {bot_move['coord_str']}")
-            #         time.sleep(1)
-           
+                print(f"\n↩️ {result['message']}")
         
-        # Игра окончена
+        # Показываем результат (анализ уже через callback)
         if session.game.is_game_over():
-            clear_screen()
-            print_game_state(session)
-            
-            # Анализируем результат
-            gnugo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
-                                       "bot", "gnugo-3.8", "gnugo.exe")
-            
-            if os.path.exists(gnugo_path):
-                print("\n Анализ позиции...")
-                analyzer = gnugo.GnuGoAnalyzer(gnugo_path=gnugo_path)
-                try:
-                    result = session.get_game_result(analyzer)
-                    show_game_result(session, result)
-                finally:
-                    analyzer.cleanup()
-            else:
-                show_game_result(session)
+            show_game_result(session)
         
         input("\nНажмите Enter для возврата в меню...")
         

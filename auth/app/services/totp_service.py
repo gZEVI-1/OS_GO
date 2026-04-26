@@ -13,9 +13,10 @@ from app.config import get_settings
 class TOTPService:
     def __init__(self):
         self.settings = get_settings()
-        # В продакшене используйте KMS/HSM для хранения ключа
-        self.encryption_key = self.settings.secret_key[:32].encode()
-        self.cipher = Fernet(base64.urlsafe_b64encode(self.encryption_key))
+        import hashlib
+        key_bytes = self.settings.secret_key.encode()
+        raw_key = hashlib.sha256(key_bytes).digest()
+        self.cipher = Fernet(base64.urlsafe_b64encode(raw_key))
     
     def generate_secret(self) -> str:
         """Генерация нового TOTP секрета"""

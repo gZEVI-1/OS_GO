@@ -5,11 +5,11 @@ import time
 import go_engine as go
 from core_adapter import (
     GameSession, PlayerType, CoordinateUtils,
-    create_pvp_session, create_pve_session, GNUGoBot
+    create_pvp_session, create_pve_session
 )
 import GnuGo_Analyzer as gnugo
 import config as cfg
-
+from gnugo_adapter import GNUGoBot
 
 def clear_screen():
     """Очищает экран консоли"""
@@ -163,39 +163,55 @@ def test_gnugo_connection():
     print("=" * 60)
     print("         ТЕСТ СОЕДИНЕНИЯ С GNU GO")
     print("=" * 60)
-
-    gnugo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bot", "gnugo-3.8", "gnugo.exe")
-
-    if gnugo.check_gnugo_available(gnugo_path):
-
+    
+    # Правильный путь
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    gnugo_path = os.path.join(base_dir, "bot", "gnugo-3.8", "gnugo.exe")
+    
+    print(f"\n📁 Путь к GNU Go: {gnugo_path}")
+    print(f"📁 Файл существует: {os.path.exists(gnugo_path)}")
+    
+    if not os.path.exists(gnugo_path):
+        print("❌ GNU Go не найден!")
+        input("\nНажмите Enter...")
+        return
+    
+    # Проверяем запуск
+    print("\n🔄 Запуск GNU Go...")
+    bot = GNUGoBot(gnugo_path, board_size=9)
+    
+    if not bot.start():
+        print("❌ Не удалось запустить GNU Go")
+        input("\nНажмите Enter...")
+        return
+    
+    print("✅ GNU Go запущен")
+    
+    try:
+        # Получаем тестовый ход
+        print("\n🔄 Получение тестового хода...")
+        move = bot.get_move('B')
         
-        bot = GNUGoBot(gnugo_path, board_size=9)
-            
-        if not bot.start():
-            print("❌ Не удалось запустить GNU Go")
-            input("\nНажмите Enter...")
-            return
-        
-        try:
-            # Получаем тестовый ход
-            print("\n🔄 Получение тестового хода...")
-            move = bot.get_move('B')
-            
-            if move:
-                
-                print("🤖 GNU Go сделал ход. Все хорошо")
-                print("\n✅ Тест завершен успешно!")  
+        if move:
+            if move['is_pass']:
+                print("🤖 GNU Go сходил: PASS")
             else:
-                print("⚠️ Не удалось получить ход")
-             
-        except Exception as e:
-            print(f"\n❌ Ошибка: {e}")
-
-        finally:
-            bot.stop()
+                coord = CoordinateUtils.format_move(move['x'], move['y'])
+                print(f"🤖 GNU Go сходил: {coord}")
+            print("\n✅ Тест завершен успешно!")
+        else:
+            print("⚠️ Не удалось получить ход")
+            
+    except Exception as e:
+        print(f"\n❌ Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    finally:
+        bot.stop()
+        print("🛑 GNU Go остановлен")
     
     input("\nНажмите Enter...")
-
 
 
 

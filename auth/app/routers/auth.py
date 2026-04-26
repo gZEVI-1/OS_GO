@@ -3,14 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
-from app.database import get_db           # ← Исправлено
-from app.models.user import User          # ← Исправлено
-from app.services.password_service import password_service  # ← Исправлено
-from app.services.totp_service import totp_service          # ← Исправлено
+from datetime import datetime, timedelta, timezone
+from app.database import get_db
+from app.models.user import User
+from app.services.password_service import password_service
+from app.services.totp_service import totp_service
+from app.services.email_service import email_service
 from app.dependencies.auth import (
-    verify_auth0_token, 
+    verify_auth0_token,
     create_internal_token,
     get_current_user
 )
@@ -35,6 +37,15 @@ class TOTPVerifyRequest(BaseModel):
     token: str  # 6-значный код
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=12)
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(..., min_length=1)
+
+
 class LoginResponse(BaseModel):
     access_token: str
     refresh_token: str
@@ -48,10 +59,10 @@ class LoginResponse(BaseModel):
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     data: RegisterRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
     """Регистрация нового пользователя с локальным паролем"""
-    # Проверка существования email
     result = await db.execute(
         select(User).where(User.email == data.email)
     )
@@ -60,23 +71,30 @@ async def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
-    # Хеширование пароля
+
     hashed = password_service.hash_password(data.password)
-    
+    verification_token = email_service.generate_verification_token()
+    token_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+
     user = User(
         email=data.email,
         hashed_password=hashed.encode(),
-        is_verified=False  # Требуется подтверждение email
+        is_verified=False,
+        verification_token=verification_token,
+        verification_token_expires=token_expires,
     )
-    
+
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
-    # TODO: Отправка email для верификации
-    
-    return {"message": "Registration successful. Please verify your email."}
+
+    background_tasks.add_task(
+        email_service.send_verification_email,
+        data.email,
+        verification_token,
+    )
+
+    return {"message": "Registration successful. Please check your email to verify your account."}
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -107,7 +125,13 @@ async def login(
             detail="Invalid credentials"
         )
     
-    # Если включена 2FA - возвращаем временный токен
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified. Please check your inbox.",
+            headers={"X-Email-Verification-Required": "true"},
+        )
+
     if user.totp_enabled:
         temp_token = create_internal_token(
             user.id, 
@@ -362,16 +386,168 @@ async def disable_2fa(
     return {"message": "2FA disabled successfully"}
 
 
+# ========== Email Verification ==========
+
+@router.get("/verify-email")
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
+    """Верификация email по ссылке из письма"""
+    result = await db.execute(
+        select(User).where(User.verification_token == token)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification token",
+        )
+
+    if user.is_verified:
+        return {"message": "Email already verified"}
+
+    if user.verification_token_expires and user.verification_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification token expired. Request a new one.",
+        )
+
+    user.is_verified = True
+    user.verification_token = None
+    user.verification_token_expires = None
+    await db.commit()
+
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    data: dict,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Повторная отправка письма верификации"""
+    email = data.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is required",
+        )
+
+    result = await db.execute(
+        select(User).where(User.email == email)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not found",
+        )
+
+    if user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already verified",
+        )
+
+    new_token = email_service.generate_verification_token()
+    user.verification_token = new_token
+    user.verification_token_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    await db.commit()
+
+    background_tasks.add_task(
+        email_service.send_verification_email,
+        email,
+        new_token,
+    )
+
+    return {"message": "Verification email sent"}
+
+
 # ========== Защищённые эндпоинты ==========
 
 @router.get("/me")
-async def get_me(current_user: dict = Depends(get_current_user)):
+async def get_me(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Получение данных текущего пользователя"""
+    user_id = int(current_user["sub"])
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
     return {
-        "id": current_user["sub"],
-        "email": current_user["email"],
-        "totp_verified": current_user.get("totp_verified", False)
+        "id": user.id,
+        "email": user.email,
+        "is_verified": user.is_verified,
+        "totp_enabled": user.totp_enabled,
     }
+
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Смена пароля"""
+    user_id = int(current_user["sub"])
+    
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one()
+    
+    # Проверка старого пароля
+    if not user.hashed_password or not password_service.verify_password(
+        data.old_password, user.hashed_password.decode()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid old password"
+        )
+    
+    # Хешируем новый пароль
+    new_hashed = password_service.hash_password(data.new_password)
+    user.hashed_password = new_hashed.encode()
+    
+    await db.commit()
+    return {"message": "Password changed successfully"}
+
+
+@router.delete("/delete-account")
+async def delete_account(
+    data: DeleteAccountRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Удаление аккаунта с подтверждением пароля"""
+    user_id = int(current_user["sub"])
+    
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one()
+    
+    # Проверка пароля
+    if not user.hashed_password or not password_service.verify_password(
+        data.password, user.hashed_password.decode()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid password"
+        )
+    
+    # Удаляем пользователя
+    await db.delete(user)
+    await db.commit()
+    
+    return {"message": "Account deleted successfully"}
 
 
 @router.get("/protected")
