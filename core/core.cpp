@@ -2,7 +2,133 @@
 #include "core.h"
 #include <iostream>
 #include <filesystem>
+#include <regex>
 
+std::vector<Move> SGFParser::parseString(const std::string& sgfContent) {
+    std::vector<Move> moves;
+    
+    //ищем ;
+    size_t pos = sgfContent.find(';');
+    if (pos == std::string::npos) return moves;
+    
+    // GM[1] FF[4] SZ[19] PB[Black] PW[White] KM[6.5] RE[B+12.5]
+    
+    int boardSize = 19;
+    std::string playerBlack, playerWhite, komi = "6.5", result;
+    
+    //размер
+    std::regex szRegex(R"(SZ\[(\d+)\])");
+    std::smatch match;
+    std::string sgfStr(sgfContent);
+    if (std::regex_search(sgfStr, match, szRegex)) {
+        boardSize = std::stoi(match[1]);
+    }
+    
+    //имена
+    std::regex pbRegex(R"(PB\[([^\]]*)\])");
+    if (std::regex_search(sgfStr, match, pbRegex)) {
+        playerBlack = match[1];
+    }
+    
+    std::regex pwRegex(R"(PW\[([^\]]*)\])");
+    if (std::regex_search(sgfStr, match, pwRegex)) {
+        playerWhite = match[1];
+    }
+    
+    //коми
+    std::regex kmRegex(R"(KM\[([^\]]*)\])");
+    if (std::regex_search(sgfStr, match, kmRegex)) {
+        komi = match[1];
+    }
+    
+    //результат
+    std::regex reRegex(R"(RE\[([^\]]*)\])");
+    if (std::regex_search(sgfStr, match, reRegex)) {
+        result = match[1];
+    }
+    
+    //;B[dd] ;W[ab] ;B[] пас
+    std::regex moveRegex(R"(;([BW])\[([a-z]{0,2})\])");
+    auto movesBegin = std::sregex_iterator(sgfContent.begin(), sgfContent.end(), moveRegex);
+    auto movesEnd = std::sregex_iterator();
+    
+    int moveNum = 1;
+    for (auto it = movesBegin; it != movesEnd; ++it) {
+        std::smatch moveMatch = *it;
+        std::string colorStr = moveMatch[1].str();
+        std::string coordStr = moveMatch[2].str();
+        
+        Color color = (colorStr == "B") ? Color::Black : Color::White;
+        
+        if (coordStr.empty()) {
+            //пас
+            moves.emplace_back(color, moveNum);
+        } else if (coordStr.length() == 2) {
+            Position pos = parsePosition(coordStr);
+            moves.emplace_back(pos.x, pos.y, color, moveNum);
+        }
+        moveNum++;
+    }
+    
+    return moves;
+}
+
+std::vector<Move> SGFParser::parseFile(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "Не удалось открыть файл: " << filename << std::endl;
+        return {};
+    }
+    
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return parseString(buffer.str());
+}
+
+Position SGFParser::parsePosition(const std::string& coordStr) {
+    Position pos{-1, -1};
+    
+    if (coordStr.length() >= 1) {
+        char xChar = coordStr[0];
+        if (xChar >= 'a' && xChar <= 'z') {
+            int val = xChar - 'a';
+            if (val >= 8) val--; //без i
+            pos.x = val;
+        }
+    }
+    
+    if (coordStr.length() >= 2) {
+        char yChar = coordStr[1];
+        if (yChar >= 'a' && yChar <= 'z') {
+            int val = yChar - 'a';
+            if (val >= 8) val--;
+            pos.y = val;
+        }
+    }
+    
+    return pos;
+}
+
+bool SGFParser::loadGame(Game& game, const std::string& filename) {
+    std::vector<Move> moves = parseFile(filename);
+    if (moves.empty()) {
+        std::cout << "Не найдено ходов в SGF файле" << std::endl;
+        return false;
+    }
+    
+    game.reset();
+    
+    //делаем ходы
+    for (const auto& move : moves) {
+        if (move.isPass) {
+            game.makeMove(-1, -1, true);
+        } else {
+            game.makeMove(move.pos.x, move.pos.y, false);
+        }
+    }
+    
+    return true;
+}
 SGFGame::SGFGame(int size)
 {
     if (size < 9)
@@ -270,7 +396,6 @@ bool Game::makeMove(int x, int y, bool isPass)
         else
         {
             currentPlayer = (currentPlayer == Color::Black) ? Color::White : Color::Black;
-            // Обновляем legalMoves для нового текущего игрока
             legalMoves = rePosMoves(board, currentPlayer);
         }
         return true;
@@ -286,6 +411,56 @@ bool Game::makeMove(int x, int y, bool isPass)
         return true;  // ход успешен
     }
     return false;  // ход отклонён
+}
+
+void Game::reset(int newSize = 9) {
+    board = Board(newSize);
+    legalMoves = Board(newSize);
+    currentPlayer = Color::Black;
+    passes = 0;
+    gameOver = false;
+    moveNumber = 1;
+    sgf = SGFGame(newSize);
+    moveHistory.clear();
+    sgf.setPlayerNames("Player1", "Player2");
+}
+
+bool Game::loadFromSGF(const std::string& filename) {
+    std::vector<Move> loadedMoves = SGFParser::parseFile(filename);
+    if (loadedMoves.empty()) {
+        std::cout << "Не удалось загрузить SGF файл" << std::endl;
+        return false;
+    }
+    
+    //размер
+    int loadedSize = getBoardSizeFromSGF(filename);
+    reset(loadedSize);
+    
+    //делаем ходы
+    for (const auto& move : loadedMoves) {
+        if (move.isPass) {
+            makeMove(-1, -1, true);
+        } else {
+            makeMove(move.pos.x, move.pos.y, false);
+        }
+    }
+    
+    return true;
+}
+
+static int getBoardSizeFromSGF(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) return 19;
+    
+    std::string content((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+    
+    std::regex szRegex(R"(SZ\[(\d+)\])");
+    std::smatch match;
+    if (std::regex_search(content, match, szRegex)) {
+        return std::stoi(match[1]);
+    }
+    return 19;
 }
 // void Game::makeMove(int x, int y, bool isPass)
 // {
