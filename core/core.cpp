@@ -413,7 +413,7 @@ bool Game::makeMove(int x, int y, bool isPass)
     return false;  // ход отклонён
 }
 
-void Game::reset(int newSize = 9) {
+void Game::reset(int newSize ) {
     board = Board(newSize);
     legalMoves = Board(newSize);
     currentPlayer = Color::Black;
@@ -448,7 +448,7 @@ bool Game::loadFromSGF(const std::string& filename) {
     return true;
 }
 
-static int getBoardSizeFromSGF(const std::string& filename) {
+int getBoardSizeFromSGF(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) return 19;
     
