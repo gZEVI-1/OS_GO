@@ -79,6 +79,18 @@ class GNUGoBot:
             self.process = None
         self._started = False
     
+    # def stop(self):
+    #     """Останавливает сессию"""
+    #     import traceback
+    #     print("[GameSession] stop() ВЫЗВАН!")
+    #     traceback.print_stack(limit=8)
+    #     print("-" * 40)
+    
+    #     self.game_active = False
+    #     if self.gnugo_bot:
+    #         self.gnugo_bot.stop()
+    #         self.gnugo_bot = None
+
     def _send_command(self, cmd: str) -> str:
         """Отправляет команду GTP и возвращает ответ"""
         print(f"[GNUGoBot] _send_command: '{cmd}', process={self.process}")
