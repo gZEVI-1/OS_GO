@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'game_window.ui'
+## Form generated from reading UI file 'game_windowPvP.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.10.2
+## Created by: Qt User Interface Compiler version 6.11.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -26,69 +26,23 @@ class Ui_main(object):
         if not main.objectName():
             main.setObjectName(u"main")
         main.resize(1059, 785)
-        self.layoutWidget1 = QWidget(main)
-        self.layoutWidget1.setObjectName(u"layoutWidget1")
-        self.layoutWidget1.setGeometry(QRect(260, 640, 501, 61))
-        self.horizontalLayout_2 = QHBoxLayout(self.layoutWidget1)
-        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
-        self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
-        self.playerAvatar = QPushButton(self.layoutWidget1)
-        self.playerAvatar.setObjectName(u"playerAvatar")
-        self.playerAvatar.setStyleSheet(u"QPushButton#playerAvatar {\n"
-"    border: 2px solid #4CAF50;           /* \u0437\u0435\u043b\u0435\u043d\u0430\u044f \u0440\u0430\u043c\u043a\u0430 */\n"
-"    border-radius: 25px;                  /* \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 \u043e\u0442 \u0448\u0438\u0440\u0438\u043d\u044b/\u0432\u044b\u0441\u043e\u0442\u044b */\n"
-"    background-color: transparent;        /* \u043f\u0440\u043e\u0437\u0440\u0430\u0447\u043d\u044b\u0439 \u0444\u043e\u043d */\n"
-"    min-width: 50px;                      /* \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0440\u0430\u0437\u043c\u0435\u0440 */\n"
-"    min-height: 50px;\n"
-"    max-width: 50px;\n"
-"    max-height: 50px;\n"
-"}\n"
-"\n"
-"/* \u042d\u0444\u0444\u0435\u043a\u0442 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"QPushButton#playerAvatar:hover{\n"
-"    border-color: #FF9800;                 /* \u043e\u0440\u0430\u043d\u0436\u0435\u0432\u0430\u044f \u0440\u0430\u043c\u043a\u0430 \u043f"
-                        "\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"    opacity: 0.8;\n"
-"}")
+        self.verticalLayout_3 = QVBoxLayout(main)
+        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        self.verticalLayout_2 = QVBoxLayout()
+        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.verticalSpacer_3 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.horizontalLayout_2.addWidget(self.playerAvatar)
+        self.verticalLayout_2.addItem(self.verticalSpacer_3)
 
-        self.playerName = QLabel(self.layoutWidget1)
-        self.playerName.setObjectName(u"playerName")
+        self.horizontalLayout_8 = QHBoxLayout()
+        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
+        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.horizontalLayout_2.addWidget(self.playerName)
+        self.horizontalLayout_8.addItem(self.horizontalSpacer_7)
 
-        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_2.addItem(self.horizontalSpacer_3)
-
-        self.timerPlayer = QLabel(self.layoutWidget1)
-        self.timerPlayer.setObjectName(u"timerPlayer")
-
-        self.horizontalLayout_2.addWidget(self.timerPlayer)
-
-        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_2.addItem(self.horizontalSpacer_4)
-
-        self.capturedBTplayer = QLabel(self.layoutWidget1)
-        self.capturedBTplayer.setObjectName(u"capturedBTplayer")
-
-        self.horizontalLayout_2.addWidget(self.capturedBTplayer)
-
-        self.horizontalLayout_2.setStretch(0, 2)
-        self.horizontalLayout_2.setStretch(1, 3)
-        self.horizontalLayout_2.setStretch(2, 7)
-        self.horizontalLayout_2.setStretch(3, 1)
-        self.horizontalLayout_2.setStretch(4, 5)
-        self.horizontalLayout_2.setStretch(5, 1)
-        self.layoutWidget2 = QWidget(main)
-        self.layoutWidget2.setObjectName(u"layoutWidget2")
-        self.layoutWidget2.setGeometry(QRect(270, 80, 491, 56))
-        self.horizontalLayout = QHBoxLayout(self.layoutWidget2)
+        self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
-        self.opponentAvatar = QPushButton(self.layoutWidget2)
+        self.opponentAvatar = QPushButton(main)
         self.opponentAvatar.setObjectName(u"opponentAvatar")
         self.opponentAvatar.setStyleSheet(u"QPushButton#opponentAvatar {\n"
 "    border: 2px solid #4CAF50;           /* \u0437\u0435\u043b\u0435\u043d\u0430\u044f \u0440\u0430\u043c\u043a\u0430 */\n"
@@ -109,7 +63,7 @@ class Ui_main(object):
 
         self.horizontalLayout.addWidget(self.opponentAvatar)
 
-        self.opponentName = QLabel(self.layoutWidget2)
+        self.opponentName = QLabel(main)
         self.opponentName.setObjectName(u"opponentName")
 
         self.horizontalLayout.addWidget(self.opponentName)
@@ -118,7 +72,7 @@ class Ui_main(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
 
-        self.timerOpponent = QLabel(self.layoutWidget2)
+        self.timerOpponent = QLabel(main)
         self.timerOpponent.setObjectName(u"timerOpponent")
 
         self.horizontalLayout.addWidget(self.timerOpponent)
@@ -127,7 +81,7 @@ class Ui_main(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer_2)
 
-        self.capturedBToppnent = QLabel(self.layoutWidget2)
+        self.capturedBToppnent = QLabel(main)
         self.capturedBToppnent.setObjectName(u"capturedBToppnent")
 
         self.horizontalLayout.addWidget(self.capturedBToppnent)
@@ -138,53 +92,24 @@ class Ui_main(object):
         self.horizontalLayout.setStretch(3, 1)
         self.horizontalLayout.setStretch(4, 5)
         self.horizontalLayout.setStretch(5, 1)
-        self.layoutWidget3 = QWidget(main)
-        self.layoutWidget3.setObjectName(u"layoutWidget3")
-        self.layoutWidget3.setGeometry(QRect(810, 660, 251, 41))
-        self.horizontalLayout_3 = QHBoxLayout(self.layoutWidget3)
-        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
-        self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
-        self.buttonResign = QPushButton(self.layoutWidget3)
-        self.buttonResign.setObjectName(u"buttonResign")
-        self.buttonResign.setStyleSheet(u"QPushButton#buttonResign {\n"
-"    background-color: #4CAF50;\n"
-"    border-radius: 5px;\n"
-"    color: white;\n"
-"    padding: 5px 15px;\n"
-"    font-size: 12px;\n"
-"}\n"
-"QPushButton#buttonResign:hover {\n"
-"    opacity: 0.9;\n"
-"    filter: brightness(110%);\n"
-"}")
 
-        self.horizontalLayout_3.addWidget(self.buttonResign)
+        self.horizontalLayout_8.addLayout(self.horizontalLayout)
 
-        self.buttonPass = QPushButton(self.layoutWidget3)
-        self.buttonPass.setObjectName(u"buttonPass")
-        self.buttonPass.setStyleSheet(u"QPushButton#buttonPass {\n"
-"    background-color: #4CAF50;\n"
-"    border-radius: 5px;\n"
-"    color: white;\n"
-"    padding: 5px 15px;\n"
-"    font-size: 12px;\n"
-"}\n"
-"QPushButton#buttonPass:hover {\n"
-"    opacity: 0.9;\n"
-"    filter: brightness(110%);\n"
-"}")
+        self.horizontalSpacer_8 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.horizontalLayout_3.addWidget(self.buttonPass)
+        self.horizontalLayout_8.addItem(self.horizontalSpacer_8)
 
-        self.layoutWidget = QWidget(main)
-        self.layoutWidget.setObjectName(u"layoutWidget")
-        self.layoutWidget.setGeometry(QRect(0, 140, 1061, 501))
-        self.horizontalLayout_7 = QHBoxLayout(self.layoutWidget)
+        self.horizontalLayout_8.setStretch(0, 4)
+        self.horizontalLayout_8.setStretch(1, 9)
+        self.horizontalLayout_8.setStretch(2, 5)
+
+        self.verticalLayout_2.addLayout(self.horizontalLayout_8)
+
+        self.horizontalLayout_7 = QHBoxLayout()
         self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
-        self.horizontalLayout_7.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_6 = QHBoxLayout()
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
-        self.buttonChat = QPushButton(self.layoutWidget)
+        self.buttonChat = QPushButton(main)
         self.buttonChat.setObjectName(u"buttonChat")
         self.buttonChat.setStyleSheet(u"QPushButton#buttonChat {\n"
 "    background-color: #2196F3;\n"
@@ -204,7 +129,7 @@ class Ui_main(object):
 
         self.horizontalLayout_6.addItem(self.horizontalSpacer_5)
 
-        self.boardWidget = GoBoardWidget(self.layoutWidget)
+        self.boardWidget = GoBoardWidget(main)
         self.boardWidget.setObjectName(u"boardWidget")
 
         self.horizontalLayout_6.addWidget(self.boardWidget)
@@ -223,7 +148,7 @@ class Ui_main(object):
         self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
         self.verticalLayout = QVBoxLayout()
         self.verticalLayout.setObjectName(u"verticalLayout")
-        self.historyList = QListWidget(self.layoutWidget)
+        self.historyList = QListWidget(main)
         self.historyList.setObjectName(u"historyList")
         self.historyList.setStyleSheet(u"")
 
@@ -235,7 +160,7 @@ class Ui_main(object):
 
         self.horizontalLayout_4 = QHBoxLayout()
         self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
-        self.buttonPrevMove = QPushButton(self.layoutWidget)
+        self.buttonPrevMove = QPushButton(main)
         self.buttonPrevMove.setObjectName(u"buttonPrevMove")
         self.buttonPrevMove.setStyleSheet(u"QPushButton#buttonPrevMove {\n"
 "    background-color: #FF9800;\n"
@@ -251,7 +176,7 @@ class Ui_main(object):
 
         self.horizontalLayout_4.addWidget(self.buttonPrevMove)
 
-        self.buttonNextMove = QPushButton(self.layoutWidget)
+        self.buttonNextMove = QPushButton(main)
         self.buttonNextMove.setObjectName(u"buttonNextMove")
         self.buttonNextMove.setStyleSheet(u"QPushButton#buttonNextMove {\n"
 "    background-color: #FF9800;\n"
@@ -289,6 +214,137 @@ class Ui_main(object):
         self.horizontalLayout_7.setStretch(1, 1)
         self.horizontalLayout_7.setStretch(2, 8)
 
+        self.verticalLayout_2.addLayout(self.horizontalLayout_7)
+
+        self.horizontalLayout_10 = QHBoxLayout()
+        self.horizontalLayout_10.setSpacing(0)
+        self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
+        self.horizontalSpacer_9 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_10.addItem(self.horizontalSpacer_9)
+
+        self.horizontalLayout_2 = QHBoxLayout()
+        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
+        self.playerAvatar = QPushButton(main)
+        self.playerAvatar.setObjectName(u"playerAvatar")
+        self.playerAvatar.setStyleSheet(u"QPushButton#playerAvatar {\n"
+"    border: 2px solid #4CAF50;           /* \u0437\u0435\u043b\u0435\u043d\u0430\u044f \u0440\u0430\u043c\u043a\u0430 */\n"
+"    border-radius: 25px;                  /* \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 \u043e\u0442 \u0448\u0438\u0440\u0438\u043d\u044b/\u0432\u044b\u0441\u043e\u0442\u044b */\n"
+"    background-color: transparent;        /* \u043f\u0440\u043e\u0437\u0440\u0430\u0447\u043d\u044b\u0439 \u0444\u043e\u043d */\n"
+"    min-width: 50px;                      /* \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0440\u0430\u0437\u043c\u0435\u0440 */\n"
+"    min-height: 50px;\n"
+"    max-width: 50px;\n"
+"    max-height: 50px;\n"
+"}\n"
+"\n"
+"/* \u042d\u0444\u0444\u0435\u043a\u0442 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"QPushButton#playerAvatar:hover{\n"
+"    border-color: #FF9800;                 /* \u043e\u0440\u0430\u043d\u0436\u0435\u0432\u0430\u044f \u0440\u0430\u043c\u043a\u0430 \u043f"
+                        "\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"    opacity: 0.8;\n"
+"}")
+
+        self.horizontalLayout_2.addWidget(self.playerAvatar)
+
+        self.playerName = QLabel(main)
+        self.playerName.setObjectName(u"playerName")
+
+        self.horizontalLayout_2.addWidget(self.playerName)
+
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_2.addItem(self.horizontalSpacer_3)
+
+        self.timerPlayer = QLabel(main)
+        self.timerPlayer.setObjectName(u"timerPlayer")
+
+        self.horizontalLayout_2.addWidget(self.timerPlayer)
+
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_2.addItem(self.horizontalSpacer_4)
+
+        self.capturedBTplayer = QLabel(main)
+        self.capturedBTplayer.setObjectName(u"capturedBTplayer")
+
+        self.horizontalLayout_2.addWidget(self.capturedBTplayer)
+
+        self.horizontalLayout_2.setStretch(0, 2)
+        self.horizontalLayout_2.setStretch(1, 3)
+        self.horizontalLayout_2.setStretch(2, 7)
+        self.horizontalLayout_2.setStretch(3, 1)
+        self.horizontalLayout_2.setStretch(4, 5)
+        self.horizontalLayout_2.setStretch(5, 1)
+
+        self.horizontalLayout_10.addLayout(self.horizontalLayout_2)
+
+        self.horizontalLayout_9 = QHBoxLayout()
+        self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
+        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_9.addItem(self.horizontalSpacer_10)
+
+        self.horizontalLayout_3 = QHBoxLayout()
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.buttonResign = QPushButton(main)
+        self.buttonResign.setObjectName(u"buttonResign")
+        self.buttonResign.setStyleSheet(u"QPushButton#buttonResign {\n"
+"    background-color: #4CAF50;\n"
+"    border-radius: 5px;\n"
+"    color: white;\n"
+"    padding: 5px 15px;\n"
+"    font-size: 12px;\n"
+"}\n"
+"QPushButton#buttonResign:hover {\n"
+"    opacity: 0.9;\n"
+"    filter: brightness(110%);\n"
+"}")
+
+        self.horizontalLayout_3.addWidget(self.buttonResign)
+
+        self.buttonPass = QPushButton(main)
+        self.buttonPass.setObjectName(u"buttonPass")
+        self.buttonPass.setStyleSheet(u"QPushButton#buttonPass {\n"
+"    background-color: #4CAF50;\n"
+"    border-radius: 5px;\n"
+"    color: white;\n"
+"    padding: 5px 15px;\n"
+"    font-size: 12px;\n"
+"}\n"
+"QPushButton#buttonPass:hover {\n"
+"    opacity: 0.9;\n"
+"    filter: brightness(110%);\n"
+"}")
+
+        self.horizontalLayout_3.addWidget(self.buttonPass)
+
+
+        self.horizontalLayout_9.addLayout(self.horizontalLayout_3)
+
+        self.horizontalLayout_9.setStretch(0, 1)
+        self.horizontalLayout_9.setStretch(1, 8)
+
+        self.horizontalLayout_10.addLayout(self.horizontalLayout_9)
+
+        self.horizontalLayout_10.setStretch(0, 4)
+        self.horizontalLayout_10.setStretch(1, 9)
+        self.horizontalLayout_10.setStretch(2, 5)
+
+        self.verticalLayout_2.addLayout(self.horizontalLayout_10)
+
+        self.verticalSpacer_4 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.verticalLayout_2.addItem(self.verticalSpacer_4)
+
+        self.verticalLayout_2.setStretch(0, 1)
+        self.verticalLayout_2.setStretch(1, 2)
+        self.verticalLayout_2.setStretch(2, 12)
+        self.verticalLayout_2.setStretch(3, 2)
+        self.verticalLayout_2.setStretch(4, 1)
+
+        self.verticalLayout_3.addLayout(self.verticalLayout_2)
+
+
         self.retranslateUi(main)
 
         QMetaObject.connectSlotsByName(main)
@@ -296,18 +352,18 @@ class Ui_main(object):
 
     def retranslateUi(self, main):
         main.setWindowTitle(QCoreApplication.translate("main", u"Form", None))
-        self.playerAvatar.setText(QCoreApplication.translate("main", u"playerAvatar", None))
-        self.playerName.setText(QCoreApplication.translate("main", u"playerName", None))
-        self.timerPlayer.setText(QCoreApplication.translate("main", u"PlayerTimer", None))
-        self.capturedBTplayer.setText(QCoreApplication.translate("main", u"capPlayer", None))
         self.opponentAvatar.setText(QCoreApplication.translate("main", u"opponentAvatar", None))
         self.opponentName.setText(QCoreApplication.translate("main", u"opponentName", None))
         self.timerOpponent.setText(QCoreApplication.translate("main", u"OpponentTimer", None))
         self.capturedBToppnent.setText(QCoreApplication.translate("main", u"capOppnent", None))
-        self.buttonResign.setText(QCoreApplication.translate("main", u"Resign", None))
-        self.buttonPass.setText(QCoreApplication.translate("main", u"Pass", None))
         self.buttonChat.setText(QCoreApplication.translate("main", u"Chat", None))
         self.buttonPrevMove.setText(QCoreApplication.translate("main", u"PrevMove", None))
         self.buttonNextMove.setText(QCoreApplication.translate("main", u"NextMove", None))
+        self.playerAvatar.setText(QCoreApplication.translate("main", u"playerAvatar", None))
+        self.playerName.setText(QCoreApplication.translate("main", u"playerName", None))
+        self.timerPlayer.setText(QCoreApplication.translate("main", u"PlayerTimer", None))
+        self.capturedBTplayer.setText(QCoreApplication.translate("main", u"capPlayer", None))
+        self.buttonResign.setText(QCoreApplication.translate("main", u"Resign", None))
+        self.buttonPass.setText(QCoreApplication.translate("main", u"Pass", None))
     # retranslateUi
 

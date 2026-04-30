@@ -6,6 +6,7 @@
 #include <fstream>
 #include "Board_new.h"
 
+int getBoardSizeFromSGF(const std::string& filename);
 struct Move {
     Position pos{-1,-1};
     Color color = Color::None;

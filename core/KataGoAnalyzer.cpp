@@ -1,4 +1,5 @@
 // KataGoAnalyzer.cpp
+#include <windows.h>
 #include "KataGoAnalyzer.h"
 #include <iostream>
 #include <fstream>
@@ -7,24 +8,29 @@
 #include <random>
 #include <chrono>
 #include <filesystem>
-#include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
 namespace fs = std::filesystem;
 
+// Статические члены класса
+std::string KataGoAnalyzer::s_defaultKatagoPath = "bot\\KataGo-1.16.4-OpenCL\\katago.exe";
+std::string KataGoAnalyzer::s_defaultModelPath = "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
+std::string KataGoAnalyzer::s_defaultConfigPath = "";
+bool KataGoAnalyzer::s_pathsSet = false;
+
+// Структура реализации (Pimpl идиома)
 struct KataGoAnalyzer::Impl {
     KataGoConfig config;
     
-    HANDLE hStdinWrite = INVALID_HANDLE_VALUE;// handle это дескриптор для pipe потом
+    HANDLE hStdinWrite = INVALID_HANDLE_VALUE;
     HANDLE hStdoutRead = INVALID_HANDLE_VALUE;
-    HANDLE hProcess = INVALID_HANDLE_VALUE;// тоже дескриптор но для процесса именно
+    HANDLE hProcess = INVALID_HANDLE_VALUE;
     DWORD processId = 0;
     
     bool isRunning = false;
     std::mt19937 rng;
     
-    Impl() : rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count())) {}//генерация сида для рандома
-    // IMPL - создаватель временных файлов ему нужен рандомайзер для имен
+    Impl() : rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count())) {}
+    
     ~Impl() {
         if (isRunning) {
             shutdown();
@@ -32,62 +38,51 @@ struct KataGoAnalyzer::Impl {
     }
     
     // Конвертация UTF-8 в UTF-16 для Windows API
-    std::wstring utf8ToWide(const std::string& str) {// сначала узнать размер через опр настройки в функции
+    std::wstring utf8ToWide(const std::string& str) {
         if (str.empty()) return std::wstring();
         int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), NULL, 0);
-        std::wstring wstr(size_needed, 0);// буфер - куда закидывать
+        std::wstring wstr(size_needed, 0);
         MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), &wstr[0], size_needed);
-        return wstr;// закидывание ^^
-    }
-    
-    // Конвертация wide string в UTF-8
-    std::string wideToUtf8(const std::wstring& wstr) {// наоборот 
-        if (wstr.empty()) return std::string();
-        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.size()), NULL, 0, NULL, NULL);
-        std::string str(size_needed, 0);
-        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.size()), &str[0], size_needed, NULL, NULL);
-        return str;
+        return wstr;
     }
     
     // Создание безопасного временного файла
     std::string createTempFile(const std::string& content, const std::string& prefix = "katago_") {
         wchar_t tempPath[MAX_PATH];
-        GetTempPathW(MAX_PATH, tempPath);// путь к папке временных файлов
+        GetTempPathW(MAX_PATH, tempPath);
         
         std::wstring tempDir(tempPath);
         
         for (int attempt = 0; attempt < 10; ++attempt) {
-            std::wstring filename = utf8ToWide(prefix + std::to_string(rng()) + L".sgf");
-            fs::path tempPath = fs::path(tempDir) / filename;//генерация имени
+            std::wstring filename = utf8ToWide(prefix + std::to_string(rng()) + ".sgf");
+            fs::path tempPath = fs::path(tempDir) / filename;
             
             try {
-                if (!fs::exists(tempPath)) {// если такого файла еще нет(не должно быть)
-                    std::ofstream file(tempPath, std::ios::out | std::ios::binary);// открыть этот файл в бинарном режиме(sgf формату так удобней )
+                if (!fs::exists(tempPath)) {
+                    std::ofstream file(tempPath, std::ios::out | std::ios::binary);
                     if (file.is_open()) {
-                        file.write(content.c_str(), content.size());// закидываем контент в файл
+                        file.write(content.c_str(), content.size());
                         file.close();
-                        return fs::path(tempPath).string();// вернуть путь к sgf файлу
+                        return fs::path(tempPath).string();
                     }
                 }
-            } catch (const fs::filesystem_error&) {// если че то не то, пробуем еще раз
+            } catch (const fs::filesystem_error&) {
                 continue;
             }
         }
         
-        throw std::runtime_error("Не удалось создать временный файл");
+        throw std::runtime_error("Failed to create temp file");
     }
     
     bool startProcess() {
-        SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};// структура для определения может ли дочерний процесс брать наши HANDLE
-        //                             размер, стандартная безопасность, дочерний наследует HANDLE(это значит возможность связи через pipe)
-        HANDLE hStdinRead, hStdoutWrite;// дескрипторы для pipe(для катаго)
+        SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+        HANDLE hStdinRead, hStdoutWrite;
         
-        // Создаем pipes для stdin(отправка команд катаго)
-        if (!CreatePipe(&hStdinRead, &hStdinWrite, &sa, 0)) {// канал(выход,вход,безопасность(наследование),размер буфера(тут юзаем системный))
+        // Создаем pipes
+        if (!CreatePipe(&hStdinRead, &hStdinWrite, &sa, 0)) {
             return false;
         }
         
-        // Создаем pipes для stdout(получение ответов катаго)
         if (!CreatePipe(&hStdoutRead, &hStdoutWrite, &sa, 0)) {
             CloseHandle(hStdinRead);
             CloseHandle(hStdinWrite);
@@ -95,55 +90,25 @@ struct KataGoAnalyzer::Impl {
         }
         
         // Настройка процесса
-        STARTUPINFOW si = {0};// структура для инициализации процесса(лучше обнулить, далле самомму инициализировать)
-        PROCESS_INFORMATION pi = {0};// структура получает инфу о созданном процессе
-        // PROCESS_INFORMATION - структура, которая получит информацию о созданном процессе
-        // pi.hProcess - HANDLE для управления процессом
-        // pi.hThread  - HANDLE для управления главным потоком
-        // pi.dwProcessId - ID процесса (число)
-        // pi.dwThreadId  - ID потока (число)
-        si.cb = sizeof(si);// размер
-        si.dwFlags = STARTF_USESTDHANDLES;// флаги показывают какие поля юзаем
-        si.hStdInput = hStdinRead;// куда катаго будет читать команды пользователя
-        si.hStdOutput = hStdoutWrite;// куда катаго будет писать ответы свои
-        si.hStdError = hStdoutWrite;// куда писать ошибки(туда же куда и обычный вывод)
+        STARTUPINFOW si = {0};
+        PROCESS_INFORMATION pi = {0};
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdInput = hStdinRead;
+        si.hStdOutput = hStdoutWrite;
+        si.hStdError = hStdoutWrite;
         
-        std::string cmdLine = "\"" + config.katagoPath + "\" analysis -model \"" + config.modelPath + "\"";
+        // ВАЖНО: используем gtp режим
+        std::string cmdLine = "\"" + config.katagoPath + "\" gtp -model \"" + config.modelPath + "\"";
         if (!config.configPath.empty()) {
             cmdLine += " -config \"" + config.configPath + "\"";
         }
-        // генерация команды для катаго
-        if (config.logToStdout) {
-            cmdLine += " -log-to-stderr";// логи отправляем в STDERR(который перенаправлен в pipe)
-        }
         
-        std::wstring wCmdLine = utf8ToWide(cmdLine);// конвертация из UTF-8 в UTF_16(для API)
+        std::wstring wCmdLine = utf8ToWide(cmdLine);
         
-        // Создаем процесс с скрытым окном
-        DWORD creationFlags = CREATE_NO_WINDOW;// флаги создания процесса(не вылезет черное окно пр запуске) // Флаги создания процесса:
-    // CREATE_NO_WINDOW (0x08000000) - НЕ ПОКАЗЫВАТЬ ОКНО КОНСОЛИ!
-    // Это важно, чтобы не появлялось черное окно при запуске
-    
-    // Альтернативные флаги:
-    // CREATE_NEW_CONSOLE (0x00000010) - показать новое окно консоли
-    // DETACHED_PROCESS   (0x00000008) - без консоли (но окно может появиться)
-    // NORMAL_PRIORITY_CLASS (0x00000020) - нормальный приоритет
-
-        // запуск процесса
-        if (!CreateProcessW(
-            NULL,//ipApplicationName указывает пут к exe файлу(если null то имя файла надо указать в начале lpCommandLine )
-             wCmdLine.data(),// командная строка(сторка для передачи аргументов командной строки)
-              NULL,// безопасность процесса(режим по умолчанию тут)
-               NULL,// безопасность потока(так же)
-                TRUE,// наследование HANDLE(нужно для правильной работы pipe)
-                creationFlags,// флаги создания(тут значение CREATE_NO_WINDOW)
-                NULL,//  наследуем переменные среды родителя(по умолчанию)
-                 NULL,// наследуем текущую директорию от родительского процесса(тут может быть прямо путь)
-                  &si,// наши pipe
-                   &pi)) {// HANDLE процесса
-            DWORD error = GetLastError();// ошибка
-            std::cerr << "Ошибка CreateProcess: " << error << std::endl;
-            CloseHandle(hStdinRead);// закрыть все pipe
+        if (!CreateProcessW(NULL, (LPWSTR)wCmdLine.c_str(), NULL, NULL, TRUE,
+                            CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+            CloseHandle(hStdinRead);
             CloseHandle(hStdinWrite);
             CloseHandle(hStdoutRead);
             CloseHandle(hStdoutWrite);
@@ -151,26 +116,31 @@ struct KataGoAnalyzer::Impl {
         }
         
         hProcess = pi.hProcess;
-        // Сохраняем HANDLE процесса для управления KataGo
-    // С его помощью можно:
-    // - ждать завершения процесса (WaitForSingleObject)
-    // - проверять, жив ли процесс (WaitForSingleObject с 0 таймаутом)
-    // - завершать процесс (TerminateProcess)
-        processId = pi.dwProcessId;// Сохраняем ID процесса (для информации, не обязательно)
+        processId = pi.dwProcessId;
         
-        CloseHandle(pi.hThread);// закрыть ненужные концы pipe
+        CloseHandle(pi.hThread);
         CloseHandle(hStdinRead);
-        CloseHandle(hStdoutWrite);// закрыть HANDLE потока(он не нужен для управления)
+        CloseHandle(hStdoutWrite);
         
-        isRunning = true;// процесс готов к работе
+        isRunning = true;
         
-        // Даем процессу время на инициализацию
+        // Ждём инициализацию процесса
         Sleep(500);
         
-        // Инициализация доски
-        sendGTPCommand("boardsize " + std::to_string(config.boardSize));
-        sendGTPCommand("komi " + std::to_string(config.komi));
-        sendGTPCommand("clear_board");
+        // Отправляем инициализационные команды без ожидания ответа
+        DWORD written;
+        std::string cmd;
+        
+        cmd = "boardsize " + std::to_string(config.boardSize) + "\n";
+        WriteFile(hStdinWrite, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, NULL);
+        
+        cmd = "komi " + std::to_string(config.komi) + "\n";
+        WriteFile(hStdinWrite, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, NULL);
+        
+        cmd = "clear_board\n";
+        WriteFile(hStdinWrite, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, NULL);
+        
+        Sleep(200);
         
         return true;
     }
@@ -179,26 +149,44 @@ struct KataGoAnalyzer::Impl {
         if (!isRunning) return "";
         
         DWORD written;
-        std::string cmdWithNewline = cmd + "\n";// так надо для gtp протокола
-        //      дескриптор pipe для записи  текст сообщения   длина сообщения   что реально записано  параметр асинхронной записи(тут null)
+        std::string cmdWithNewline = cmd + "\n";
+        
         if (!WriteFile(hStdinWrite, cmdWithNewline.c_str(), 
-                       static_cast<DWORD>(cmdWithNewline.size()), &written, NULL)) {//
+                       static_cast<DWORD>(cmdWithNewline.size()), &written, NULL)) {
             return "";
         }
         
-        // Читаем ответ
+        // Читаем ответ с таймаутом
         char buffer[65536];
         DWORD read;
         std::string response;
         
-        while (true) { //дескриптор pipe для чтения  буфер(куда читаем) размер(сколько читаем) что реально прочитали синхронный режим
+        DWORD startTime = GetTickCount();
+        const DWORD TIMEOUT_MS = 10000; // 10 секунд
+        
+        while (true) {
+            if (GetTickCount() - startTime > TIMEOUT_MS) {
+                break;
+            }
+            
+            DWORD bytesAvailable = 0;
+            if (!PeekNamedPipe(hStdoutRead, NULL, 0, NULL, &bytesAvailable, NULL)) {
+                break;
+            }
+            
+            if (bytesAvailable == 0) {
+                Sleep(50);
+                continue;
+            }
+            
             if (!ReadFile(hStdoutRead, buffer, sizeof(buffer) - 1, &read, NULL) || read == 0) {
                 break;
             }
-            buffer[read] = '\0';
-            response += buffer;// закидываем сообщение из буфера 
             
-            // Проверяем завершение ответа (пустая строка после ответа)
+            buffer[read] = '\0';
+            response += buffer;
+            
+            // GTP ответы заканчиваются пустой строкой
             if (response.find("\n\n") != std::string::npos) {
                 break;
             }
@@ -207,306 +195,422 @@ struct KataGoAnalyzer::Impl {
         return response;
     }
     
-    KataGoResult parseAnalyzeResponse(const std::string& response) {
-        KataGoResult result;
-        
-        try {
-            // Ищем JSON в ответе
-            size_t jsonStart = response.find('{');
-            if (jsonStart == std::string::npos) {// если не нашлось json
-                result.errorMessage = "Не найден JSON в ответе";
-                return result;
-            }
-            
-            size_t jsonEnd = response.rfind('}');
-            if (jsonEnd == std::string::npos) {
-                result.errorMessage = "Не найден конец JSON";
-                return result;
-            }
-            
-            std::string jsonStr = response.substr(jsonStart, jsonEnd - jsonStart + 1);// извлекаем json файл
-            json data = json::parse(jsonStr);
-            
-            if (data.contains("winrate")) {// извлечение вероятности победы(от 0 до 1)
-                result.winrate = data["winrate"].get<double>();
-            }
-            
-            if (data.contains("scoreLead")) {// извлечение преимущество в очках
-                result.scoreLead = data["scoreLead"].get<double>();
-            }
-            
-            if (data.contains("visits")) {// извлекаеи число проанализированных ходов
-                result.visits = data["visits"].get<int>();
-            }
-            
-            if (data.contains("ownership")) {// извлекаем карту владения территорий
-                result.ownership = data["ownership"].dump();
-            }
-            
-            if (data.contains("rootInfo") && data["rootInfo"].contains("moves")) {// извлекаем топ ходы
-                for (const auto& move : data["rootInfo"]["moves"]) {
-                    if (move.contains("move")) {
-                        std::string moveStr = move["move"].get<std::string>();
-                        result.topMoves.push_back(moveStr);
-                        if (result.topMoves.size() >= 5) break;// 5 штук
-                    }
-                }
-                if (!result.topMoves.empty()) {
-                    result.bestMove = result.topMoves[0];// самый наиахренительнейший ход в партии
-                }
-            }
-            
-            // Расчет счета
-            double komi = config.komi;
-            if (result.scoreLead > 0) {// расчет разницы идет от черных
-                result.winner = "Black";
-                result.blackScore = komi + result.scoreLead;
-                result.whiteScore = komi;
-            } else {
-                result.winner = "White";
-                result.blackScore = komi;
-                result.whiteScore = komi - result.scoreLead;
-            }
-            
-            result.success = true;
-            
-        } catch (const std::exception& e) {
-            result.errorMessage = e.what();
-        }
-        
-        return result;
-    }
-    
     KataGoResult parseFinalScoreResponse(const std::string& response) {
-        KataGoResult result;
-        
-        // Парсим final_score: "= B+12.5" или "= W+3.5" или "= 0"
-        std::regex scoreRegex(R"(=\s*([BW])\+(\d+\.?\d*)|=\s*0)");
-        std::smatch match;
-        
-        if (std::regex_search(response, match, scoreRegex)) {
-            if (match[1].matched) {
-                std::string winner = match[1].str();
-                result.winner = (winner == "B") ? "Black" : "White";// парсим победителя и его преимущество в очках
-                result.scoreLead = std::stod(match[2].str());
-                
-                double komi = config.komi;
-                if (result.winner == "Black") {
-                    result.blackScore = komi + result.scoreLead;
-                    result.whiteScore = komi;
-                } else {
-                    result.whiteScore = komi + result.scoreLead;
-                    result.blackScore = komi;
-                }
-                
-                result.success = true;
-            } else {
-                // Ничья
-                result.winner = "Draw";
-                result.scoreLead = 0;
-                result.blackScore = config.komi;
-                result.whiteScore = config.komi;
-                result.success = true;
-            }
-        } else {
-            result.errorMessage = "Не удалось распарсить результат final_score";
-        }
-        
+    KataGoResult result;
+    
+    // Если KataGo вернул ошибку GTP (? ...)
+    if (response.find('?') != std::string::npos) {
+        result.errorMessage = "KataGo GTP error: " + response;
         return result;
     }
     
-    void shutdown() {// как завершить процесс
+    std::regex scoreRegex(R"(=\s*([BW])\+(\d+\.?\d*))");
+    std::regex drawRegex(R"(=\s*0)");
+    std::smatch match;
+    
+    if (std::regex_search(response, match, scoreRegex)) {
+        std::string winner = match[1].str();
+        result.winner = (winner == "B") ? "Black" : "White";
+        result.scoreLead = std::stod(match[2].str());
+        
+        double komi = config.komi;
+        if (result.winner == "Black") {
+            result.blackScore = komi + result.scoreLead;
+            result.whiteScore = komi;
+        } else {
+            result.whiteScore = komi + result.scoreLead;
+            result.blackScore = komi;
+        }
+        result.success = true;
+    } 
+    else if (std::regex_search(response, match, drawRegex)) {
+        result.winner = "Draw";
+        result.scoreLead = 0;
+        result.blackScore = config.komi;
+        result.whiteScore = config.komi;
+        result.success = true;
+    } 
+    else {
+        // Теперь видно, что именно пришло — проще отлаживать
+        result.errorMessage = "Failed to parse final_score. Raw response:\n" + response;
+    }
+    
+    return result;
+}
+    
+    void shutdown() {
         if (isRunning) {
-            sendGTPCommand("quit");// спокойно просим катаго завершиться
-            // если спокойно не получилось будем убивать
-            if (hProcess != INVALID_HANDLE_VALUE) {// если десриптор процесса не в значении завершения
-                WaitForSingleObject(hProcess, 5000);// даем время 5 секунд
-                TerminateProcess(hProcess, 0);// принудительно убиваем
-                CloseHandle(hProcess);// закрыть HANDLE процесса
-                hProcess = INVALID_HANDLE_VALUE;// обнулить HANDLE
+            sendGTPCommand("quit");
+            
+            if (hProcess != INVALID_HANDLE_VALUE) {
+                WaitForSingleObject(hProcess, 5000);
+                TerminateProcess(hProcess, 0);
+                CloseHandle(hProcess);
+                hProcess = INVALID_HANDLE_VALUE;
             }
             
             if (hStdinWrite != INVALID_HANDLE_VALUE) {
-                CloseHandle(hStdinWrite);// если не закрылся канал записи, закрываем
-                hStdinWrite = INVALID_HANDLE_VALUE;// обнулить HANDLE
+                CloseHandle(hStdinWrite);
+                hStdinWrite = INVALID_HANDLE_VALUE;
             }
             
             if (hStdoutRead != INVALID_HANDLE_VALUE) {
-                CloseHandle(hStdoutRead);// если не закрылся канал чтения, закрываем
-                hStdoutRead = INVALID_HANDLE_VALUE;// обнулить HANDLE
+                CloseHandle(hStdoutRead);
+                hStdoutRead = INVALID_HANDLE_VALUE;
             }
             
-            isRunning = false;// маркер завершенности
+            isRunning = false;
         }
     }
 };
 
-// Реализация публичных методов
-KataGoAnalyzer::KataGoAnalyzer() : pImpl(std::make_unique<Impl>()) {}// конструктор 
+// ============================================================================
+// Реализация публичных методов KataGoAnalyzer
+// ============================================================================
 
-KataGoAnalyzer::~KataGoAnalyzer() {// деструктор
+KataGoAnalyzer::KataGoAnalyzer() : pImpl(std::make_unique<Impl>()) {}
+
+KataGoAnalyzer::~KataGoAnalyzer() {
     shutdown();
 }
 
-bool KataGoAnalyzer::initialize(const KataGoConfig& config) {
-    pImpl->config = config;// сохраняем конфигурацию в пимпл
+void KataGoAnalyzer::setDefaultPaths(const std::string& katagoPath, 
+                                      const std::string& modelPath, 
+                                      const std::string& configPath) {
+    s_defaultKatagoPath = katagoPath;
+    s_defaultModelPath = modelPath;
+    s_defaultConfigPath = configPath;
+    s_pathsSet = true;
+}
+
+bool KataGoAnalyzer::autoDetectPaths() {
+    std::vector<std::string> possiblePaths = {
+        "bot\\KataGo-1.16.4-OpenCL\\katago.exe",
+        "bot\\katago\\katago.exe",
+        "..\\bot\\KataGo-1.16.4-OpenCL\\katago.exe",
+        "..\\bot\\katago\\katago.exe",
+        "C:\\OS_GO\\bot\\KataGo-1.16.4-OpenCL\\katago.exe",
+        "C:\\OS_GO\\bot\\katago\\katago.exe",
+        ".\\katago.exe"
+    };
     
-    if (config.maxVisits <= 0) {
-        std::cerr << "Ошибка: maxVisits должен быть > 0" << std::endl;
-        return false;
+    std::vector<std::string> possibleModels = {
+        "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "bot\\katago\\models\\kata1.bin.gz",
+        "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "..\\bot\\katago\\models\\kata1.bin.gz",
+        "C:\\OS_GO\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "C:\\OS_GO\\bot\\katago\\models\\kata1.bin.gz",
+        ".\\kata1.bin.gz"
+    };
+    
+    bool foundExe = false;
+    bool foundModel = false;
+    
+    for (const auto& path : possiblePaths) {
+        if (fs::exists(path)) {
+            s_defaultKatagoPath = fs::absolute(path).string();
+            foundExe = true;
+            break;
+        }
     }
     
+    for (const auto& path : possibleModels) {
+        if (fs::exists(path)) {
+            s_defaultModelPath = fs::absolute(path).string();
+            foundModel = true;
+            break;
+        }
+    }
+    
+    if (foundExe && foundModel) {
+        s_pathsSet = true;
+        return true;
+    }
+    
+    return false;
+}
+
+bool KataGoAnalyzer::isAvailable() {
+    // Если пути не установлены - пробуем найти
+    if (!s_pathsSet) {
+        autoDetectPaths();  // ← ВАЖНО: сохраняет пути в статические переменные!
+    }
+    
+    if (s_pathsSet && !s_defaultKatagoPath.empty()) {
+        return fs::exists(s_defaultKatagoPath);
+    }
+    
+    return false;
+}
+
+
+bool KataGoAnalyzer::isAvailable(const std::string& katagoPath) {
+    if (katagoPath.empty()) {
+        return isAvailable();
+    }
+    return fs::exists(katagoPath);
+}
+
+bool KataGoAnalyzer::initialize(const KataGoConfig& config) {
+    pImpl->config = config;
+    
     if (!fs::exists(config.katagoPath)) {
-        std::cerr << "Ошибка: KataGo не найден по пути " << config.katagoPath << std::endl;
         return false;
     }
     
     if (!fs::exists(config.modelPath)) {
-        std::cerr << "Ошибка: Модель не найдена по пути " << config.modelPath << std::endl;
         return false;
     }
     
-    return pImpl->startProcess();// запуск процесса
+    return pImpl->startProcess();
 }
 
-bool KataGoAnalyzer::initialize(const std::string& katagoPath, // просто иницализатор(сеттер своего рода)
+bool KataGoAnalyzer::initialize(const std::string& katagoPath,
                                 const std::string& modelPath,
                                 const std::string& configPath) {
     KataGoConfig config;
     config.katagoPath = katagoPath;
     config.modelPath = modelPath;
     config.configPath = configPath;
+    config.maxVisits = 500;
+    config.boardSize = 19;
+    config.komi = 6.5;
     return initialize(config);
 }
 
-KataGoResult KataGoAnalyzer::analyzeSGF(const std::string& sgfContent) {
-    return analyzeSGF(sgfContent, pImpl->config.boardSize, pImpl->config.komi);// берем параметры из конфигурации пимпл и делаем анализ
+bool KataGoAnalyzer::initialize() {
+    if (!s_pathsSet) {
+        if (!autoDetectPaths()) {
+            return false;
+        }
+    }
+    
+    KataGoConfig config;
+    config.katagoPath = s_defaultKatagoPath;
+    config.modelPath = s_defaultModelPath;
+    config.configPath = s_defaultConfigPath;
+    config.maxVisits = 500;
+    config.boardSize = 19;
+    config.komi = 6.5;
+    
+    return initialize(config);
 }
 
-KataGoResult KataGoAnalyzer::analyzeSGF(const std::string& sgfContent, // можно и так запускать анализ
-                                        int boardSize, 
-                                        double komi) {
+KataGoResult KataGoAnalyzer::analyzeSGF(const std::string& sgfContent,
+                                         int boardSize,
+                                         double komi) {
     KataGoResult result;
     
-    if (!pImpl->isRunning) {//вкл или не вкл
-        result.errorMessage = "KataGo не инициализирован";
+    if (!pImpl->isRunning) {
+        result.errorMessage = "KataGo not initialized";
         return result;
     }
     
-    // Создаем временный файл
-    std::string tempFile;
+    std::string tempFile = getLoadedSGFPath() + "\\_temp_analyze.sgf";
+    
     try {
-        tempFile = pImpl->createTempFile(sgfContent);// создание временного файла
+        std::ofstream file(tempFile, std::ios::out | std::ios::binary);
+        if (!file.is_open()) {
+            result.errorMessage = "Failed to create temp file: " + tempFile;
+            return result;
+        }
+        file.write(sgfContent.c_str(), sgfContent.size());
+        file.close();
     } catch (const std::exception& e) {
-        result.errorMessage = e.what();
+        result.errorMessage = std::string("File write error: ") + e.what();
         return result;
     }
     
-    // Используем соответствующий режим анализа
-    std::string analysisCmd;// выбрать режиим анализа
-    if (pImpl->config.analysisMode == "kata-analyze") {// если там анализ то анализ
-        analysisCmd = "kata-analyze " + std::to_string(pImpl->config.maxVisits);
-    } else {
-        analysisCmd = "final_score";// если там счет то просто счет
-    }
-    
-    // Отправляем команды
-    pImpl->sendGTPCommand("boardsize " + std::to_string(boardSize));// отправляем команды
-    pImpl->sendGTPCommand("komi " + std::to_string(komi));
+    pImpl->sendGTPCommand("boardsize " + std::to_string(boardSize));
     pImpl->sendGTPCommand("clear_board");
-    pImpl->sendGTPCommand("loadsgf " + tempFile);
+    pImpl->sendGTPCommand("komi " + std::to_string(komi));
     
-    std::string response = pImpl->sendGTPCommand(analysisCmd);// получаем ответ
+    std::string loadResponse = pImpl->sendGTPCommand("loadsgf " + tempFile);
     
-    // Парсим ответ
-    if (pImpl->config.analysisMode == "kata-analyze") {
-        result = pImpl->parseAnalyzeResponse(response);// разыне режимы анализа
-    } else {
-        result = pImpl->parseFinalScoreResponse(response);
+    if (loadResponse.empty() || loadResponse[0] == '?' || loadResponse.find('=') == std::string::npos) {
+        result.errorMessage = "loadsgf failed. Raw response: " + loadResponse;
+        try { fs::remove(tempFile); } catch (...) {}
+        return result;
     }
     
-    // Удаляем временный файл
-    try {
-        fs::remove(tempFile);
-    } catch (...) {}
+    std::string response = pImpl->sendGTPCommand("final_score");
+    result = pImpl->parseFinalScoreResponse(response);
+    
+    try { fs::remove(tempFile); } catch (...) {}
     
     return result;
 }
 
-KataGoResult KataGoAnalyzer::analyzePosition(const std::vector<std::string>& moves) {// анализ не через sgf а через историю просто
-    return analyzePosition(moves, pImpl->config.boardSize, pImpl->config.komi, pImpl->config.maxVisits);
+std::string KataGoAnalyzer::getLoadedSGFPath() {
+    fs::path currentPath = fs::current_path();
+    
+    fs::path projectRoot = currentPath;
+    while (projectRoot.has_parent_path()) {
+        if (fs::exists(projectRoot / "games")) {
+            break;
+        }
+        projectRoot = projectRoot.parent_path();
+    }
+    
+    fs::path loadedPath = projectRoot / "games" / "loaded";
+    
+    if (!fs::exists(loadedPath)) {
+        fs::create_directories(loadedPath);
+    }
+    
+    return loadedPath.string();
 }
 
-KataGoResult KataGoAnalyzer::analyzePosition(const std::vector<std::string>& moves,
-                                             int boardSize,
-                                             double komi,
-                                             int maxVisits) {
+SGFInfo KataGoAnalyzer::parseSGFInfo(const std::string& filepath) {
+    SGFInfo info;
+    info.fullPath = filepath;
+    info.filename = fs::path(filepath).filename().string();
+    info.valid = false;
+    
+    try {
+        if (!fs::exists(filepath)) {
+            return info;
+        }
+        
+        info.fileSize = fs::file_size(filepath);
+        
+        std::ifstream file(filepath);
+        if (!file.is_open()) {
+            return info;
+        }
+        
+        std::string content((std::istreambuf_iterator<char>(file)),
+                             std::istreambuf_iterator<char>());
+        file.close();
+        
+        std::regex szRegex(R"(SZ\[(\d+)\])");
+        std::regex pbRegex(R"(PB\[([^\]]*)\])");
+        std::regex pwRegex(R"(PW\[([^\]]*)\])");
+        std::regex kmRegex(R"(KM\[([^\]]*)\])");
+        std::regex reRegex(R"(RE\[([^\]]*)\])");
+        std::regex dtRegex(R"(DT\[([^\]]*)\])");
+        std::regex moveRegex(R"(;([BW])\[)");
+        
+        std::smatch match;
+        
+        // Размер доски
+        if (std::regex_search(content, match, szRegex)) {
+            info.boardSize = std::stoi(match[1].str());
+        }
+        
+        // Имена игроков
+        if (std::regex_search(content, match, pbRegex)) {
+            info.playerBlack = match[1].str();
+        }
+        if (std::regex_search(content, match, pwRegex)) {
+            info.playerWhite = match[1].str();
+        }
+        
+        // Коми
+        if (std::regex_search(content, match, kmRegex)) {
+            info.komi = std::stod(match[1].str());
+        }
+        
+        // Результат
+        if (std::regex_search(content, match, reRegex)) {
+            info.result = match[1].str();
+        }
+        
+        // Дата
+        if (std::regex_search(content, match, dtRegex)) {
+            info.date = match[1].str();
+        }
+        
+        // Количество ходов
+        auto movesBegin = std::sregex_iterator(content.begin(), content.end(), moveRegex);
+        auto movesEnd = std::sregex_iterator();
+        info.moveCount = std::distance(movesBegin, movesEnd);
+        
+        info.valid = true;
+        
+    } catch (const std::exception& e) {
+        info.valid = false;
+    }
+    
+    return info;
+}
+
+std::vector<SGFInfo> KataGoAnalyzer::listSGFFiles(const std::string& directory) {
+    std::vector<SGFInfo> files;
+    
+    std::string dirPath = directory.empty() ? getLoadedSGFPath() : directory;
+    
+    if (!fs::exists(dirPath)) {
+        return files;
+    }
+    
+    try {
+        for (const auto& entry : fs::directory_iterator(dirPath)) {
+            if (entry.is_regular_file()) {
+                std::string ext = entry.path().extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                
+                if (ext == ".sgf") {
+                    SGFInfo info = parseSGFInfo(entry.path().string());
+                    if (info.valid) {
+                        files.push_back(info);
+                    } else {
+                        info.fullPath = entry.path().string();
+                        info.filename = entry.path().filename().string();
+                        info.fileSize = entry.file_size();
+                        files.push_back(info);
+                    }
+                }
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Error reading directory: " << e.what() << std::endl;
+    }
+    
+    // Сортируем по имени файла
+    std::sort(files.begin(), files.end(), [](const SGFInfo& a, const SGFInfo& b) {
+        return a.filename < b.filename;
+    });
+    
+    return files;
+}
+
+ std::string KataGoAnalyzer::readSGFFile(const std::string& filepath) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        return "";
+    }
+    
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+KataGoResult KataGoAnalyzer::analyzeSGFFile(const std::string& filepath,
+                                              int boardSize,
+                                              double komi) {
     KataGoResult result;
     
-    if (!pImpl->isRunning) {
-        result.errorMessage = "KataGo не инициализирован";
+    std::string content = readSGFFile(filepath);
+    if (content.empty()) {
+        result.errorMessage = "Cannot read file: " + filepath;
         return result;
     }
     
-    if (maxVisits <= 0) {
-        result.errorMessage = "maxVisits должен быть > 0";
-        return result;
-    }
-    
-    // Инициализация доски
-    pImpl->sendGTPCommand("boardsize " + std::to_string(boardSize));
-    pImpl->sendGTPCommand("komi " + std::to_string(komi));
-    pImpl->sendGTPCommand("clear_board");
-    
-    // Выполняем ходы
-    for (const auto& move : moves) {
-        std::string response = pImpl->sendGTPCommand("play " + move);
-        if (response.find("illegal move") != std::string::npos) {
-            result.errorMessage = "Неверный ход: " + move;
-            return result;
+    // Если параметры не заданы, извлекаем из SGF
+    if (boardSize <= 0 || komi < 0) {
+        SGFInfo info = parseSGFInfo(filepath);
+        if (boardSize <= 0) {
+            boardSize = info.boardSize > 0 ? info.boardSize : 19;
+        }
+        if (komi < 0) {
+            komi = info.komi;
         }
     }
     
-    // Анализ
-    std::string response = pImpl->sendGTPCommand("kata-analyze " + std::to_string(maxVisits));
-    return pImpl->parseAnalyzeResponse(response);
+    return analyzeSGF(content, boardSize, komi);
 }
-
-bool KataGoAnalyzer::loadSGF(const std::string& sgfContent) {
-    if (!pImpl->isRunning) return false;
-    
-    std::string tempFile;
-    try {
-        tempFile = pImpl->createTempFile(sgfContent);
-    } catch (...) {
-        return false;
-    }
-    
-    pImpl->sendGTPCommand("boardsize " + std::to_string(pImpl->config.boardSize));
-    pImpl->sendGTPCommand("komi " + std::to_string(pImpl->config.komi));
-    std::string response = pImpl->sendGTPCommand("loadsgf " + tempFile);
-    
-    try {
-        fs::remove(tempFile);
-    } catch (...) {}
-    
-    return response.find("=") == 0;
-}
-
-std::string KataGoAnalyzer::sendGTPCommand(const std::string& command) {
-    return pImpl->sendGTPCommand(command);
-}
-
-void KataGoAnalyzer::clearBoard() {
-    if (pImpl->isRunning) {
-        pImpl->sendGTPCommand("clear_board");
-    }
-}
-
 void KataGoAnalyzer::shutdown() {
     pImpl->shutdown();
-}
-
-bool KataGoAnalyzer::isAvailable(const std::string& katagoPath) {
-    return fs::exists(katagoPath);
 }
