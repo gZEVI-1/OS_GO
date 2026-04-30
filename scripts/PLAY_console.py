@@ -1,8 +1,9 @@
-# PLAY_console.py
+
 from console_back import *
 from console_PVP import *
 from console_PVE import *
-from console_analyzer import *  # ← ДОБАВИТЬ ИМПОРТ
+from console_analyzer import *
+
 
 
 def main_menu():
@@ -16,7 +17,7 @@ def main_menu():
         print("1. 🎮 Играть против другого игрока (PvP)")
         print("2. 🤖 Играть против GNU Go (PvE)")
         print("3. 🔧 Тест соединения с GNU Go")
-        print("4. 📊 Анализ SGF файлов (KataGo)")  # ← НОВЫЙ ПУНКТ
+        print("4. 📊 Анализ SGF файлов (KataGo)")
         print("5. 🚪 Выход")
         print()
         
@@ -29,7 +30,7 @@ def main_menu():
         elif choice == '3':
             test_gnugo_connection()
         elif choice == '4':
-            run_sgf_analyzer()  # ← НОВЫЙ ВЫЗОВ
+            run_sgf_analyzer()
         elif choice == '5':
             print("\n👋 До свидания!")
             break
