@@ -12,8 +12,8 @@
 namespace fs = std::filesystem;
 
 // Статические члены класса
-std::string KataGoAnalyzer::s_defaultKatagoPath = "bot\\KataGo-1.16.4-OpenCL\\katago.exe";
-std::string KataGoAnalyzer::s_defaultModelPath = "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
+std::string KataGoAnalyzer::s_defaultKatagoPath = "..\\bot\\KataGo-1.16.4-OpenCL\\katago.exe";
+std::string KataGoAnalyzer::s_defaultModelPath = "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
 std::string KataGoAnalyzer::s_defaultConfigPath = "";
 bool KataGoAnalyzer::s_pathsSet = false;
 
