@@ -12,8 +12,8 @@
 namespace fs = std::filesystem;
 
 // Статические члены класса
-std::string KataGoAnalyzer::s_defaultKatagoPath = "bot\\KataGo-1.16.4-OpenCL\\katago.exe";
-std::string KataGoAnalyzer::s_defaultModelPath = "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
+std::string KataGoAnalyzer::s_defaultKatagoPath = "..\\bot\\KataGo-1.16.4-OpenCL\\katago.exe";
+std::string KataGoAnalyzer::s_defaultModelPath = "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
 std::string KataGoAnalyzer::s_defaultConfigPath = "";
 bool KataGoAnalyzer::s_pathsSet = false;
 
@@ -196,41 +196,47 @@ struct KataGoAnalyzer::Impl {
     }
     
     KataGoResult parseFinalScoreResponse(const std::string& response) {
-        KataGoResult result;
-        
-        std::regex scoreRegex(R"(=\s*([BW])\+(\d+\.?\d*)|=\s*0)");
-        std::smatch match;
-        
-        if (std::regex_search(response, match, scoreRegex)) {
-            if (match[1].matched) {
-                std::string winner = match[1].str();
-                result.winner = (winner == "B") ? "Black" : "White";
-                result.scoreLead = std::stod(match[2].str());
-                
-                double komi = config.komi;
-                if (result.winner == "Black") {
-                    result.blackScore = komi + result.scoreLead;
-                    result.whiteScore = komi;
-                } else {
-                    result.whiteScore = komi + result.scoreLead;
-                    result.blackScore = komi;
-                }
-                
-                result.success = true;
-            } else {
-                // Draw
-                result.winner = "Draw";
-                result.scoreLead = 0;
-                result.blackScore = config.komi;
-                result.whiteScore = config.komi;
-                result.success = true;
-            }
-        } else {
-            result.errorMessage = "Failed to parse final_score";
-        }
-        
+    KataGoResult result;
+    
+    // Если KataGo вернул ошибку GTP (? ...)
+    if (response.find('?') != std::string::npos) {
+        result.errorMessage = "KataGo GTP error: " + response;
         return result;
     }
+    
+    std::regex scoreRegex(R"(=\s*([BW])\+(\d+\.?\d*))");
+    std::regex drawRegex(R"(=\s*0)");
+    std::smatch match;
+    
+    if (std::regex_search(response, match, scoreRegex)) {
+        std::string winner = match[1].str();
+        result.winner = (winner == "B") ? "Black" : "White";
+        result.scoreLead = std::stod(match[2].str());
+        
+        double komi = config.komi;
+        if (result.winner == "Black") {
+            result.blackScore = komi + result.scoreLead;
+            result.whiteScore = komi;
+        } else {
+            result.whiteScore = komi + result.scoreLead;
+            result.blackScore = komi;
+        }
+        result.success = true;
+    } 
+    else if (std::regex_search(response, match, drawRegex)) {
+        result.winner = "Draw";
+        result.scoreLead = 0;
+        result.blackScore = config.komi;
+        result.whiteScore = config.komi;
+        result.success = true;
+    } 
+    else {
+        // Теперь видно, что именно пришло — проще отлаживать
+        result.errorMessage = "Failed to parse final_score. Raw response:\n" + response;
+    }
+    
+    return result;
+}
     
     void shutdown() {
         if (isRunning) {
@@ -401,26 +407,37 @@ KataGoResult KataGoAnalyzer::analyzeSGF(const std::string& sgfContent,
         return result;
     }
     
-    std::string tempFile;
+    std::string tempFile = getLoadedSGFPath() + "\\_temp_analyze.sgf";
+    
     try {
-        tempFile = pImpl->createTempFile(sgfContent);
+        std::ofstream file(tempFile, std::ios::out | std::ios::binary);
+        if (!file.is_open()) {
+            result.errorMessage = "Failed to create temp file: " + tempFile;
+            return result;
+        }
+        file.write(sgfContent.c_str(), sgfContent.size());
+        file.close();
     } catch (const std::exception& e) {
-        result.errorMessage = e.what();
+        result.errorMessage = std::string("File write error: ") + e.what();
         return result;
     }
     
     pImpl->sendGTPCommand("boardsize " + std::to_string(boardSize));
-    pImpl->sendGTPCommand("komi " + std::to_string(komi));
     pImpl->sendGTPCommand("clear_board");
-    pImpl->sendGTPCommand("loadsgf " + tempFile);
+    pImpl->sendGTPCommand("komi " + std::to_string(komi));
+    
+    std::string loadResponse = pImpl->sendGTPCommand("loadsgf " + tempFile);
+    
+    if (loadResponse.empty() || loadResponse[0] == '?' || loadResponse.find('=') == std::string::npos) {
+        result.errorMessage = "loadsgf failed. Raw response: " + loadResponse;
+        try { fs::remove(tempFile); } catch (...) {}
+        return result;
+    }
     
     std::string response = pImpl->sendGTPCommand("final_score");
-    
     result = pImpl->parseFinalScoreResponse(response);
     
-    try {
-        fs::remove(tempFile);
-    } catch (...) {}
+    try { fs::remove(tempFile); } catch (...) {}
     
     return result;
 }
@@ -428,7 +445,6 @@ KataGoResult KataGoAnalyzer::analyzeSGF(const std::string& sgfContent,
 std::string KataGoAnalyzer::getLoadedSGFPath() {
     fs::path currentPath = fs::current_path();
     
-    // Ищем корень проекта
     fs::path projectRoot = currentPath;
     while (projectRoot.has_parent_path()) {
         if (fs::exists(projectRoot / "games")) {
@@ -439,7 +455,6 @@ std::string KataGoAnalyzer::getLoadedSGFPath() {
     
     fs::path loadedPath = projectRoot / "games" / "loaded";
     
-    // Создаем папку если не существует
     if (!fs::exists(loadedPath)) {
         fs::create_directories(loadedPath);
     }
@@ -454,14 +469,12 @@ SGFInfo KataGoAnalyzer::parseSGFInfo(const std::string& filepath) {
     info.valid = false;
     
     try {
-        // Проверяем существование файла
         if (!fs::exists(filepath)) {
             return info;
         }
         
         info.fileSize = fs::file_size(filepath);
         
-        // Читаем файл
         std::ifstream file(filepath);
         if (!file.is_open()) {
             return info;
@@ -471,7 +484,6 @@ SGFInfo KataGoAnalyzer::parseSGFInfo(const std::string& filepath) {
                              std::istreambuf_iterator<char>());
         file.close();
         
-        // Парсим основные свойства
         std::regex szRegex(R"(SZ\[(\d+)\])");
         std::regex pbRegex(R"(PB\[([^\]]*)\])");
         std::regex pwRegex(R"(PW\[([^\]]*)\])");
@@ -537,7 +549,6 @@ std::vector<SGFInfo> KataGoAnalyzer::listSGFFiles(const std::string& directory) 
         for (const auto& entry : fs::directory_iterator(dirPath)) {
             if (entry.is_regular_file()) {
                 std::string ext = entry.path().extension().string();
-                // Приводим к нижнему регистру
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 
                 if (ext == ".sgf") {
@@ -545,7 +556,6 @@ std::vector<SGFInfo> KataGoAnalyzer::listSGFFiles(const std::string& directory) 
                     if (info.valid) {
                         files.push_back(info);
                     } else {
-                        // Даже если не распарсили, добавляем базовую информацию
                         info.fullPath = entry.path().string();
                         info.filename = entry.path().filename().string();
                         info.fileSize = entry.file_size();
@@ -582,7 +592,6 @@ KataGoResult KataGoAnalyzer::analyzeSGFFile(const std::string& filepath,
                                               double komi) {
     KataGoResult result;
     
-    // Читаем файл
     std::string content = readSGFFile(filepath);
     if (content.empty()) {
         result.errorMessage = "Cannot read file: " + filepath;
@@ -600,7 +609,6 @@ KataGoResult KataGoAnalyzer::analyzeSGFFile(const std::string& filepath,
         }
     }
     
-    // Анализируем
     return analyzeSGF(content, boardSize, komi);
 }
 void KataGoAnalyzer::shutdown() {
