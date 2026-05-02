@@ -233,7 +233,7 @@ async def game_loop(client: NetworkClient):
         try:
             await asyncio.wait_for(game_started.wait(), timeout=30.0)
         except asyncio.TimeoutError:
-            output.show_message(MessageData("error", "Таймаут ожидания начала игры"))
+            output.show_message("error", "Таймаут ожидания начала игры")
             return
 
     # === ЕДИНЫЙ ЦИКЛ (как в console_PVP / console_PVE) ===
@@ -267,7 +267,7 @@ async def game_loop(client: NetworkClient):
 
                 if cmd == "undo":
                     await client.request_undo()
-                    output.show_message(MessageData("info", "Запрос на отмену отправлен"))
+                    output.show_message("info", "Запрос на отмену отправлен")
                     await asyncio.sleep(0.5)
                     continue
 
@@ -287,18 +287,18 @@ async def game_loop(client: NetworkClient):
                 if parsed and not parsed.get('quit') and not parsed.get('undo'):
                     ok = await client.send_move(parsed['x'], parsed['y'])
                     if not ok:
-                        output.show_message(MessageData("error", "Ход не отправлен"))
+                        output.show_message("error", "Ход не отправлен")
                         await asyncio.sleep(1)
                 else:
-                    output.show_message(MessageData("error", "Неверные координаты"))
+                    output.show_message("error", "Неверные координаты")
                     await asyncio.sleep(1)
 
             else:
-                output.show_message(MessageData("info", "Ожидание хода противника..."))
+                output.show_message("info", "Ожидание хода противника...")
                 try:
                     await asyncio.wait_for(wait_for_state_update(client), timeout=60.0)
                 except asyncio.TimeoutError:
-                    output.show_message(MessageData("warning", "Долгое ожидание..."))
+                    output.show_message("warning", "Долгое ожидание...")
                     await asyncio.sleep(1)
 
         # --- Результат ---
@@ -307,11 +307,11 @@ async def game_loop(client: NetworkClient):
             winner, result_str = game_result
             my = client.player_color
             if winner == my:
-                output.show_message(MessageData("success", "ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!"))
+                output.show_message("success", "ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!")
             elif winner == "draw":
-                output.show_message(MessageData("info", "НИЧЬЯ!"))
+                output.show_message("info", "НИЧЬЯ!")
             else:
-                output.show_message(MessageData("error", "Вы проиграли..."))
+                output.show_message("error", "Вы проиграли...")
 
             output.show_game_result(winner, result_str, "game_over")
             await ainput("\nНажмите Enter для возврата...")
@@ -337,7 +337,7 @@ async def run_network_game():
     print(f"🌐 Сервер: {args.server}")
     print(f"👤 Имя: {player_name}")
     if not await client.connect():
-        output.show_message(MessageData("error", "Не удалось подключиться к серверу"))
+        output.show_message("error", "Не удалось подключиться к серверу")
         await ainput("\nНажмите Enter...")
         return
     output.show_message(MessageData("success", "Подключено!"))
@@ -355,7 +355,7 @@ async def run_network_game():
             client.room_id = None
             client.game_state = None
     except Exception as e:
-        output.show_message(MessageData("error", f"Ошибка: {e}"))
+        output.show_message("error", f"Ошибка: {e}")
     finally:
         await client.disconnect()
         print("👋 Отключено от сервера")

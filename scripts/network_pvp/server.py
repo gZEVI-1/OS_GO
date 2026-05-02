@@ -291,7 +291,23 @@ class GameRoom:
         """Возвращает текущее состояние игры для синхронизации"""
         if not self.session:
             return {}
-        return self.session.get_state_dict()
+        
+        state = self.session.get_state_dict()
+        
+        # Берём last_move из надёжной истории комнаты, а не из go_engine
+        if self.move_history:
+            last = self.move_history[-1]
+            state["last_move"] = {
+                "x": last.get("x", -1),
+                "y": last.get("y", -1),
+                "color": last.get("color", ""),
+                "is_pass": last.get("is_pass", False),
+                "move_number": last.get("move_number", 0)
+            }
+        else:
+            state["last_move"] = None
+            
+        return state
 
     def resign(self, player_id: str) -> dict:
         """Игрок сдается"""

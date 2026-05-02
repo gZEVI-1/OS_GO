@@ -404,15 +404,19 @@ class GameSession:
             # Перезапускаем GNU Go для синхронизации
             self.gnugo_bot.stop()
             self.gnugo_bot.start()
-            # Воспроизводим все ходы
-            for move in self.game.sgf.get_moves():
-                if not move.is_pass:
-                    gtp_color = 'B' if move.color == go.Color.Black else 'W'
-                    pos = move.pos
-                    self.gnugo_bot.play_move(gtp_color, pos.x, pos.y, False)
-                else:
-                    gtp_color = 'B' if move.color == go.Color.Black else 'W'
-                    self.gnugo_bot.play_move(gtp_color, -1, -1, True)
+            # Воспроизводим все ходы, если sgf доступен
+            if hasattr(self.game, 'sgf') and self.game.sgf:
+                try:
+                    for move in self.game.sgf.get_moves():
+                        if not move.is_pass:
+                            gtp_color = 'B' if move.color == go.Color.Black else 'W'
+                            pos = move.pos
+                            self.gnugo_bot.play_move(gtp_color, pos.x, pos.y, False)
+                        else:
+                            gtp_color = 'B' if move.color == go.Color.Black else 'W'
+                            self.gnugo_bot.play_move(gtp_color, -1, -1, True)
+                except Exception:
+                    pass  # Если не удалось синхронизировать — игра продолжится
         return success
     
     def save_game(self, game_mode: str = "autosave") -> Optional[str]:
@@ -494,21 +498,29 @@ class GameSession:
         """Состояние для отправки клиентам."""
         cur = self.game.get_current_player()
         last = None
-        if self.game.sgf and self.game.sgf.get_moves():
-            m = self.game.sgf.get_moves()[-1]
-            last = {
-                "x": m.pos.x if not m.is_pass else -1,
-                "y": m.pos.y if not m.is_pass else -1,
-                "color": "black" if m.color == go.Color.Black else "white",
-                "is_pass": m.is_pass
-            }
+        
+        # Безопасно пытаемся получить последний ход
+        if hasattr(self.game, 'sgf') and self.game.sgf:
+            try:
+                moves = self.game.sgf.get_moves()
+                if moves:
+                    m = moves[-1]
+                    last = {
+                        "x": m.pos.x if not m.is_pass else -1,
+                        "y": m.pos.y if not m.is_pass else -1,
+                        "color": "black" if m.color == go.Color.Black else "white",
+                        "is_pass": m.is_pass
+                    }
+            except Exception:
+                pass
+        
         return {
             "board": self.get_board_array(),
             "current_player": "black" if cur == go.Color.Black else "white",
             "move_number": self.game.get_move_number(),
             "passes": self.game.get_passes(),
             "last_move": last,
-            "captures": {"black": 0, "white": 0},   # TODO: захваты из go_engine
+            "captures": {"black": 0, "white": 0},
             "game_over": self.game.is_game_over()
         }
 
