@@ -128,8 +128,11 @@ class Message:
         return cls(MessageType.GAME_STATE, {"board": board_array, "current_player": current_player, "move_number": move_number, "passes": passes, "last_move": last_move, "captures": captures or {"black": 0, "white": 0}})
 
     @classmethod
-    def game_over(cls, winner: str, result: str, reason: str = "two_passes") -> "Message":
-        return cls(MessageType.GAME_OVER, {"winner": winner, "result": result, "reason": reason})
+    def game_over(cls, winner: str, result: str, reason: str = "two_passes", sgf: Optional[str] = None) -> "Message":
+        payload = {"winner": winner, "result": result, "reason": reason}
+        if sgf is not None:
+            payload["sgf"] = sgf
+        return cls(MessageType.GAME_OVER, payload)
 
     @classmethod
     def lobby_ready(cls) -> "Message":

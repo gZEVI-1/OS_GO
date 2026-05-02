@@ -10,6 +10,7 @@ from enum import Enum
 import websockets
 from websockets.client import WebSocketClientProtocol
 from websockets.protocol import State
+
 from protocol import Message, MessageType, GameAction, RoomInfo
 import sys
 import os
@@ -74,6 +75,10 @@ class NetworkClient:
         self._state_event.set()
 
         self.local_session: Optional[GameSession] = None
+
+        self.move_history: List[Dict[str, Any]] = []   # накопление ходов
+        self.komi: float = 6.5                         # для корректного SGF
+        self.last_sgf: Optional[str] = None
 
     def _is_connected(self) -> bool:
         if self.ws is None: return False
@@ -221,6 +226,8 @@ class NetworkClient:
     async def _on_game_start(self, msg: Message):
         self.state = ConnectionState.PLAYING
         self.board_size = msg.payload.get("board_size", 19)
+        self.komi = msg.payload.get("komi", 6.5)   # <-- сохраняем
+        self.move_history = []      
         initial = msg.payload.get("initial_state", {})
         self.game_state = GameState(
             board_array=initial.get("board", []),
@@ -249,17 +256,26 @@ class NetworkClient:
 
 
     async def _on_game_move(self, msg: Message):
-        if self.on_move_received: self.on_move_received(msg.payload.get("move", {}))
+        move = msg.payload.get("move", {})
+        if move:
+            self.move_history.append(move)          # <-- накопление
+        if self.on_move_received:
+            self.on_move_received(move)
 
     async def _on_game_pass(self, msg: Message):
+        move = msg.payload.get("move", {})
+        if move:
+            self.move_history.append(move)          # <-- накопление
         await self._on_game_state(Message(MessageType.GAME_STATE, msg.payload.get("board_state", {})))
-        if self.on_move_received: self.on_move_received(msg.payload.get("move", {}))
+        if self.on_move_received:
+            self.on_move_received(move)
 
     async def _on_game_over(self, msg: Message):
         self.state = ConnectionState.IN_ROOM
-        self._state_event.set()          # <-- будим цикл, чтобы не ждать 60 сек
+        self._state_event.set()
         winner = msg.payload.get("winner", "")
         result = msg.payload.get("result", "")
+        self.last_sgf = msg.payload.get("sgf")      # <-- принимаем от сервера
         if self.on_game_over:
             self.on_game_over(winner, result)
 
@@ -272,6 +288,51 @@ class NetworkClient:
 
     async def _on_game_undo_response(self, msg: Message):
         if self.on_undo_response: self.on_undo_response(msg.payload.get("accepted", False))
+
+    def get_sgf(self) -> str:
+        """Формирует SGF из накопленной истории ходов (клиентский fallback)."""
+        if self.last_sgf:
+            return self.last_sgf
+
+        if not self.move_history:
+            return ""
+
+        sgf = f"(;GM[1]FF[4]SZ[{self.board_size}]KM[{self.komi}]AP[OS-GO:Network:1.0]\n"
+        for move in self.move_history:
+            color = "B" if move.get("color") == "black" else "W"
+            if move.get("is_pass"):
+                sgf += f";{color}[]"
+            else:
+                x = move.get("x", -1)
+                y = move.get("y", -1)
+                if 0 <= x < self.board_size and 0 <= y < self.board_size:
+                    x_char = chr(ord('a') + x)
+                    y_char = chr(ord('a') + y)
+                    sgf += f";{color}[{x_char}{y_char}]"
+        sgf += ")"
+        return sgf
+
+    def save_game(self, filepath: Optional[str] = None) -> Optional[str]:
+        """Сохраняет текущую партию в SGF. Возвращает путь к файлу."""
+        sgf = self.get_sgf()
+        if not sgf:
+            return None
+        if filepath is None:
+            try:
+                import config as cfg
+                filepath = cfg.get_sgf_path(game_mode="network")
+            except Exception:
+                import os
+                base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                filepath = os.path.join(base, "games", "network", f"game_{id(self)}.sgf")
+        try:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(sgf)
+            return filepath
+        except Exception as e:
+            logger.error(f"Failed to save SGF: {e}")
+            return None
 
     def is_my_turn(self) -> bool:
         if not self.game_state or not self.player_color: return False

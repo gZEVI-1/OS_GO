@@ -315,7 +315,7 @@ class GameRoom:
             logger.warning("calculate_score: нет сессии")
             return None
         try:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             gnugo_path = os.path.join(base_dir, "bot", "gnugo-3.8", "gnugo.exe")
             
             logger.info(f"calculate_score: путь={gnugo_path}, существует={os.path.exists(gnugo_path)}")
@@ -737,6 +737,17 @@ class GameServer:
             room.status = "finished"
             score = room.calculate_score()
 
+            # --- SGF для клиентского анализа ---
+            sgf = ""
+            if room.session and hasattr(room.session.game, 'get_sgf'):
+                try:
+                    sgf = room.session.game.get_sgf()
+                except Exception:
+                    pass
+
+            winner = "unknown"
+            result_str = "Игра окончена"
+
             if score:
                 raw = score.get("winner", "unknown")
                 if "Черные" in raw or "black" in raw.lower():
@@ -747,13 +758,19 @@ class GameServer:
                     winner = "draw"
                 result_str = score.get("full_result", "Игра окончена")
             else:
-                winner = result["board_state"]["current_player"]
-                result_str = "Игра окончена"
+                # Если score нет, определяем по текущему игроку на доске
+                # (после двух пасов current_player в board_state — тот, чей ход был бы следующим,
+                #  но для совместимости оставляем эвристику)
+                bs = result.get("board_state", {})
+                current = bs.get("current_player", "black")
+                winner = "white" if current == "black" else "black"
+                result_str = "Игра окончена (два паса)"
 
             await room.broadcast(Message.game_over(
                 winner=winner,
                 result=result_str,
-                reason="two_passes"
+                reason="two_passes",
+                sgf=sgf
             ))
 
     async def handle_game_pass(self, ws: WebSocketServerProtocol, msg: Message):
@@ -778,8 +795,19 @@ class GameServer:
         }))
 
         if result.get("game_over"):
-            score = room.calculate_score()
             room.status = "finished"
+            score = room.calculate_score()
+
+            # --- SGF для клиентского анализа ---
+            sgf = ""
+            if room.session and hasattr(room.session.game, 'get_sgf'):
+                try:
+                    sgf = room.session.game.get_sgf()
+                except Exception:
+                    pass
+
+            winner = "unknown"
+            result_str = "Игра окончена"
 
             if score:
                 raw = score.get("winner", "unknown")
@@ -791,13 +819,21 @@ class GameServer:
                     winner = "draw"
                 result_str = score.get("full_result", "Игра окончена")
             else:
-                winner = "black" if result["move"]["color"] == "white" else "white"
+                # После двух пасов: победитель противоположен цвету последнего паса
+                move_color = result.get("move", {}).get("color", "")
+                if move_color == "white":
+                    winner = "black"
+                elif move_color == "black":
+                    winner = "white"
+                else:
+                    winner = "unknown"
                 result_str = "Игра окончена (два паса)"
 
             await room.broadcast(Message.game_over(
                 winner=winner,
                 result=result_str,
-                reason="two_passes"
+                reason="two_passes",
+                sgf=sgf
             ))
 
     async def handle_game_resign(self, ws: WebSocketServerProtocol, msg: Message):
