@@ -4,12 +4,22 @@ import os
 
 from typing import Optional, Dict, List, Callable
 from enum import Enum, auto
+
+from requests import session
 import config as cfg
 
 from gnugo_adapter import  *
 
 from dataclasses import dataclass
 from typing import Optional, Dict, List, Callable
+
+import os
+import sys
+
+
+_network_pvp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'network_pvp')
+if _network_pvp_dir not in sys.path:
+    sys.path.insert(0, _network_pvp_dir)
 
 
 class PlayerType(Enum):
@@ -560,3 +570,36 @@ def create_pve_session(board_size: int, player_color: go.Color, player_name: str
         session.set_player(go.Color.White, player_name or "Вы", PlayerType.HUMAN)
     
     return session
+
+
+def session_to_display_state(session: GameSession, mode: str = "pvp"):
+    """Конвертирует GameSession в GameDisplayState для единого рендеринга."""
+    from output_interface import GameDisplayState  
+    
+    state = session.get_current_state()
+
+    last = None
+    if hasattr(session.game, 'sgf') and session.game.sgf:
+        try:
+            moves = session.game.sgf.get_moves()
+            if moves:
+                m = moves[-1]
+                last = {
+                    "x": m.pos.x if not m.is_pass else -1,
+                    "y": m.pos.y if not m.is_pass else -1,
+                    "color": "black" if m.color == go.Color.Black else "white",
+                    "is_pass": m.is_pass
+                }
+        except Exception:
+            pass
+
+    return GameDisplayState(
+        board_size=state['board_size'],
+        board_array=session.get_board_array(),
+        current_player="black" if state['current_player'] == go.Color.Black else "white",
+        move_number=state['move_number'],
+        passes=state['passes'],
+        last_move=last,
+        captures={"black": 0, "white": 0},
+        mode=mode
+    )

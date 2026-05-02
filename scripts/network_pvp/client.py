@@ -292,4 +292,13 @@ class NetworkClient:
         from core_adapter import CoordinateUtils
         return CoordinateUtils.format_move(x, y)
     
+    async def wait_for_state_change(self, timeout: float = 5.0) -> bool:
+        """Блокируется до получения GAME_STATE или GAME_OVER от сервера."""
+        self._state_event.clear()
+        try:
+            await asyncio.wait_for(self._state_event.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            return False
+    
     

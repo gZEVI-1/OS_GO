@@ -244,23 +244,14 @@ async def wait_for_state_update(client: NetworkClient):
         if client.game_state and client.game_state.move_number > old_move: return
 
 async def game_loop(client: NetworkClient):
+    from game_controller import NetworkController
+    from unified_game_loop import run_unified_loop
     import output_interface as output
 
+    # Если игра ещё не началась — ждём сигнала от сервера
     game_started = asyncio.Event()
-    game_ended = asyncio.Event()
-    game_result = None
-
-    def on_start(_):
-        game_started.set()
-
-    def on_over(w, r):
-        nonlocal game_result
-        game_result = (w, r)
-        game_ended.set()
-        client._state_event.set()   # разбудить, если ждёт состояния
-
+    def on_start(_): game_started.set()
     client.on_game_started = on_start
-    client.on_game_over = on_over
 
     if client.state != ConnectionState.PLAYING:
         try:
@@ -269,151 +260,19 @@ async def game_loop(client: NetworkClient):
             output.show_message("error", "Таймаут ожидания начала игры")
             return
 
-    while client.state == ConnectionState.PLAYING and game_result is None:
-        output.clear_screen()
-
-        disp = client.get_display_state()
-        if disp:
-            output.show_game_state(disp)
-
-        if client.state != ConnectionState.PLAYING or game_result is not None:
-            break
-
-        if client.is_my_turn():
-            # Ждём либо ввода, либо сигнала окончания игры
-            input_task = asyncio.create_task(ainput(" > "))
-            end_task = asyncio.create_task(game_ended.wait())
-
-            done, pending = await asyncio.wait(
-                [input_task, end_task],
-                return_when=asyncio.FIRST_COMPLETED
-            )
-
-            for task in pending:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-            if end_task in done:
-                break  # Сервер прислал GAME_OVER
-
-            try:
-                move_input = input_task.result().strip()
-            except asyncio.CancelledError:
-                continue
-
-            if not move_input:
-                continue
-
-            cmd = move_input.lower().split()
-
-            if cmd[0] == "help":
-                output.show_help()
-                await ainput("\nНажмите Enter...")
-                continue
-
-            if cmd[0] == "pass":
-                client._state_event.clear()
-                await client.send_pass()
-                try:
-                    await asyncio.wait_for(client._state_event.wait(), timeout=5.0)
-                except asyncio.TimeoutError:
-                    output.show_message("warning", "Нет подтверждения паса от сервера")
-                continue
-
-            if cmd[0] == "undo":
-                await client.request_undo()
-                output.show_message("info", "Запрос на отмену отправлен")
-                await asyncio.sleep(0.5)
-                continue
-
-            if cmd[0] in ("resign", "quit"):
-                if (await ainput("❓ Точно сдаться/выйти? (yes/no): ")).lower() == "yes":
-                    await client.send_resign()
-                break
-
-            if cmd[0] == "chat":
-                if len(cmd) > 1:
-                    await client.send_chat(" ".join(cmd[1:]))
-                continue
-
-            from core_adapter import CoordinateUtils
-            parsed = CoordinateUtils.parse_move(move_input, client.board_size)
-
-            if parsed and not parsed.get('quit') and not parsed.get('undo'):
-                client._state_event.clear()
-                ok = await client.send_move(parsed['x'], parsed['y'])
-                if not ok:
-                    output.show_message("error", "Ход не отправлен")
-                    await asyncio.sleep(1)
-                else:
-                    try:
-                        await asyncio.wait_for(client._state_event.wait(), timeout=5.0)
-                    except asyncio.TimeoutError:
-                        output.show_message("warning", "Нет подтверждения хода от сервера")
-                        await asyncio.sleep(1)
-            else:
-                output.show_message("error", "Неверные координаты")
-                await asyncio.sleep(1)
-
-        else:
-            output.show_message("info", "Ожидание хода противника...")
-            
-            if client.state != ConnectionState.PLAYING or game_result is not None:
-                break
-
-            client._state_event.clear()
-            end_task = asyncio.create_task(game_ended.wait())
-            state_task = asyncio.create_task(client._state_event.wait())
-
-            done, pending = await asyncio.wait(
-                [end_task, state_task],
-                return_when=asyncio.FIRST_COMPLETED
-            )
-
-            for task in pending:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-            if end_task in done:
-                break  # GAME_OVER пришёл
-            # Если проснулся по state_task — просто перерисуем доску
-
-    # --- Итог игры ---
-    if game_result:
-        output.clear_screen()
-        winner, result_str = game_result
-        my = client.player_color
-
-        print("\n" + "=" * 60)
-        print("🏆 ИГРА ОКОНЧЕНА!")
-        print("=" * 60)
-        print(f"📊 Результат: {result_str}")
-
-        if winner == my:
-            output.show_message("success", "ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!")
-        elif winner == "draw":
-            output.show_message("info", "НИЧЬЯ!")
-        else:
-            output.show_message("error", "Вы проиграли...")
-
-        await ainput("\nНажмите Enter для возврата...")
+    controller = NetworkController(client)
+    await run_unified_loop(controller)
 
 async def run_network_game():
-    import output_interface as output
-    from output_interface import get_output_interface, OutputType
+    from output_interface import get_output_interface, OutputType, MessageData
+    output = get_output_interface(OutputType.CONSOLE)
     parser = argparse.ArgumentParser(description="OS-GO Network PvP")
     parser.add_argument("--server", default="ws://localhost:8765")
     parser.add_argument("--name", default=None)
     args = parser.parse_args()
     player_name = args.name or (await ainput("Введите ваше имя: ")) or "Player"
     client = NetworkClient(args.server, player_name)
-    output = get_output_interface(OutputType.CONSOLE)
+    
 
     output.clear_screen()
     print("=" * 60)

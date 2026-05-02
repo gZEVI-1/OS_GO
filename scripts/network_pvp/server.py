@@ -28,7 +28,7 @@ from datetime import datetime
 import argparse
 
 import websockets
-from websockets.server import WebSocketServerProtocol
+from websockets import WebSocketServerProtocol
 from websockets.protocol import State  # websockets 16.0+
 
 # Импорт протокола
