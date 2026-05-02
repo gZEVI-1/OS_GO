@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
-
+#include "core.h"
 // Конфигурация KataGo
 struct KataGoConfig {
     std::string katagoPath;
@@ -14,6 +14,11 @@ struct KataGoConfig {
     double komi = 6.5;
     int boardSize = 19;
     bool logToStdout = false;
+    Rules rules = Rules::Chinese;
+
+    std::string getRulesGTP() const {
+        return (rules == Rules::Chinese) ? "chinese-rules" : "japanese-rules";
+    }
 };
 
 // Результат анализа партии

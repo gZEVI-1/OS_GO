@@ -6,7 +6,27 @@
 #include <fstream>
 #include "Board_new.h"
 
+// ============================================================================
+// Правила игры — ДОЛЖНЫ БЫТЬ ДО ВСЕХ КЛАССОВ, КОТОРЫЕ ИХ ИСПОЛЬЗУЮТ
+// ============================================================================
+enum class Rules {
+    Chinese,
+    Japanese
+};
+
+inline std::string rulesToString(Rules r) {
+    return (r == Rules::Chinese) ? "Chinese" : "Japanese";
+}
+
+inline Rules rulesFromString(const std::string& s) {
+    if (s == "Japanese" || s == "JP") return Rules::Japanese;
+    return Rules::Chinese;
+}
+
+// ============================================================================
+
 int getBoardSizeFromSGF(const std::string& filename);
+
 struct Move {
     Position pos{-1,-1};
     Color color = Color::None;
@@ -23,6 +43,7 @@ private:
     std::vector<Move> moves;
     int boardSize = 9;
     std::string playerBlack, playerWhite, result, komi = "6.5";
+    Rules rules = Rules::Chinese;          // <-- НОВОЕ
     
 public:
     SGFGame() = default;
@@ -30,6 +51,9 @@ public:
     void addMove(const Move& move);
     void setPlayerNames(const std::string& black, const std::string& white);
     void setResult(const std::string& res);
+    void setRules(Rules r) { rules = r; }  // <-- НОВОЕ
+    Rules getRules() const { return rules; } // <-- НОВОЕ
+    void setKomi(const std::string& k) { komi = k; } // <-- НОВОЕ
     std::string posToSGF(const Position &p) const;
     std::string generateSGF() const;
     bool saveToFile(const std::string& filename) const;
@@ -41,8 +65,6 @@ class SGFParser {
 public:
     static std::vector<Move> parseFile(const std::string& filename);
     static std::vector<Move> parseString(const std::string& sgfContent);
-    
-    // Загружает партию в Game объект
     static bool loadGame(Game& game, const std::string& filename);
     
 private:
@@ -60,12 +82,21 @@ private:
     int moveNumber = 1;
     SGFGame sgf;
     std::vector<Move> moveHistory;
+    Rules rules = Rules::Chinese;  // <-- НОВОЕ
+    double komi = 6.5;             // <-- НОВОЕ
     
 public:
     Game(int n = 9);
-    bool isOk(Position& p, Board& b, Color playerColor);// функция проверки хода на возможность
-    Board rePosMoves(Board& releBoard, Color playerColor);// функция, которая подсчитывает доску возможных ходов 
-    Board& getLegalMoves(){ return legalMoves;}// функция, которая возвращает доску возможных ходов
+    
+    // НОВОЕ: правила и коми
+    void setRules(Rules r) { rules = r; sgf.setRules(r); }
+    Rules getRules() const { return rules; }
+    void setKomi(double k) { komi = k; }
+    double getKomi() const { return komi; }
+    
+    bool isOk(Position& p, Board& b, Color playerColor);
+    Board rePosMoves(Board& releBoard, Color playerColor);
+    Board& getLegalMoves() { return legalMoves; }
     void recordMove(int x, int y, bool isPass = false);
     bool undoLastMove();
     std::string getSGF() const;

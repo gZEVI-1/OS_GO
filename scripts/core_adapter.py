@@ -9,89 +9,92 @@ import config as cfg
 from gnugo_adapter import  *
 
 
-class PlayerType(Enum):
-    """Тип игрока"""
-    HUMAN = auto()
-    GNU_GO = auto()
+# class PlayerType(Enum):
+#     """Тип игрока"""
+#     HUMAN = auto()
+#     GNU_GO = auto()
 
 
-class CoordinateUtils:
+# class CoordinateUtils:
     
-    # Буква I пропускается в стандартной нотации Го
-    SKIP_LETTER = 'I'
-    SKIP_INDEX = 8  # Индекс буквы I 
+#     # Буква I пропускается в стандартной нотации Го
+#     SKIP_LETTER = 'I'
+#     SKIP_INDEX = 8  # Индекс буквы I 
     
-    @staticmethod
-    def index_to_letter(index: int) -> str:
-        """Преобразует индекс в букву координаты (A-T без I)"""
-        if index < CoordinateUtils.SKIP_INDEX:
-            return chr(65 + index)
-        else:
-            return chr(66 + index)
+#     @staticmethod
+#     def index_to_letter(index: int) -> str:
+#         """Преобразует индекс в букву координаты (A-T без I)"""
+#         if index < CoordinateUtils.SKIP_INDEX:
+#             return chr(65 + index)
+#         else:
+#             return chr(66 + index)
     
-    @staticmethod
-    def letter_to_index(letter: str) -> int:
-        """Преобразует букву координаты в индекс"""
-        letter = letter.upper()
-        if letter == CoordinateUtils.SKIP_LETTER:
-            raise ValueError(f"Буква I не используется в координатах Го")
+#     @staticmethod
+#     def letter_to_index(letter: str) -> int:
+#         """Преобразует букву координаты в индекс"""
+#         letter = letter.upper()
+#         if letter == CoordinateUtils.SKIP_LETTER:
+#             raise ValueError(f"Буква I не используется в координатах Го")
         
-        if letter < CoordinateUtils.SKIP_LETTER:
-            return ord(letter) - ord('A')
-        else:
-            return ord(letter) - ord('A') - 1
+#         if letter < CoordinateUtils.SKIP_LETTER:
+#             return ord(letter) - ord('A')
+#         else:
+#             return ord(letter) - ord('A') - 1
     
-    @staticmethod
-    def parse_move(move_str: str, board_size: int) -> Optional[Dict]:
-        """
-        Парсит строку хода 
+#     @staticmethod
+#     def parse_move(move_str: str, board_size: int) -> Optional[Dict]:
+#         """
+#         Парсит строку хода 
         
-        Returns:
-            dict с ключами: is_pass, x, y, quit, undo
-            или None если формат неверный
-        """
-        move_str = move_str.strip().lower()
+#         Returns:
+#             dict с ключами: is_pass, x, y, quit, undo
+#             или None если формат неверный
+#         """
+#         move_str = move_str.strip().lower()
         
-        if move_str == 'pass':
-            return {'is_pass': True, 'x': -1, 'y': -1, 'quit': False, 'undo': False}
+#         if move_str == 'pass':
+#             return {'is_pass': True, 'x': -1, 'y': -1, 'quit': False, 'undo': False}
         
-        if move_str == 'quit':
-            return {'is_pass': False, 'x': -1, 'y': -1, 'quit': True, 'undo': False}
+#         if move_str == 'quit':
+#             return {'is_pass': False, 'x': -1, 'y': -1, 'quit': True, 'undo': False}
         
-        if move_str == 'undo':
-            return {'is_pass': False, 'x': -1, 'y': -1, 'quit': False, 'undo': True}
+#         if move_str == 'undo':
+#             return {'is_pass': False, 'x': -1, 'y': -1, 'quit': False, 'undo': True}
         
-        # Парсинг координат типа "a1"
-        if len(move_str) < 2:
-            return None
+#         # Парсинг координат типа "a1"
+#         if len(move_str) < 2:
+#             return None
         
-        try:
-            letter = move_str[0].upper()
-            y = int(move_str[1:]) - 1
-            x = CoordinateUtils.letter_to_index(letter)
+#         try:
+#             letter = move_str[0].upper()
+#             y = int(move_str[1:]) - 1
+#             x = CoordinateUtils.letter_to_index(letter)
             
-            if x < 0 or x >= board_size or y < 0 or y >= board_size:
-                return None
+#             if x < 0 or x >= board_size or y < 0 or y >= board_size:
+#                 return None
             
-            return {'is_pass': False, 'x': x, 'y': y, 'quit': False, 'undo': False}
+#             return {'is_pass': False, 'x': x, 'y': y, 'quit': False, 'undo': False}
             
-        except (ValueError, IndexError):
-            return None
+#         except (ValueError, IndexError):
+#             return None
     
-    @staticmethod
-    def format_move(x: int, y: int) -> str:
-        """Форматирует координаты в строку (например, "a1")"""
-        letter = CoordinateUtils.index_to_letter(x)
-        return f"{letter}{y + 1}"
+#     @staticmethod
+#     def format_move(x: int, y: int) -> str:
+#         """Форматирует координаты в строку (например, "a1")"""
+#         letter = CoordinateUtils.index_to_letter(x)
+#         return f"{letter}{y + 1}"
 
 
 
 class GameSession:
     
-    def __init__(self, board_size: int = 19, komi: float = 6.5):
+    def __init__(self, board_size: int = 19, komi: float = 6.5, rules: go.Rules = go.Rules.Chinese):
         self.board_size = board_size
         self.komi = komi
+        self.rules = rules
         self.game: go.Game = go.Game(board_size)
+        self.game.set_rules(rules)
+        self.game.set_komi(komi)
         self.players: Dict[go.Color, Dict] = {
             go.Color.Black: {'name': 'Черные', 'type': PlayerType.HUMAN, 'gtp_color': 'B'},
             go.Color.White: {'name': 'Белые', 'type': PlayerType.HUMAN, 'gtp_color': 'W'}
@@ -142,7 +145,9 @@ class GameSession:
                 self._notify_error("GNU Go не найден")
                 return False
             
-            self.gnugo_bot = GNUGoBot(gnugo_path, self.board_size, self.komi) # type: ignore
+            rules_str = "japanese" if self.rules == go.Rules.Japanese else "chinese"
+            
+            self.gnugo_bot = GNUGoBot(gnugo_path, self.board_size, self.komi, rules_str) # type: ignore
             if not self.gnugo_bot.start():
                 self._notify_error("Не удалось запустить GNU Go")
                 return False
@@ -415,18 +420,20 @@ class GameSession:
                 pass
 
 
-def create_pvp_session(board_size: int, black_name: str, white_name: str) -> GameSession:
+def create_pvp_session(board_size: int, black_name: str, white_name: str,
+                       rules: go.Rules = go.Rules.Chinese) -> GameSession:
     """Фабрика для создания PvP сессии"""
-    session = GameSession(board_size)
+    session = GameSession(board_size, rules = rules)
     session.set_player(go.Color.Black, black_name or "Игрок 1", PlayerType.HUMAN)
     session.set_player(go.Color.White, white_name or "Игрок 2", PlayerType.HUMAN)
     return session
 
 
 def create_pve_session(board_size: int, player_color: go.Color, player_name: str,
-                        gnugo_path: str, difficulty: Optional[str] = None) -> GameSession:
+                        gnugo_path: str, difficulty: Optional[str] = None,
+                        rules: go.Rules = go.Rules.Chinese) -> GameSession:
     """Фабрика для создания PvE сессии"""
-    session = GameSession(board_size)
+    session = GameSession(board_size, rules = rules)
     
     if player_color == go.Color.Black:
         session.set_player(go.Color.Black, player_name or "Вы", PlayerType.HUMAN)
