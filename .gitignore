@@ -1,5 +1,5 @@
 /core/build
-
+/gtp_logs
 # Environment variables (КРИТИЧЕСКИ ВАЖНО)
 .env
 .env.local
@@ -61,3 +61,6 @@ htmlcov/
 # OS generated files
 .DS_Store
 Thumbs.db
+/interface/Go_app/core/__pycache__
+
+auth/.env

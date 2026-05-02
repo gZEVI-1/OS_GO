@@ -262,7 +262,7 @@ class GameSession:
                         'game_over': bot_result.get('game_over', False),
                           'quit': False,
                             'undo': False,
-                              'bot_move': bot_result
+                              'bot_move': bot_result.get('move')
                 }
             
             return {'success': True,
@@ -280,17 +280,21 @@ class GameSession:
                            'undo': False}
     
     def _make_bot_move(self) -> Dict:
-        """Делает ход бота"""
-        current = self.game.get_current_player()
-        gtp_color = self.players[current]['gtp_color']
+       """Делает ход бота"""
+       if self.gnugo_bot is None or not self.gnugo_bot.is_alive():
+           self._notify_error("GNU Go не запущен")
+           return {'success': False, 'game_over': False}
+    
+       current = self.game.get_current_player()
+       gtp_color = self.players[current]['gtp_color']
+    
+       move = self.gnugo_bot.get_move(gtp_color)
         
-        move = self.gnugo_bot.get_move(gtp_color)
-        
-        if move is None:
+       if move is None:
             self._notify_error("GNU Go не вернул ход")
             return {'success': False, 'game_over': False}
         
-        try:
+       try:
             self.game.make_move(move['x'], move['y'], move['is_pass'])
             
             move_info = {
@@ -313,7 +317,7 @@ class GameSession:
             
             return {'success': True, 'game_over': False, 'move': move_info}
             
-        except Exception as e:
+       except Exception as e:
             self._notify_error(f"Ошибка хода бота: {e}")
             return {'success': False, 'game_over': False}
     
