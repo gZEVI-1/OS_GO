@@ -14,7 +14,9 @@ from protocol import Message, MessageType, GameAction, RoomInfo
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from core_adapter import GameSession, PlayerType, GameDisplayState
+
+from core_adapter import GameSession, PlayerType
+from output_interface import GameDisplayState
 import go_engine as go
 
 logger = logging.getLogger("GoClient")

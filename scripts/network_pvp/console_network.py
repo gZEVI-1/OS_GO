@@ -214,105 +214,110 @@ async def wait_for_state_update(client: NetworkClient):
 
 async def game_loop(client: NetworkClient):
     import output_interface as output
-    from output_interface import GameDisplayState, MessageData
+    from output_interface import MessageData
 
     game_started = asyncio.Event()
     game_ended = asyncio.Event()
     game_result = None
-    def on_start(payload): 
-        game_started.set()
-    def on_over(winner, result):
+
+    def on_start(_): game_started.set()
+    def on_over(w, r):
         nonlocal game_result
-        game_result = (winner, result)
+        game_result = (w, r)
         game_ended.set()
+
     client.on_game_started = on_start
     client.on_game_over = on_over
+
     if client.state != ConnectionState.PLAYING:
-        try: 
+        try:
             await asyncio.wait_for(game_started.wait(), timeout=30.0)
         except asyncio.TimeoutError:
             output.show_message(MessageData("error", "Таймаут ожидания начала игры"))
             return
-    while client.state == ConnectionState.PLAYING:
-        output.clear_screen()
 
-        if client.game_state:
-            state = GameDisplayState(
-                board_size=client.board_size,
-                board_array=client.game_state.board_array,
-                current_player=client.game_state.current_player,
-                move_number=client.game_state.move_number,
-                passes=client.game_state.passes,
-                last_move=client.game_state.last_move,
-                captures=client.game_state.captures,
-                player_color=client.player_color,
-                is_my_turn=client.is_my_turn(),
-                mode="network"
-            )
-            output.show_game_state(state)
-        if client.is_my_turn():
-            output.show_message(MessageData("info", "Ваш ход! Введите координаты (D4), 'pass', 'undo', 'chat <текст>', 'resign':"))
-            try:
+    # === ЕДИНЫЙ ЦИКЛ (как в console_PVP / console_PVE) ===
+    try:
+        while client.state == ConnectionState.PLAYING:
+            output.clear_screen()
+
+            # Унифицированное отображение
+            disp = client.get_display_state()
+            if disp:
+                output.show_game_state(disp)
+
+            if client.is_my_turn():
+                # Ввод в том же стиле, что и локально
                 move_input = await ainput(" > ")
+                move_input = move_input.strip()
+
                 if not move_input:
                     continue
-                cmd = move_input.split(maxsplit=1)
-                action = cmd[0].lower()
-                
-                if action == "help":
+
+                cmd = move_input.lower()
+
+                if cmd == "help":
                     output.show_help()
                     await ainput("\nНажмите Enter...")
-                elif action == "pass":
+                    continue
+
+                if cmd == "pass":
                     await client.send_pass()
-                    output.show_message(MessageData("info", "Вы пасовали"))
-                    await asyncio.sleep(0.5)
-                elif action == "undo":
+                    continue
+
+                if cmd == "undo":
                     await client.request_undo()
-                    output.show_message(MessageData("info", "Запрос отправлен..."))
-                    await asyncio.sleep(1)
-                elif action == "resign" or action == "quit":
+                    output.show_message(MessageData("info", "Запрос на отмену отправлен"))
+                    await asyncio.sleep(0.5)
+                    continue
+
+                if cmd in ("resign", "quit"):
                     if (await ainput("❓ Точно сдаться/выйти? (yes/no): ")).lower() == "yes":
                         await client.send_resign()
-                        break
-                elif action == "chat":
-                    if len(cmd) > 1: 
-                        await client.send_chat(cmd[1])
-                else:
-                    try:
-                        col = action[0].upper()
-                        row = int(action[1:])
-                        x = ord(col) - ord('A')
-                        if x >= 8: x -= 1
-                        y = row - 1
-                        success = await client.send_move(x, y)
-                        if not success:
-                            output.show_message(MessageData("error", "Ход не отправлен"))
-                            await asyncio.sleep(1)
-                    except ValueError:
-                        output.show_message(MessageData("error", "Неверные координаты"))
-                        await asyncio.sleep(1)
-            except KeyboardInterrupt:
-                break
-        else:
-            output.show_message(MessageData("info", "Ожидание хода противника..."))
-            try:
-                await asyncio.wait_for(wait_for_state_update(client), timeout=60.0)
-            except asyncio.TimeoutError:
-                output.show_message(MessageData("warning", "Долгое ожидание..."))
-                await asyncio.sleep(1)
-    if game_result:
-        output.clear_screen()
-        winner, result_str = game_result
-        my_color_str = client.player_color
-        if winner == my_color_str:
-            output.show_message(MessageData("success", "ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!"))
-        elif winner == "draw":
-            output.show_message(MessageData("info", "НИЧЬЯ!"))
-        else:
-            output.show_message(MessageData("error", "Вы проиграли..."))
+                    break
 
-        output.show_game_result(winner, result_str, "game_over")
-        await ainput("\nНажмите Enter для возврата...")
+                if cmd.startswith("chat "):
+                    await client.send_chat(move_input[5:])
+                    continue
+
+                # Парсинг координат через общую утилиту
+                from core_adapter import CoordinateUtils
+                parsed = CoordinateUtils.parse_move(move_input, client.board_size)
+
+                if parsed and not parsed.get('quit') and not parsed.get('undo'):
+                    ok = await client.send_move(parsed['x'], parsed['y'])
+                    if not ok:
+                        output.show_message(MessageData("error", "Ход не отправлен"))
+                        await asyncio.sleep(1)
+                else:
+                    output.show_message(MessageData("error", "Неверные координаты"))
+                    await asyncio.sleep(1)
+
+            else:
+                output.show_message(MessageData("info", "Ожидание хода противника..."))
+                try:
+                    await asyncio.wait_for(wait_for_state_update(client), timeout=60.0)
+                except asyncio.TimeoutError:
+                    output.show_message(MessageData("warning", "Долгое ожидание..."))
+                    await asyncio.sleep(1)
+
+        # --- Результат ---
+        if game_result:
+            output.clear_screen()
+            winner, result_str = game_result
+            my = client.player_color
+            if winner == my:
+                output.show_message(MessageData("success", "ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!"))
+            elif winner == "draw":
+                output.show_message(MessageData("info", "НИЧЬЯ!"))
+            else:
+                output.show_message(MessageData("error", "Вы проиграли..."))
+
+            output.show_game_result(winner, result_str, "game_over")
+            await ainput("\nНажмите Enter для возврата...")
+
+    finally:
+        pass
 
 async def run_network_game():
     import output_interface as output
