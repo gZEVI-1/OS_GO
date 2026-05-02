@@ -1,5 +1,5 @@
 /core/build
-
+/gtp_logs
 # Environment variables (КРИТИЧЕСКИ ВАЖНО)
 .env
 .env.local
