@@ -4,15 +4,39 @@ import os
 
 from typing import Optional, Dict, List, Callable
 from enum import Enum, auto
+
+from requests import session
 import config as cfg
 
 from gnugo_adapter import  *
+
+from dataclasses import dataclass
+from typing import Optional, Dict, List, Callable
+
+import os
+import sys
+
+
+_network_pvp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'network_pvp')
+if _network_pvp_dir not in sys.path:
+    sys.path.insert(0, _network_pvp_dir)
 
 
 class PlayerType(Enum):
     """Тип игрока"""
     HUMAN = auto()
     GNU_GO = auto()
+    NETWORK = auto()
+
+@dataclass
+class MoveResult:
+    success: bool
+    message: str = ""
+    game_over: bool = False
+    quit: bool = False
+    undo: bool = False
+    move_info: Optional[Dict] = None
+    bot_move: Optional[Dict] = None
 
 
 class CoordinateUtils:
@@ -163,6 +187,68 @@ class GameSession:
             self.gnugo_bot.stop()
             self.gnugo_bot = None
     
+    def make_move(self, x: int, y: int, is_pass: bool = False,
+                  by_color: Optional[go.Color] = None) -> MoveResult:
+        """Чистый ход. by_color проверяется для сетевых/локальных игр."""
+        if not self.game_active:
+            return MoveResult(success=False, message="Игра не активна")
+
+        current = self.game.get_current_player()
+        acting_color = by_color if by_color is not None else current
+
+        if acting_color != current:
+            return MoveResult(success=False, message="Сейчас не ваш ход")
+
+        # В локальных режимах не даём человеку ходить за бота
+        if by_color is None and self.players[current]['type'] == PlayerType.GNU_GO:
+            return MoveResult(success=False, message="Сейчас ход бота")
+
+        success = self.game.make_move(x, y, is_pass)
+        if not success:
+            return MoveResult(success=False, message="Недопустимый ход")
+
+        # Синхронизация с GNU Go (только если ходил человек, а бот есть)
+        if self.gnugo_bot and self.players[current]['type'] != PlayerType.GNU_GO:
+            gtp = self.players[current]['gtp_color']
+            self.gnugo_bot.play_move(gtp, x, y, is_pass)
+
+        move_info = self._build_move_info(current, x, y, is_pass)
+        self._notify_move(move_info)
+
+        if is_pass:
+            self._notify_pass(move_info)
+
+        if self.game.is_game_over():
+            self._notify_game_over()
+            return MoveResult(success=True, message="Игра окончена",
+                              game_over=True, move_info=move_info)
+
+        # Автоход бота (только PvE)
+        nxt = self.game.get_current_player()
+        if self.players[nxt]['type'] == PlayerType.GNU_GO:
+            bot_res = self._make_bot_move()
+            return MoveResult(success=True, message="Ход выполнен",
+                              move_info=move_info, bot_move=bot_res.get('move'))
+
+        return MoveResult(success=True, message="Ход выполнен",
+                          move_info=move_info)
+
+    def make_pass(self, by_color: Optional[go.Color] = None) -> MoveResult:
+        return self.make_move(-1, -1, True, by_color)
+
+    def resign(self, by_color: go.Color) -> MoveResult:
+        """Сдача."""
+        if not self.game_active:
+            return MoveResult(success=False, message="Игра не активна")
+        self.game_active = False
+        winner = go.Color.White if by_color == go.Color.Black else go.Color.Black
+        return MoveResult(
+            success=True, game_over=True,
+            message=f"{self.players[by_color]['name']} сдался. "
+                    f"Победитель: {self.players[winner]['name']}"
+        )
+
+
     def make_human_move(self, move_input: str) -> Dict:
         """
         Обрабатывает ход человека
@@ -328,15 +414,19 @@ class GameSession:
             # Перезапускаем GNU Go для синхронизации
             self.gnugo_bot.stop()
             self.gnugo_bot.start()
-            # Воспроизводим все ходы
-            for move in self.game.sgf.get_moves():
-                if not move.is_pass:
-                    gtp_color = 'B' if move.color == go.Color.Black else 'W'
-                    pos = move.pos
-                    self.gnugo_bot.play_move(gtp_color, pos.x, pos.y, False)
-                else:
-                    gtp_color = 'B' if move.color == go.Color.Black else 'W'
-                    self.gnugo_bot.play_move(gtp_color, -1, -1, True)
+            # Воспроизводим все ходы, если sgf доступен
+            if hasattr(self.game, 'sgf') and self.game.sgf:
+                try:
+                    for move in self.game.sgf.get_moves():
+                        if not move.is_pass:
+                            gtp_color = 'B' if move.color == go.Color.Black else 'W'
+                            pos = move.pos
+                            self.gnugo_bot.play_move(gtp_color, pos.x, pos.y, False)
+                        else:
+                            gtp_color = 'B' if move.color == go.Color.Black else 'W'
+                            self.gnugo_bot.play_move(gtp_color, -1, -1, True)
+                except Exception:
+                    pass  # Если не удалось синхронизировать — игра продолжится
         return success
     
     def save_game(self, game_mode: str = "autosave") -> Optional[str]:
@@ -414,6 +504,50 @@ class GameSession:
             except:
                 pass
 
+    def get_state_dict(self) -> Dict:
+        """Состояние для отправки клиентам."""
+        cur = self.game.get_current_player()
+        last = None
+        
+        # Безопасно пытаемся получить последний ход
+        if hasattr(self.game, 'sgf') and self.game.sgf:
+            try:
+                moves = self.game.sgf.get_moves()
+                if moves:
+                    m = moves[-1]
+                    last = {
+                        "x": m.pos.x if not m.is_pass else -1,
+                        "y": m.pos.y if not m.is_pass else -1,
+                        "color": "black" if m.color == go.Color.Black else "white",
+                        "is_pass": m.is_pass
+                    }
+            except Exception:
+                pass
+        
+        return {
+            "board": self.get_board_array(),
+            "current_player": "black" if cur == go.Color.Black else "white",
+            "move_number": self.game.get_move_number(),
+            "passes": self.game.get_passes(),
+            "last_move": last,
+            "captures": {"black": 0, "white": 0},
+            "game_over": self.game.is_game_over()
+        }
+
+    def sync_from_state_dict(self, state: Dict):
+        """Клиент: заглушка для совместимости API.
+        На клиенте доска восстанавливается через NetworkClient.get_local_board()."""
+        pass
+
+    def _build_move_info(self, color: go.Color, x: int, y: int, is_pass: bool) -> Dict:
+        return {
+            "x": x, "y": y, "is_pass": is_pass,
+            "color": "black" if color == go.Color.Black else "white",  # <-- строка, не объект!
+            "player_name": self.players[color]['name'],
+            "move_number": self.game.get_move_number() - 1,
+            "coord_str": CoordinateUtils.format_move(x, y) if not is_pass else "pass"
+        }
+
 
 def create_pvp_session(board_size: int, black_name: str, white_name: str) -> GameSession:
     """Фабрика для создания PvP сессии"""
@@ -436,3 +570,36 @@ def create_pve_session(board_size: int, player_color: go.Color, player_name: str
         session.set_player(go.Color.White, player_name or "Вы", PlayerType.HUMAN)
     
     return session
+
+
+def session_to_display_state(session: GameSession, mode: str = "pvp"):
+    """Конвертирует GameSession в GameDisplayState для единого рендеринга."""
+    from output_interface import GameDisplayState  
+    
+    state = session.get_current_state()
+
+    last = None
+    if hasattr(session.game, 'sgf') and session.game.sgf:
+        try:
+            moves = session.game.sgf.get_moves()
+            if moves:
+                m = moves[-1]
+                last = {
+                    "x": m.pos.x if not m.is_pass else -1,
+                    "y": m.pos.y if not m.is_pass else -1,
+                    "color": "black" if m.color == go.Color.Black else "white",
+                    "is_pass": m.is_pass
+                }
+        except Exception:
+            pass
+
+    return GameDisplayState(
+        board_size=state['board_size'],
+        board_array=session.get_board_array(),
+        current_player="black" if state['current_player'] == go.Color.Black else "white",
+        move_number=state['move_number'],
+        passes=state['passes'],
+        last_move=last,
+        captures={"black": 0, "white": 0},
+        mode=mode
+    )
