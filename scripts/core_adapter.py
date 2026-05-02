@@ -532,7 +532,7 @@ class GameSession:
     def _build_move_info(self, color: go.Color, x: int, y: int, is_pass: bool) -> Dict:
         return {
             "x": x, "y": y, "is_pass": is_pass,
-            "color": color,
+            "color": "black" if color == go.Color.Black else "white",  # <-- строка, не объект!
             "player_name": self.players[color]['name'],
             "move_number": self.game.get_move_number() - 1,
             "coord_str": CoordinateUtils.format_move(x, y) if not is_pass else "pass"

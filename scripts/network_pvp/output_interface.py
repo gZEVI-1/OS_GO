@@ -140,27 +140,22 @@ class ConsoleOutput(GameOutputInterface):
 
     def show_board(self, board_array: List[List[int]], size: int,
                    last_move: Optional[Dict] = None):
-        """Отображает доску"""
-        # Заголовок с координатами
-        print("    ", end="")
+        """Отображает доску в компактном формате (как console_back.py)"""
+        # Заголовок
+        print("   ", end="")
         for i in range(size):
             letter = self._index_to_letter(i)
-            print(f"{letter:2} ", end="")
+            print(f"{letter:2}", end="")
         print()
 
         # Доска
         for y in range(size):
-            print(f"{y+1:2}  ", end="")
+            print(f"{y+1:2} ", end="")
             for x in range(size):
                 val = board_array[y][x] if y < len(board_array) and x < len(board_array[y]) else 0
                 is_hoshi = self._is_hoshi_point(x, y, size)
-                is_last = last_move and last_move.get("x") == x and last_move.get("y") == y
                 symbol = self._get_stone_symbol(val, is_hoshi)
-
-                if is_last:
-                    print(f"[{symbol}] ", end="")
-                else:
-                    print(f" {symbol}  ", end="")
+                print(f"{symbol} ", end="")
             print()
 
     def show_game_state(self, state: GameDisplayState):
@@ -184,9 +179,22 @@ class ConsoleOutput(GameOutputInterface):
         print(f"⏭️ Пасов подряд: {state.passes}")
         print(f"⚫ Черные взяли: {state.captures.get('black', 0)}")
         print(f"⚪ Белые взяли: {state.captures.get('white', 0)}")
-        print("-" * 60)
 
-        self.show_board(state.board_array, state.board_size, state.last_move)
+        # Последний ход — текстом, чтобы не ломать выравнивание доски
+        if state.last_move:
+            if state.last_move.get("is_pass"):
+                print("➡️ Последний ход: PASS")
+            else:
+                x = state.last_move["x"]
+                y = state.last_move["y"]
+                coord = self._index_to_letter(x) + str(y + 1)
+                color = "○" if state.last_move.get("color") == "black" else "●"
+                print(f"➡️ Последний ход: {coord} ({color})")
+        else:
+            print("➡️ Последний ход: —")
+
+        print("-" * 60)
+        self.show_board(state.board_array, state.board_size)
 
     def show_message(self, message: MessageData):
         """Показывает сообщение"""

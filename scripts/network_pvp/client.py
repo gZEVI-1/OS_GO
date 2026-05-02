@@ -70,6 +70,8 @@ class NetworkClient:
         self.on_undo_response: Optional[Callable[[bool], None]] = None
 
         self._receive_task: Optional[asyncio.Task] = None
+        self._state_event = asyncio.Event()
+        self._state_event.set()
 
         self.local_session: Optional[GameSession] = None
 
@@ -77,6 +79,21 @@ class NetworkClient:
         if self.ws is None: return False
         return self.ws.state == State.OPEN
 
+    def get_display_state(self) -> Optional[GameDisplayState]:
+        if not self.game_state:
+            return None
+        return GameDisplayState(
+            board_size=self.board_size,
+            board_array=self.game_state.board_array,
+            current_player=self.game_state.current_player,
+            move_number=self.game_state.move_number,
+            passes=self.game_state.passes,
+            last_move=self.game_state.last_move,
+            captures=self.game_state.captures,
+            player_color=self.player_color,
+            is_my_turn=self.is_my_turn(),
+            mode="network"
+        )
     async def connect(self) -> bool:
         try:
             self.state = ConnectionState.CONNECTING
@@ -202,7 +219,6 @@ class NetworkClient:
             self.on_player_left("unknown")
 
     async def _on_game_start(self, msg: Message):
-        self.local_session = GameSession(self.board_size)
         self.state = ConnectionState.PLAYING
         self.board_size = msg.payload.get("board_size", 19)
         initial = msg.payload.get("initial_state", {})
@@ -213,7 +229,9 @@ class NetworkClient:
             passes=initial.get("passes", 0),
             captures=initial.get("captures", {"black": 0, "white": 0})
         )
-        if self.on_game_started: self.on_game_started(msg.payload)
+        self._state_event.set()          # <-- будим цикл
+        if self.on_game_started:
+            self.on_game_started(msg.payload)
 
     async def _on_game_state(self, msg: Message):
         payload = msg.payload
@@ -225,7 +243,10 @@ class NetworkClient:
             last_move=payload.get("last_move"),
             captures=payload.get("captures", {"black": 0, "white": 0})
         )
-        if self.on_game_state_update: self.on_game_state_update(self.game_state)
+        self._state_event.set()          # <-- будим ожидающий цикл
+        if self.on_game_state_update:
+            self.on_game_state_update(self.game_state)
+
 
     async def _on_game_move(self, msg: Message):
         if self.on_move_received: self.on_move_received(msg.payload.get("move", {}))
@@ -236,9 +257,11 @@ class NetworkClient:
 
     async def _on_game_over(self, msg: Message):
         self.state = ConnectionState.IN_ROOM
+        self._state_event.set()          # <-- будим цикл, чтобы не ждать 60 сек
         winner = msg.payload.get("winner", "")
         result = msg.payload.get("result", "")
-        if self.on_game_over: self.on_game_over(winner, result)
+        if self.on_game_over:
+            self.on_game_over(winner, result)
 
     async def _on_game_chat(self, msg: Message):
         if self.on_chat_message:

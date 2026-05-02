@@ -309,6 +309,36 @@ class GameRoom:
             
         return state
 
+    def calculate_score(self) -> Optional[Dict]:
+        """Пытается подсчитать очки через GNU Go Analyzer."""
+        if not self.session:
+            return None
+        try:
+            gnugo_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "bot", "gnugo-3.8", "gnugo.exe"
+            )
+            if not os.path.exists(gnugo_path):
+                return None
+
+            import GnuGo_Analyzer
+            
+            analyzer_cls = None
+            for name in dir(GnuGo_Analyzer):
+                if 'Analyzer' in name:
+                    obj = getattr(GnuGo_Analyzer, name)
+                    if isinstance(obj, type):
+                        analyzer_cls = obj
+                        break
+
+            if analyzer_cls:
+                analyzer = analyzer_cls(gnugo_path)
+                sgf = self.session.game.get_sgf()
+                return analyzer.analyze_sgf(sgf, self.board_size)
+        except Exception as e:
+            logger.warning(f"Score calculation failed: {e}")
+        return None
+
     def resign(self, player_id: str) -> dict:
         """Игрок сдается"""
         player = self.players.get(player_id)
@@ -323,15 +353,14 @@ class GameRoom:
             "resigned_player": player.name
         }
 
-    async  def broadcast(self, message: Message, exclude: Optional[str] = None):
+    async def broadcast(self, message: Message, exclude: Optional[str] = None):
         """Отправляет сообщение всем игрокам в комнате"""
         tasks = []
         for pid, player in self.players.items():
             if pid != exclude and player.is_connected:
                 tasks.append(self._send(player.websocket, message))
-
         if tasks:
-            asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _send(self, ws: WebSocketServerProtocol, message: Message):
         try:
@@ -681,11 +710,19 @@ class GameServer:
 
         # Если игра окончена
         if result.get("game_over"):
-            winner = result["board_state"]["current_player"]  # Последний ходивший
             room.status = "finished"
+            score = room.calculate_score()
+
+            if score:
+                winner = score.get("winner", "unknown")
+                result_str = score.get("full_result", "Игра окончена")
+            else:
+                winner = result["board_state"]["current_player"]
+                result_str = "Игра окончена"
+
             await room.broadcast(Message.game_over(
                 winner=winner,
-                result="Игра окончена (два паса)",
+                result=result_str,
                 reason="two_passes"
             ))
 
@@ -711,11 +748,19 @@ class GameServer:
         }))
 
         if result.get("game_over"):
-            winner = "black" if result["move"]["color"] == "white" else "white"
+            score = room.calculate_score()
             room.status = "finished"
+
+            if score:
+                winner = score.get("winner", "unknown")
+                result_str = score.get("full_result", "Игра окончена")
+            else:
+                winner = "black" if result["move"]["color"] == "white" else "white"
+                result_str = "Игра окончена (два паса)"
+
             await room.broadcast(Message.game_over(
                 winner=winner,
-                result="Игра окончена (два паса)",
+                result=result_str,
                 reason="two_passes"
             ))
 
