@@ -26,6 +26,7 @@ class MessageType(Enum):
     GAME_STATE = "game_state"
     GAME_OVER = "game_over"
     GAME_CHAT = "game_chat"
+    LOBBY_READY = "lobby_ready"
 
 class PlayerColor(Enum):
     BLACK = "black"
@@ -129,6 +130,12 @@ class Message:
     @classmethod
     def game_over(cls, winner: str, result: str, reason: str = "two_passes") -> "Message":
         return cls(MessageType.GAME_OVER, {"winner": winner, "result": result, "reason": reason})
+
+    @classmethod
+    def lobby_ready(cls) -> "Message":
+        """Сигнал готовности лобби после подключения"""
+        return cls(MessageType.LOBBY_READY, {})
+
 
     @classmethod
     def game_chat(cls, sender: str, text: str) -> "Message":

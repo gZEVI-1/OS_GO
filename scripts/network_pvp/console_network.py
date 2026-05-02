@@ -84,9 +84,11 @@ async def lobby_menu(client: NetworkClient) -> bool:
         available_rooms = rooms
         rooms_received.set()
     client.on_room_list = on_room_list
-    await client._send(Message.connect(client.player_name))
-    try: await asyncio.wait_for(rooms_received.wait(), timeout=2.0)
-    except asyncio.TimeoutError: pass
+    
+    try:
+        await asyncio.wait_for(rooms_received.wait(), timeout=3.0)
+    except asyncio.TimeoutError:
+        print("⚠️ Таймаут ожидания списка комнат")
 
     while True:
         clear_screen()
@@ -111,10 +113,11 @@ async def lobby_menu(client: NetworkClient) -> bool:
                 return False
             elif action == "refresh":
                 rooms_received.clear()
-                await client.disconnect()
-                if await client.connect():
-                    try: await asyncio.wait_for(rooms_received.wait(), timeout=3.0)
-                    except asyncio.TimeoutError: print("⚠️ Не удалось получить список")
+                await client._send(Message.lobby_ready())
+                try:
+                    await asyncio.wait_for(rooms_received.wait(), timeout=3.0)
+                except asyncio.TimeoutError:
+                    print("⚠️ Не удалось получить список")
                 continue
             elif action == "create":
                 name = cmd[1] if len(cmd) > 1 else f"Room_{client.player_name}"
@@ -209,10 +212,15 @@ async def wait_for_state_update(client: NetworkClient):
         if client.game_state and client.game_state.move_number > old_move: return
 
 async def game_loop(client: NetworkClient):
+    """Игровой цикл с использованием независимого интерфейса вывода"""
+    import output_interface as output
+    from output_interface import  GameDisplayState, MessageData
+
     game_started = asyncio.Event()
     game_ended = asyncio.Event()
     game_result = None
-    def on_start(payload): game_started.set()
+    def on_start(payload): 
+        game_started.set()
     def on_over(winner, result):
         nonlocal game_result
         game_result = (winner, result)
@@ -220,27 +228,56 @@ async def game_loop(client: NetworkClient):
     client.on_game_started = on_start
     client.on_game_over = on_over
     if client.state != ConnectionState.PLAYING:
-        try: await asyncio.wait_for(game_started.wait(), timeout=30.0)
+        try: 
+            await asyncio.wait_for(game_started.wait(), timeout=30.0)
         except asyncio.TimeoutError:
-            print("❌ Таймаут ожидания начала игры")
+            output.show_message(MessageData("error", "Таймаут ожидания начала игры"))
             return
     while client.state == ConnectionState.PLAYING:
-        clear_screen()
-        print_network_state(client)
+        output.clear_screen()
+
+        # Создаем состояние игры для отображения
+        if client.game_state:
+            state = GameDisplayState(
+                board_size=client.board_size,
+                board_array=client.game_state.board_array,
+                current_player=client.game_state.current_player,
+                move_number=client.game_state.move_number,
+                passes=client.game_state.passes,
+                last_move=client.game_state.last_move,
+                captures=client.game_state.captures,
+                player_color=client.player_color,
+                is_my_turn=client.is_my_turn(),
+                mode="network"
+            )
+            output.show_game_state(state)
         if client.is_my_turn():
-            print("\n💡 Ваш ход! Введите координаты (D4), 'pass', 'undo', 'chat <текст>', 'resign':")
+            output.show_message(MessageData("info", "Ваш ход! Введите координаты (D4), 'pass', 'undo', 'chat <текст>', 'resign':"))
             try:
-                move_input = input(" > ").strip()
-                if not move_input: continue
+                move_input = output.get_input(" > ")
+                if not move_input:
+                    continue
                 cmd = move_input.split(maxsplit=1)
                 action = cmd[0].lower()
-                if action == "help": show_help(); input("\nНажмите Enter...")
-                elif action == "pass": await client.send_pass(); print("⏭️ Вы пасовали"); await asyncio.sleep(0.5)
-                elif action == "undo": await client.request_undo(); print("⏳ Запрос отправлен..."); await asyncio.sleep(1)
+                
+                if action == "help":
+                    output.show_help()
+                    input("\nНажмите Enter...")
+                elif action == "pass":
+                    await client.send_pass()
+                    output.show_message(MessageData("info", "Вы пасовали"))
+                    await asyncio.sleep(0.5)
+                elif action == "undo":
+                    await client.request_undo()
+                    output.show_message(MessageData("info", "Запрос отправлен..."))
+                    await asyncio.sleep(1)
                 elif action == "resign" or action == "quit":
-                    if input("❓ Точно сдаться/выйти? (yes/no): ").strip().lower() == "yes": await client.send_resign(); break
+                    if output.get_input("❓ Точно сдаться/выйти? (yes/no): ").strip().lower() == "yes":
+                        await client.send_resign()
+                        break
                 elif action == "chat":
-                    if len(cmd) > 1: await client.send_chat(cmd[1])
+                    if len(cmd) > 1: 
+                        await client.send_chat(cmd[1])
                 else:
                     # Простой парсер координат (A1 -> x=0, y=0)
                     try:
@@ -250,58 +287,72 @@ async def game_loop(client: NetworkClient):
                         if x >= 8: x -= 1  # Пропуск I
                         y = row - 1
                         success = await client.send_move(x, y)
-                        if not success: print("❌ Ход не отправлен"); await asyncio.sleep(1)
-                    except ValueError: print("❌ Неверные координаты"); await asyncio.sleep(1)
-            except KeyboardInterrupt: break
+                        if not success:
+                            output.show_message(MessageData("error", "Ход не отправлен"))
+                            await asyncio.sleep(1)
+                    except ValueError:
+                        output.show_message(MessageData("error", "Неверные координаты"))
+                        await asyncio.sleep(1)
+            except KeyboardInterrupt:
+                break
         else:
-            print("\n⏳ Ожидание хода противника...")
-            try: await asyncio.wait_for(wait_for_state_update(client), timeout=60.0)
-            except asyncio.TimeoutError: print("⚠️ Долгое ожидание..."); await asyncio.sleep(1)
+            output.show_message(MessageData("info", "Ожидание хода противника..."))
+            try:
+                await asyncio.wait_for(wait_for_state_update(client), timeout=60.0)
+            except asyncio.TimeoutError:
+                output.show_message(MessageData("warning", "Долгое ожидание..."))
+                await asyncio.sleep(1)
     if game_result:
-        clear_screen()
-        print("\n" + "=" * 60)
-        print("🏆 ИГРА ОКОНЧЕНА! ")
-        print("=" * 60)
+        output.clear_screen()
         winner, result_str = game_result
         my_color_str = client.player_color
-        if winner == my_color_str: print("🎉 ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!")
-        elif winner == "draw": print("🤝 НИЧЬЯ!")
-        else: print("😔 Вы проиграли...")
-        print(f"📊 Результат: {result_str}")
-        print("=" * 60)
+        if winner == my_color_str:
+            output.show_message(MessageData("success", "ПОЗДРАВЛЯЕМ! ВЫ ПОБЕДИЛИ!"))
+        elif winner == "draw":
+            output.show_message(MessageData("info", "НИЧЬЯ!"))
+        else:
+            output.show_message(MessageData("error", "Вы проиграли..."))
+
+        output.show_game_result(winner, result_str, "game_over")
         input("\nНажмите Enter для возврата...")
 
 async def run_network_game():
+    import output_interface as output
+    from output_interface import  get_output_interface, OutputType
     parser = argparse.ArgumentParser(description="OS-GO Network PvP")
     parser.add_argument("--server", default="ws://localhost:8765")
     parser.add_argument("--name", default=None)
     args = parser.parse_args()
     player_name = args.name or input("Введите ваше имя: ").strip() or "Player"
     client = NetworkClient(args.server, player_name)
-    clear_screen()
+    output = get_output_interface(OutputType.CONSOLE)
+
+    output.clear_screen()
     print("=" * 60)
     print("         ПОДКЛЮЧЕНИЕ К СЕРВЕРУ... ")
     print("=" * 60)
     print(f"🌐 Сервер: {args.server}")
     print(f"👤 Имя: {player_name}")
     if not await client.connect():
-        print("❌ Не удалось подключиться к серверу")
+        output.show_message("error", "Не удалось подключиться к серверу")
         input("\nНажмите Enter...")
         return
-    print("✅ Подключено!")
+    output.show_message("success", "Подключено!")
     await asyncio.sleep(0.5)
     try:
         while True:
             in_room = await lobby_menu(client)
-            if not in_room: break
+            if not in_room: 
+                break
             game_ready = await room_wait_menu(client)
-            if not game_ready: continue
-            await game_loop(client)
+            if not game_ready: 
+                continue
+            await game_loop(client, output)
             client.state = ConnectionState.CONNECTED
             client.room_id = None
             client.game_state = None
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        output.show_message("error", f"Ошибка: {e}")
     finally:
         await client.disconnect()
         print("👋 Отключено от сервера")

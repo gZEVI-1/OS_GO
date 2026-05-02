@@ -533,9 +533,19 @@ class GameServer:
 
         logger.info(f"Player connected: {name} (protocol v{version})")
 
-        # Отправляем список комнат
+        # Игнорируем запросы списка комнат - клиент получит их через lobby_ready
+        # Список комнат будет отправлен после подтверждения готовности лобби
+
+    async def handle_lobby_ready(self, ws: WebSocketServerProtocol, msg: Message):
+        """Обработка сигнала готовности лобби - отправляем список комнат"""
+        conn = self.connections.get(ws)
+        if not conn or not conn["authenticated"]:
+            return
+
+        # Отправляем список комнат только после подтверждения готовности клиента
         rooms = self.lobby.get_room_list()
         await ws.send(Message.room_list(rooms).to_json())
+        logger.debug(f"Sent room list to {conn['name']}")
 
     async def handle_room_create(self, ws: WebSocketServerProtocol, msg: Message):
         """Создание комнаты"""
