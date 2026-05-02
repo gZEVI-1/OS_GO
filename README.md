@@ -239,7 +239,7 @@ python core/test_bind.py
 Откройте git bash в корне проекта и вставьте следующую команду:
 ```bash 
 cd bot/KataGo-1.16.4-OpenCL
-./katago gtp -config default_gtp.cfg -model model/kata1-zhizi-b28c512nbt-muonfd2.bin.gz
+./katago gtp -config default_gtp.cfg -model models/kata1-zhizi-b28c512nbt-muonfd2.bin.gz
 ```
 
 после чего долен создаться файл с вашей конфигурацией.
