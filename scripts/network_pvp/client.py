@@ -78,6 +78,12 @@ class NetworkClient:
             self.ws = await websockets.connect(self.server_url)
             self.state = ConnectionState.CONNECTED
             await self._send(Message.connect(self.player_name))
+
+            await asyncio.sleep(0.1)
+            await self._send(Message.lobby_ready())
+
+
+            # Запускаем обработчик входящих сообщений
             self._receive_task = asyncio.create_task(self._receive_loop())
             if self.on_connected: self.on_connected()
             return True
