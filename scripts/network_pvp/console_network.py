@@ -257,6 +257,7 @@ async def game_loop(client: NetworkClient):
         nonlocal game_result
         game_result = (w, r)
         game_ended.set()
+        client._state_event.set()   # разбудить, если ждёт состояния
 
     client.on_game_started = on_start
     client.on_game_over = on_over
@@ -268,16 +269,40 @@ async def game_loop(client: NetworkClient):
             output.show_message("error", "Таймаут ожидания начала игры")
             return
 
-    while client.state == ConnectionState.PLAYING:
+    while client.state == ConnectionState.PLAYING and game_result is None:
         output.clear_screen()
 
         disp = client.get_display_state()
         if disp:
             output.show_game_state(disp)
 
+        if client.state != ConnectionState.PLAYING or game_result is not None:
+            break
+
         if client.is_my_turn():
-            move_input = await ainput(" > ")
-            move_input = move_input.strip()
+            # Ждём либо ввода, либо сигнала окончания игры
+            input_task = asyncio.create_task(ainput(" > "))
+            end_task = asyncio.create_task(game_ended.wait())
+
+            done, pending = await asyncio.wait(
+                [input_task, end_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            if end_task in done:
+                break  # Сервер прислал GAME_OVER
+
+            try:
+                move_input = input_task.result().strip()
+            except asyncio.CancelledError:
+                continue
 
             if not move_input:
                 continue
@@ -314,7 +339,6 @@ async def game_loop(client: NetworkClient):
                     await client.send_chat(" ".join(cmd[1:]))
                 continue
 
-            # Парсинг координат
             from core_adapter import CoordinateUtils
             parsed = CoordinateUtils.parse_move(move_input, client.board_size)
 
@@ -325,7 +349,6 @@ async def game_loop(client: NetworkClient):
                     output.show_message("error", "Ход не отправлен")
                     await asyncio.sleep(1)
                 else:
-                    # Ждём, пока сервер пришлёт GAME_STATE с нашим ходом
                     try:
                         await asyncio.wait_for(client._state_event.wait(), timeout=5.0)
                     except asyncio.TimeoutError:
@@ -337,12 +360,29 @@ async def game_loop(client: NetworkClient):
 
         else:
             output.show_message("info", "Ожидание хода противника...")
+            
+            if client.state != ConnectionState.PLAYING or game_result is not None:
+                break
+
             client._state_event.clear()
-            try:
-                await asyncio.wait_for(client._state_event.wait(), timeout=60.0)
-            except asyncio.TimeoutError:
-                output.show_message("warning", "Долгое ожидание...")
-                await asyncio.sleep(1)
+            end_task = asyncio.create_task(game_ended.wait())
+            state_task = asyncio.create_task(client._state_event.wait())
+
+            done, pending = await asyncio.wait(
+                [end_task, state_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            if end_task in done:
+                break  # GAME_OVER пришёл
+            # Если проснулся по state_task — просто перерисуем доску
 
     # --- Итог игры ---
     if game_result:

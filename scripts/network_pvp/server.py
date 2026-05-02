@@ -312,32 +312,56 @@ class GameRoom:
     def calculate_score(self) -> Optional[Dict]:
         """Пытается подсчитать очки через GNU Go Analyzer."""
         if not self.session:
+            logger.warning("calculate_score: нет сессии")
             return None
         try:
-            gnugo_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                "bot", "gnugo-3.8", "gnugo.exe"
-            )
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            gnugo_path = os.path.join(base_dir, "bot", "gnugo-3.8", "gnugo.exe")
+            
+            logger.info(f"calculate_score: путь={gnugo_path}, существует={os.path.exists(gnugo_path)}")
+            
             if not os.path.exists(gnugo_path):
                 return None
 
+            if base_dir not in sys.path:
+                sys.path.insert(0, base_dir)
             import GnuGo_Analyzer
             
-            analyzer_cls = None
-            for name in dir(GnuGo_Analyzer):
-                if 'Analyzer' in name:
-                    obj = getattr(GnuGo_Analyzer, name)
-                    if isinstance(obj, type):
-                        analyzer_cls = obj
-                        break
+            logger.info("calculate_score: модуль GnuGo_Analyzer импортирован")
 
-            if analyzer_cls:
-                analyzer = analyzer_cls(gnugo_path)
-                sgf = self.session.game.get_sgf()
-                return analyzer.analyze_sgf(sgf, self.board_size)
-        except Exception as e:
-            logger.warning(f"Score calculation failed: {e}")
-        return None
+            analyzer = None
+            # Сначала ищем класс/функцию с analyze_sgf
+            for name in dir(GnuGo_Analyzer):
+                if name.startswith('_'):
+                    continue
+                obj = getattr(GnuGo_Analyzer, name)
+                if isinstance(obj, type) and hasattr(obj, 'analyze_sgf'):
+                    analyzer = obj(gnugo_path)
+                    logger.info(f"calculate_score: используем класс {name}")
+                    break
+                elif callable(obj) and hasattr(obj, 'analyze_sgf'):
+                    analyzer = obj
+                    logger.info(f"calculate_score: используем функцию {name}")
+                    break
+
+            if not analyzer:
+                logger.warning("calculate_score: не найден analyze_sgf")
+                return None
+
+            if not hasattr(self.session.game, 'get_sgf'):
+                logger.warning("calculate_score: у game нет метода get_sgf")
+                return None
+
+            sgf = self.session.game.get_sgf()
+            logger.info(f"calculate_score: длина SGF={len(sgf) if sgf else 0}")
+            
+            result = analyzer.analyze_sgf(sgf, self.board_size)
+            logger.info(f"calculate_score: результат={result}")
+            return result
+
+        except Exception:
+            logger.exception("calculate_score: ошибка подсчёта")
+            return None
 
     def resign(self, player_id: str) -> dict:
         """Игрок сдается"""
@@ -714,7 +738,13 @@ class GameServer:
             score = room.calculate_score()
 
             if score:
-                winner = score.get("winner", "unknown")
+                raw = score.get("winner", "unknown")
+                if "Черные" in raw or "black" in raw.lower():
+                    winner = "black"
+                elif "Белые" in raw or "white" in raw.lower():
+                    winner = "white"
+                else:
+                    winner = "draw"
                 result_str = score.get("full_result", "Игра окончена")
             else:
                 winner = result["board_state"]["current_player"]
@@ -752,7 +782,13 @@ class GameServer:
             room.status = "finished"
 
             if score:
-                winner = score.get("winner", "unknown")
+                raw = score.get("winner", "unknown")
+                if "Черные" in raw or "black" in raw.lower():
+                    winner = "black"
+                elif "Белые" in raw or "white" in raw.lower():
+                    winner = "white"
+                else:
+                    winner = "draw"
                 result_str = score.get("full_result", "Игра окончена")
             else:
                 winner = "black" if result["move"]["color"] == "white" else "white"
