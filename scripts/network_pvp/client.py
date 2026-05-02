@@ -14,6 +14,7 @@ from protocol import Message, MessageType, GameAction, RoomInfo
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from core_adapter import GameSession, PlayerType, GameDisplayState
 import go_engine as go
 
 logger = logging.getLogger("GoClient")
@@ -67,6 +68,8 @@ class NetworkClient:
         self.on_undo_response: Optional[Callable[[bool], None]] = None
 
         self._receive_task: Optional[asyncio.Task] = None
+
+        self.local_session: Optional[GameSession] = None
 
     def _is_connected(self) -> bool:
         if self.ws is None: return False
@@ -197,6 +200,7 @@ class NetworkClient:
             self.on_player_left("unknown")
 
     async def _on_game_start(self, msg: Message):
+        self.local_session = GameSession(self.board_size)
         self.state = ConnectionState.PLAYING
         self.board_size = msg.payload.get("board_size", 19)
         initial = msg.payload.get("initial_state", {})
@@ -262,3 +266,20 @@ class NetworkClient:
     def format_move(self, x: int, y: int) -> str:
         from core_adapter import CoordinateUtils
         return CoordinateUtils.format_move(x, y)
+    
+    def get_display_state(self) -> Optional[GameDisplayState]:
+        """Возвращает состояние в едином формате, совместимом с консолью и GUI."""
+        if not self.game_state:
+            return None
+        return GameDisplayState(
+            board_size=self.board_size,
+            board_array=self.game_state.board_array,
+            current_player=self.game_state.current_player,
+            move_number=self.game_state.move_number,
+            passes=self.game_state.passes,
+            last_move=self.game_state.last_move,
+            captures=self.game_state.captures,
+            player_color=self.player_color,
+            is_my_turn=self.is_my_turn(),
+            mode="network"
+        )

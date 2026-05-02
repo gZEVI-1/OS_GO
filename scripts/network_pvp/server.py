@@ -6,7 +6,7 @@ WebSocket сервер для сетевой игры в Го.
 Управляет лобби, комнатами и игровыми сессиями.
 
 Запуск:
-    python server.py [--host 0.0.0.0] [--port 8765]
+    python server.py --host 0.0.0.0 --port 8765
     ip сервера 192.168.1.1
 Архитектура:
     - GameServer: главный сервер, управляет подключениями
@@ -38,8 +38,10 @@ from protocol import Message, MessageType, RoomInfo, PlayerInfo, GameAction
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from core_adapter import GameSession, PlayerType
+
 import go_engine as go
+
+from core_adapter import GameSession, PlayerType 
 
 
 logging.basicConfig(
@@ -108,7 +110,7 @@ class GameRoom:
 
         self.status = "waiting"  # waiting, playing, finished
         self.game: Optional[go.Game] = None
-        self.game_session: Optional[GameSession] = None
+        self.session: Optional[GameSession] = None 
 
         self.move_history: List[dict] = []
         self.captures = {"black": 0, "white": 0}
@@ -193,112 +195,74 @@ class GameRoom:
         if not self.all_ready():
             return False
 
+        self.session = GameSession(self.board_size, self.komi)
+
+        # Регистрируем сетевых игроков
+        for pid, player in self.players.items():
+            color = GameAction.str_to_color(player.color)
+            self.session.set_player(color, player.name, PlayerType.NETWORK)
+
+        self.session.game_active = True
         self.status = "playing"
-        self.game = go.Game(size=self.board_size)
         self.game_started_at = datetime.now()
         self.move_history = []
 
-        # Инициализируем GameSession для совместимости
-        # (хотя для сервера используем go.Game напрямую)
+        # Подписываемся на события сессии
+        self.session.add_move_callback(self._on_move)
+        self.session.add_pass_callback(self._on_pass)
+        self.session.add_game_over_callback(self._on_game_over)
 
-        logger.info(f"Game started in room {self.room_id}, size={self.board_size}")
+        logger.info(f"Game started in room {self.room_id}")
         return True
 
     def make_move(self, player_id: str, x: int, y: int) -> dict:
         """
         Выполняет ход. Возвращает результат с флагом success.
         """
-        if self.status != "playing" or not self.game:
+        if self.status != "playing" or not self.session:
             return {"success": False, "error": "Игра не начата"}
 
         player = self.players.get(player_id)
-        if not player:
-            return {"success": False, "error": "Игрок не найден"}
+        color = GameAction.str_to_color(player.color)
 
-        # Проверяем очередь хода
-        current = self.game.get_current_player()
-        expected_color = GameAction.str_to_color(player.color)
-        if current != expected_color:
-            return {"success": False, "error": "Сейчас не ваш ход"}
-
-        # Выполняем ход через go_engine
-        success = self.game.make_move(x, y)
-        if not success:
-            return {"success": False, "error": "Нелегальный ход"}
-
-        # Сохраняем в историю
-        move_record = {
-            "x": x, "y": y,
-            "color": player.color,
-            "move_number": self.game.get_move_number() - 1,
-            "player_name": player.name,
-            "timestamp": datetime.now().isoformat()
-        }
-        self.move_history.append(move_record)
-
-        # Проверяем конец игры
-        is_over = self.game.is_game_over()
+        result = self.session.make_move(x, y, False, color)
+        if not result.success:
+            return {"success": False, "error": result.message}
 
         return {
             "success": True,
-            "move": move_record,
-            "game_over": is_over,
-            "board_state": self.get_game_state()
+            "move": result.move_info,
+            "game_over": result.game_over,
+            "board_state": self.session.get_state_dict()
         }
 
     def make_pass(self, player_id: str) -> dict:
         """Пас игрока"""
-        if self.status != "playing" or not self.game:
-            return {"success": False, "error": "Игра не начата"}
-
         player = self.players.get(player_id)
-        if not player:
-            return {"success": False, "error": "Игрок не найден"}
+        color = GameAction.str_to_color(player.color)
+        result = self.session.make_pass(color)
 
-        current = self.game.get_current_player()
-        expected_color = GameAction.str_to_color(player.color)
-        if current != expected_color:
-            return {"success": False, "error": "Сейчас не ваш ход"}
-
-        success = self.game.make_move(-1, -1, is_pass=True)
-
-        move_record = {
-            "x": -1, "y": -1,
-            "color": player.color,
-            "move_number": self.game.get_move_number() - 1,
-            "is_pass": True,
-            "player_name": player.name,
-            "timestamp": datetime.now().isoformat()
-        }
-        self.move_history.append(move_record)
-
-        is_over = self.game.is_game_over()
+        if not result.success:
+            return {"success": False, "error": result.message}
 
         return {
             "success": True,
-            "move": move_record,
-            "game_over": is_over,
-            "board_state": self.get_game_state()
+            "move": result.move_info,
+            "game_over": result.game_over,
+            "board_state": self.session.get_state_dict()
         }
 
     def request_undo(self, player_id: str) -> dict:
         """Запрос отмены хода"""
-        if len(self.move_history) == 0:
+        if not self.session or len(self.move_history) == 0:
             return {"success": False, "error": "Нет ходов для отмены"}
-
-        self.pending_undo = player_id
-        requester = self.players[player_id]
-
-        # Определяем оппонента
-        opponent_id = next(
-            (pid for pid, p in self.players.items() if pid != player_id),
-            None
-        )
-
+        # Отмена через session.undo_move() — логика без изменений
+        success = self.session.undo_move()
+        if success:
+            self.move_history.pop()
         return {
-            "success": True,
-            "requester": requester.name,
-            "opponent_id": opponent_id
+            "success": success,
+            "board_state": self.session.get_state_dict() if success else None
         }
 
     def confirm_undo(self, accepted: bool) -> dict:
@@ -325,38 +289,25 @@ class GameRoom:
 
     def get_game_state(self) -> dict:
         """Возвращает текущее состояние игры для синхронизации"""
-        if not self.game:
+        if not self.session:
             return {}
-
-        board = self.game.get_board_const()
-        last_move = self.move_history[-1] if self.move_history else None
-
-        return {
-            "board": GameAction.board_to_array(board),
-            "current_player": GameAction.color_to_str(self.game.get_current_player()),
-            "move_number": self.game.get_move_number(),
-            "passes": self.game.get_passes(),
-            "last_move": last_move,
-            "captures": self.captures
-        }
+        return self.session.get_state_dict()
 
     def resign(self, player_id: str) -> dict:
         """Игрок сдается"""
         player = self.players.get(player_id)
-        if not player:
-            return {"success": False, "error": "Игрок не найден"}
+        color = GameAction.str_to_color(player.color)
+        result = self.session.resign(color)
 
-        winner = "white" if player.color == "black" else "black"
         self.status = "finished"
-
         return {
             "success": True,
-            "winner": winner,
+            "winner": "white" if player.color == "black" else "black",
             "reason": "resign",
             "resigned_player": player.name
         }
 
-    def broadcast(self, message: Message, exclude: Optional[str] = None):
+    async  def broadcast(self, message: Message, exclude: Optional[str] = None):
         """Отправляет сообщение всем игрокам в комнате"""
         tasks = []
         for pid, player in self.players.items():
@@ -364,7 +315,7 @@ class GameRoom:
                 tasks.append(self._send(player.websocket, message))
 
         if tasks:
-            asyncio.create_task(asyncio.gather(*tasks, return_exceptions=True))
+            asyncio.gather(*tasks, return_exceptions=True)
 
     async def _send(self, ws: WebSocketServerProtocol, message: Message):
         try:
@@ -374,6 +325,17 @@ class GameRoom:
 
     def get_players_info(self) -> List[PlayerInfo]:
         return [p.to_info() for p in self.players.values()]
+    
+    def _on_move(self, move_info: Dict):
+        self.move_history.append(move_info)
+
+    def _on_pass(self, move_info: Dict):
+        self.move_history.append(move_info)
+
+    def _on_game_over(self):
+        self.status = "finished"
+
+    
 
 
 # ============================================================================
@@ -628,7 +590,7 @@ class GameServer:
             }).to_json())
 
             # Уведомляем остальных
-            room.broadcast(Message(MessageType.ROOM_UPDATE, {
+            await room.broadcast(Message(MessageType.ROOM_UPDATE, {
                 "event": "player_joined",
                 "players": [p.to_dict() for p in room.get_players_info()]
             }), exclude=player_id)
@@ -652,7 +614,7 @@ class GameServer:
         room.set_ready(player_id, is_ready)
 
         # Обновляем всех
-        room.broadcast(Message(MessageType.ROOM_UPDATE, {
+        await room.broadcast(Message(MessageType.ROOM_UPDATE, {
             "event": "player_ready",
             "players": [p.to_dict() for p in room.get_players_info()]
         }))
@@ -662,7 +624,7 @@ class GameServer:
             room.start_game()
             state = room.get_game_state()
 
-            room.broadcast(Message(MessageType.GAME_START, {
+            await room.broadcast(Message(MessageType.GAME_START, {
                 "board_size": room.board_size,
                 "komi": room.komi,
                 "rules": room.rules,
@@ -692,13 +654,20 @@ class GameServer:
             return
 
         # Рассылаем всем обновленное состояние
-        room.broadcast(Message.game_state(**result["board_state"]))
+        bs = result["board_state"]
+        await room.broadcast(Message.game_state(
+            board_array=bs["board"],
+            current_player=bs["current_player"],
+            move_number=bs["move_number"],
+            passes=bs["passes"],
+            last_move=bs.get("last_move"),
+            captures=bs.get("captures", {"black": 0, "white": 0})))
 
         # Если игра окончена
         if result.get("game_over"):
             winner = result["board_state"]["current_player"]  # Последний ходивший
             room.status = "finished"
-            room.broadcast(Message.game_over(
+            await room.broadcast(Message.game_over(
                 winner=winner,
                 result="Игра окончена (два паса)",
                 reason="two_passes"
@@ -720,7 +689,7 @@ class GameServer:
             await self.send_error(ws, "INVALID_PASS", result["error"])
             return
 
-        room.broadcast(Message(MessageType.GAME_PASS, {
+        await room.broadcast(Message(MessageType.GAME_PASS, {
             "move": result["move"],
             "board_state": result["board_state"]
         }))
@@ -728,7 +697,7 @@ class GameServer:
         if result.get("game_over"):
             winner = "black" if result["move"]["color"] == "white" else "white"
             room.status = "finished"
-            room.broadcast(Message.game_over(
+            await room.broadcast(Message.game_over(
                 winner=winner,
                 result="Игра окончена (два паса)",
                 reason="two_passes"
@@ -744,7 +713,7 @@ class GameServer:
             return
 
         result = room.resign(player_id)
-        room.broadcast(Message.game_over(
+        await room.broadcast(Message.game_over(
             winner=result["winner"],
             result=f"{result['resigned_player']} сдался",
             reason="resign"
@@ -782,7 +751,7 @@ class GameServer:
         result = room.confirm_undo(accepted)
 
         if result["success"] and result.get("accepted"):
-            room.broadcast(Message(MessageType.GAME_STATE, result["board_state"]))
+            await room.broadcast(Message(MessageType.GAME_STATE, result["board_state"]))
         else:
             # Уведомляем запросившего об отказе
             if room.pending_undo:
@@ -799,7 +768,7 @@ class GameServer:
 
         room = self.lobby.leave_room(player_id)
         if room:
-            room.broadcast(Message(MessageType.ROOM_UPDATE, {
+            await room.broadcast(Message(MessageType.ROOM_UPDATE, {
                 "event": "player_left",
                 "players": [p.to_dict() for p in room.get_players_info()]
             }))
@@ -817,7 +786,7 @@ class GameServer:
                 "text": text,
                 "timestamp": datetime.now().isoformat()
             })
-            room.broadcast(Message.game_chat(conn["name"], text))
+            await room.broadcast(Message.game_chat(conn["name"], text))
 
     async def disconnect(self, websocket: WebSocketServerProtocol):
         """Обработка отключения"""
@@ -830,7 +799,7 @@ class GameServer:
         # Удаляем из комнаты
         room = self.lobby.leave_room(player_id)
         if room:
-            room.broadcast(Message(MessageType.ROOM_UPDATE, {
+            await room.broadcast(Message(MessageType.ROOM_UPDATE, {
                 "event": "player_disconnected",
                 "players": [p.to_dict() for p in room.get_players_info()]
             }))
