@@ -53,12 +53,12 @@ class Ui_mainWindow(object):
 
         self.buttonSettings = QPushButton(self.dockWidgetContents)
         self.buttonSettings.setObjectName(u"buttonSettings")
-        self.buttonSettings.setStyleSheet(u"QPushButton {\n"
-"    border: none;\n"
-"}")
         font = QFont()
         font.setPointSize(16)
         self.buttonSettings.setFont(font)
+        self.buttonSettings.setStyleSheet(u"QPushButton {\n"
+"    border: none;\n"
+"}")
 
         self.verticalLayout_3.addWidget(self.buttonSettings)
 
@@ -158,8 +158,13 @@ class Ui_mainWindow(object):
 
         self.horizontalLayout_3.addLayout(self.verticalLayout_2)
 
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_3.addItem(self.horizontalSpacer_3)
+
         self.horizontalLayout_3.setStretch(0, 1)
-        self.horizontalLayout_3.setStretch(1, 14)
+        self.horizontalLayout_3.setStretch(1, 13)
+        self.horizontalLayout_3.setStretch(2, 1)
 
         self.verticalLayout_4.addLayout(self.horizontalLayout_3)
 

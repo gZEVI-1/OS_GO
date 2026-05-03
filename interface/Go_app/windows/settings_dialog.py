@@ -143,4 +143,4 @@ class SettingsDialog(QDialog):
         self.setStyleSheet(self.settings.get_theme_stylesheet())
     
     def open_github(self):
-        QDesktopServices.openUrl(QUrl("https://github.com/gZEVI-1/OS_GO/invitations"))
+        QDesktopServices.openUrl(QUrl("https://github.com/gZEVI-1/OS_GO"))
