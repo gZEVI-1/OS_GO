@@ -50,18 +50,13 @@
           <widget class="QPushButton" name="opponentAvatar">
            <property name="styleSheet">
             <string notr="true">QPushButton#opponentAvatar {
-    border: 2px solid #4CAF50;           /* зеленая рамка */
-    border-radius: 25px;                  /* половина от ширины/высоты */
-    background-color: transparent;        /* прозрачный фон */
-    min-width: 50px;                      /* фиксированный размер */
+    border-radius: 25px;
+    min-width: 50px;
     min-height: 50px;
     max-width: 50px;
     max-height: 50px;
 }
-
-/* Эффект при наведении */
-QPushButton#opponentAvatar:hover{
-    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+QPushButton#opponentAvatar:hover {
     opacity: 0.8;
 }</string>
            </property>
@@ -199,15 +194,12 @@ QPushButton#opponentAvatar:hover{
               <widget class="QPushButton" name="buttonPrevMove">
                <property name="styleSheet">
                 <string notr="true">QPushButton#buttonPrevMove {
-    background-color: #FF9800;
     border-radius: 5px;
-    color: white;
     padding: 5px 20px;
     font-size: 12px;
 }
 QPushButton#buttonPrevMove:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
                </property>
                <property name="text">
@@ -219,15 +211,12 @@ QPushButton#buttonPrevMove:hover {
               <widget class="QPushButton" name="buttonNextMove">
                <property name="styleSheet">
                 <string notr="true">QPushButton#buttonNextMove {
-    background-color: #FF9800;
     border-radius: 5px;
-    color: white;
     padding: 5px 20px;
     font-size: 12px;
 }
 QPushButton#buttonNextMove:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
                </property>
                <property name="text">
@@ -293,18 +282,13 @@ QPushButton#buttonNextMove:hover {
           <widget class="QPushButton" name="playerAvatar">
            <property name="styleSheet">
             <string notr="true">QPushButton#playerAvatar {
-    border: 2px solid #4CAF50;           /* зеленая рамка */
-    border-radius: 25px;                  /* половина от ширины/высоты */
-    background-color: transparent;        /* прозрачный фон */
-    min-width: 50px;                      /* фиксированный размер */
+    border-radius: 25px;
+    min-width: 50px;
     min-height: 50px;
     max-width: 50px;
     max-height: 50px;
 }
-
-/* Эффект при наведении */
-QPushButton#playerAvatar:hover{
-    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+QPushButton#playerAvatar:hover {
     opacity: 0.8;
 }</string>
            </property>
@@ -383,15 +367,12 @@ QPushButton#playerAvatar:hover{
             <widget class="QPushButton" name="buttonResign">
              <property name="styleSheet">
               <string notr="true">QPushButton#buttonResign {
-    background-color: #4CAF50;
     border-radius: 5px;
-    color: white;
     padding: 5px 15px;
     font-size: 12px;
 }
 QPushButton#buttonResign:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
              </property>
              <property name="text">
@@ -403,15 +384,12 @@ QPushButton#buttonResign:hover {
             <widget class="QPushButton" name="buttonPass">
              <property name="styleSheet">
               <string notr="true">QPushButton#buttonPass {
-    background-color: #4CAF50;
     border-radius: 5px;
-    color: white;
     padding: 5px 15px;
     font-size: 12px;
 }
 QPushButton#buttonPass:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
              </property>
              <property name="text">

@@ -38,6 +38,22 @@ class Widget(QMainWindow):
         self.main_menu = QWidget()
         self.ui = Ui_mainWindow()
         self.ui.setupUi(self.main_menu)
+        try:
+            # Пробуем установить иконку из темы
+            from PySide6.QtGui import QIcon
+            icon = self.style().standardIcon(self.style().SP_FileDialogDetailedView)
+            if not icon.isNull():
+                self.ui.buttonSettings.setIcon(icon)
+                self.ui.buttonSettings.setText("")
+                self.ui.buttonSettings.setIconSize(QSize(30, 30))
+            else:
+                # Если иконка не загрузилась, используем текст
+                self.ui.buttonSettings.setText("⚙")
+                self.ui.buttonSettings.setStyleSheet("font-size: 24px;")
+        except:
+            # В случае любой ошибки используем текст
+            self.ui.buttonSettings.setText("⚙")
+            self.ui.buttonSettings.setStyleSheet("font-size: 24px;")
         
         self.navigation.add_window("main_menu", self.main_menu)
 

@@ -30,14 +30,11 @@
           <widget class="QPushButton" name="buttonAccount">
            <property name="styleSheet">
             <string notr="true">QPushButton#buttonAccount{
-    background-color: #1A1A1A;
     border-radius: 20px;
     min-width: 40px;
     min-height: 40px;
     max-width: 40px;
     max-height: 40px;
-    color: white;
-
 }</string>
            </property>
            <property name="text">
@@ -63,18 +60,15 @@
            <property name="styleSheet">
             <string notr="true">QPushButton {
     border: none;
-    background-color: transparent;
 }</string>
            </property>
-           <property name="icon">
-            <iconset>
-             <normaloff>C:/Users/polin/Downloads/pngegg.png</normaloff>C:/Users/polin/Downloads/pngegg.png</iconset>
+           <property name="text">
+            <string>⚙</string>
            </property>
-           <property name="iconSize">
-            <size>
-             <width>30</width>
-             <height>30</height>
-            </size>
+           <property name="font">
+            <font>
+             <pointsize>16</pointsize>
+            </font>
            </property>
           </widget>
          </item>
@@ -114,9 +108,7 @@
              </property>
              <property name="styleSheet">
               <string notr="true">QPushButton#buttonWindOnline {
-    background-color: #4CAF50;
-    border-radius: 10px;  
-    color: white;
+    border-radius: 10px;
     padding: 8px 16px;
 }</string>
              </property>
@@ -134,10 +126,8 @@
               </sizepolicy>
              </property>
              <property name="styleSheet">
-              <string notr="true">QPushButton#buttonWindOffline{
-    background-color: #4CAF50;
-    border-radius: 10px;  
-    color: white;
+              <string notr="true">QPushButton#buttonWindOffline {
+    border-radius: 10px;
     padding: 8px 16px;
 }</string>
              </property>
@@ -156,9 +146,7 @@
              </property>
              <property name="styleSheet">
               <string notr="true">QPushButton#buttonWindBot {
-    background-color: #4CAF50;
-    border-radius: 10px;  
-    color: white;
+    border-radius: 10px;
     padding: 8px 16px;
 }</string>
              </property>
@@ -194,10 +182,8 @@
              </property>
              <property name="styleSheet">
               <string notr="true">QPushButton#buttonInstruct {
-    background-color: #4CAF50;
-    border-radius: 2.5px;
-    color: white;
-    border: 1px solid #388E3C;
+    border-radius: 5px;
+    padding: 8px 24px;
 }</string>
              </property>
              <property name="text">

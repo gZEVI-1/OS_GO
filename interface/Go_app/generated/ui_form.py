@@ -38,14 +38,11 @@ class Ui_mainWindow(object):
         self.buttonAccount = QPushButton(self.dockWidgetContents)
         self.buttonAccount.setObjectName(u"buttonAccount")
         self.buttonAccount.setStyleSheet(u"QPushButton#buttonAccount{\n"
-"    background-color: #1A1A1A;\n"
 "    border-radius: 20px;\n"
 "    min-width: 40px;\n"
 "    min-height: 40px;\n"
 "    max-width: 40px;\n"
 "    max-height: 40px;\n"
-"    color: white;\n"
-"\n"
 "}")
 
         self.verticalLayout_3.addWidget(self.buttonAccount)
@@ -58,12 +55,10 @@ class Ui_mainWindow(object):
         self.buttonSettings.setObjectName(u"buttonSettings")
         self.buttonSettings.setStyleSheet(u"QPushButton {\n"
 "    border: none;\n"
-"    background-color: transparent;\n"
 "}")
-        icon = QIcon()
-        icon.addFile(u"C:/Users/polin/Downloads/pngegg.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.buttonSettings.setIcon(icon)
-        self.buttonSettings.setIconSize(QSize(30, 30))
+        font = QFont()
+        font.setPointSize(16)
+        self.buttonSettings.setFont(font)
 
         self.verticalLayout_3.addWidget(self.buttonSettings)
 
@@ -90,9 +85,7 @@ class Ui_mainWindow(object):
         sizePolicy.setHeightForWidth(self.buttonWindOnline.sizePolicy().hasHeightForWidth())
         self.buttonWindOnline.setSizePolicy(sizePolicy)
         self.buttonWindOnline.setStyleSheet(u"QPushButton#buttonWindOnline {\n"
-"    background-color: #4CAF50;\n"
-"    border-radius: 10px;  \n"
-"    color: white;\n"
+"    border-radius: 10px;\n"
 "    padding: 8px 16px;\n"
 "}")
 
@@ -102,10 +95,8 @@ class Ui_mainWindow(object):
         self.buttonWindOffline.setObjectName(u"buttonWindOffline")
         sizePolicy.setHeightForWidth(self.buttonWindOffline.sizePolicy().hasHeightForWidth())
         self.buttonWindOffline.setSizePolicy(sizePolicy)
-        self.buttonWindOffline.setStyleSheet(u"QPushButton#buttonWindOffline{\n"
-"    background-color: #4CAF50;\n"
-"    border-radius: 10px;  \n"
-"    color: white;\n"
+        self.buttonWindOffline.setStyleSheet(u"QPushButton#buttonWindOffline {\n"
+"    border-radius: 10px;\n"
 "    padding: 8px 16px;\n"
 "}")
 
@@ -116,9 +107,7 @@ class Ui_mainWindow(object):
         sizePolicy.setHeightForWidth(self.buttonWindBot.sizePolicy().hasHeightForWidth())
         self.buttonWindBot.setSizePolicy(sizePolicy)
         self.buttonWindBot.setStyleSheet(u"QPushButton#buttonWindBot {\n"
-"    background-color: #4CAF50;\n"
-"    border-radius: 10px;  \n"
-"    color: white;\n"
+"    border-radius: 10px;\n"
 "    padding: 8px 16px;\n"
 "}")
 
@@ -138,10 +127,8 @@ class Ui_mainWindow(object):
         sizePolicy.setHeightForWidth(self.buttonInstruct.sizePolicy().hasHeightForWidth())
         self.buttonInstruct.setSizePolicy(sizePolicy)
         self.buttonInstruct.setStyleSheet(u"QPushButton#buttonInstruct {\n"
-"    background-color: #4CAF50;\n"
-"    border-radius: 2.5px;\n"
-"    color: white;\n"
-"    border: 1px solid #388E3C;\n"
+"    border-radius: 5px;\n"
+"    padding: 8px 24px;\n"
 "}")
 
         self.horizontalLayout_2.addWidget(self.buttonInstruct)
@@ -185,6 +172,7 @@ class Ui_mainWindow(object):
     def retranslateUi(self, mainWindow):
         mainWindow.setWindowTitle(QCoreApplication.translate("mainWindow", u"Widget", None))
         self.buttonAccount.setText(QCoreApplication.translate("mainWindow", u"account", None))
+        self.buttonSettings.setText(QCoreApplication.translate("mainWindow", u"\u2699", None))
         self.buttonWindOnline.setText(QCoreApplication.translate("mainWindow", u"openOnline", None))
         self.buttonWindOffline.setText(QCoreApplication.translate("mainWindow", u"openOffline", None))
         self.buttonWindBot.setText(QCoreApplication.translate("mainWindow", u"openBot", None))

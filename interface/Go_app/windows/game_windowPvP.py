@@ -61,7 +61,6 @@ class GameWindow(BaseWindow):
     def __init__(self, navigation, core_api=None, settings=None):
         super().__init__(navigation)
         
-        # ===== ЗАГРУЖАЕМ НАСТРОЙКИ =====
         self.game_settings = settings or {
             'board_size': 9,
             'time': {'main_time': 900, 'byoyomi': 30},
