@@ -20,6 +20,8 @@ root_path = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(root_path / "scripts"))
 import go_engine as go
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 sys.path.append(str(root_path / "interface" / "Go_app" ))
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
@@ -132,39 +134,46 @@ class GameWindow(BaseWindow):
         self.save_initial_snapshot()
 
 
-
+    def update_language(self):
+        # Обновляем заголовок окна
+        self.setWindowTitle(f"{self.settings.get_text('game_title')} {self.board_size}×{self.board_size}")
+        
+        # Обновляем текст на кнопках
+        self.ui.buttonPass.setText(self.settings.get_text("pass_button"))
+        self.ui.buttonResign.setText(self.settings.get_text("resign_button"))
+        
     def setup_timers(self):
-        time_settings = self.game_settings.get('time', {})
-        no_time_limit = time_settings.get('no_time_limit', False)
-        
-        self.initial_player_time = time_settings.get('main_time', 900) if not no_time_limit else 0
-        self.initial_opponent_time = time_settings.get('main_time', 900) if not no_time_limit else 0
-        self.byoyomi = time_settings.get('byoyomi', 30) if not no_time_limit else 0
-        
-        if no_time_limit:
-            self.player_timer = GameTimer(1, 0, self, no_time_limit=True)
-            self.opponent_timer = GameTimer(2, 0, self, no_time_limit=True)
+            time_settings = self.game_settings.get('time', {})
+            no_time_limit = time_settings.get('no_time_limit', False)
             
-            self.ui.timerPlayer.setText("--:--")
-            self.ui.timerOpponent.setText("--:--")
-            self.ui.timerPlayer.setStyleSheet("color: gray;")
-            self.ui.timerOpponent.setStyleSheet("color: gray;")
-        else:
-            self.player_timer = GameTimer(1, self.initial_player_time, self, no_time_limit=False)
-            self.opponent_timer = GameTimer(2, self.initial_opponent_time, self, no_time_limit=False)
+            self.initial_player_time = time_settings.get('main_time', 900) if not no_time_limit else 0
+            self.initial_opponent_time = time_settings.get('main_time', 900) if not no_time_limit else 0
+            self.byoyomi = time_settings.get('byoyomi', 30) if not no_time_limit else 0
             
-            self.ui.timerPlayer.setStyleSheet("")
-            self.ui.timerOpponent.setStyleSheet("")
+            if no_time_limit:
+                self.player_timer = GameTimer(1, 0, self, no_time_limit=True)
+                self.opponent_timer = GameTimer(2, 0, self, no_time_limit=True)
+                
+                self.ui.timerPlayer.setText("--:--")
+                self.ui.timerOpponent.setText("--:--")
+                self.ui.timerPlayer.setStyleSheet("color: gray;")
+                self.ui.timerOpponent.setStyleSheet("color: gray;")
+            else:
+                self.player_timer = GameTimer(1, self.initial_player_time, self, no_time_limit=False)
+                self.opponent_timer = GameTimer(2, self.initial_opponent_time, self, no_time_limit=False)
+                
+                self.ui.timerPlayer.setStyleSheet("")
+                self.ui.timerOpponent.setStyleSheet("")
+                
+                self.player_timer.time_changed.connect(self.update_timer_display)
+                self.opponent_timer.time_changed.connect(self.update_timer_display)
+                self.player_timer.time_expired.connect(self.on_time_expired)
+                self.opponent_timer.time_expired.connect(self.on_time_expired)
+                
+                self.player_timer.start()
             
-            self.player_timer.time_changed.connect(self.update_timer_display)
-            self.opponent_timer.time_changed.connect(self.update_timer_display)
-            self.player_timer.time_expired.connect(self.on_time_expired)
-            self.opponent_timer.time_expired.connect(self.on_time_expired)
-            
-            self.player_timer.start()
-        
-        self.update_timer_display()
-
+            self.update_timer_display()
+    
     def update_timer_active(self):
         if self.game_ended:
             self.player_timer.stop()
@@ -187,15 +196,15 @@ class GameWindow(BaseWindow):
         if self.player_timer.no_time_limit:
             return
         
-        player_time = int(self.player_timer.time_remaining)
-        opponent_time = int(self.opponent_timer.time_remaining)
+        player_seconds = int(self.player_timer.time_remaining) 
+        opponent_seconds = int(self.opponent_timer.time_remaining)
         
-        player_min = player_time // 60
-        player_sec = player_time % 60
+        player_min = player_seconds // 60
+        player_sec = player_seconds % 60
         self.ui.timerPlayer.setText(f"{player_min:02d}:{player_sec:02d}")
         
-        opponent_min = opponent_time // 60
-        opponent_sec = opponent_time % 60
+        opponent_min = opponent_seconds // 60
+        opponent_sec = opponent_seconds % 60
         self.ui.timerOpponent.setText(f"{opponent_min:02d}:{opponent_sec:02d}")
 
     def on_time_expired(self, player):
@@ -394,12 +403,12 @@ class GameWindow(BaseWindow):
             dialog.show()
 
             self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
-            self.analysis_task.finished.connect(lambda result: self._on_analysis_finished(result, dialog))
-            self.analysis_task.error.connect(lambda e: self._on_analysis_error(e, dialog))
+            self.analysis_task.finished.connect(lambda result: self.on_analysis_finished(result, dialog))
+            self.analysis_task.error.connect(lambda e: self.on_analysis_error(e, dialog))
             self.analysis_task.start()
 
 
-    def _on_analysis_finished(self, result, dialog):
+    def on_analysis_finished(self, result, dialog):
         dialog.close()
 
         if result and isinstance(result, dict):
@@ -411,7 +420,7 @@ class GameWindow(BaseWindow):
         self.game_finished.emit()
 
 
-    def _on_analysis_error(self, exception, dialog):
+    def on_analysis_error(self, exception, dialog):
         dialog.close()
         QMessageBox.warning(
             self, "Ошибка анализа",
@@ -449,12 +458,14 @@ class GameWindow(BaseWindow):
 
 
     def resign(self):
-        reply = QMessageBox.question(self, "Сдаться",
-                                   "Вы уверены, что хотите сдаться?",
-                                   QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(self, 
+                                self.settings.get_text("resign_title"),
+                                self.settings.get_text("resign_confirm"),
+                                QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             self.game_ended = True 
-            QMessageBox.information(self, "Игра окончена", "Вы сдались. Победил противник!")
+            QMessageBox.information(self, self.settings.get_text("game_ended"), 
+                                self.settings.get_text("opponent_won"))
             self.game_finished.emit()
 
 

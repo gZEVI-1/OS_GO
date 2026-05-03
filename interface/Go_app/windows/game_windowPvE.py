@@ -11,7 +11,11 @@ root_path = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(root_path / "scripts"))
 import go_engine as go
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 sys.path.append(str(root_path / "interface" / "Go_app"))
+sys.path.append(str(root_path / "interface" / "Go_app" / "katago")) 
+from KataGoAdapter import KataGoGameAnalyzer, KataGoAnalysisResult
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
 from generated.ui_game_windowPvE import Ui_main
@@ -156,6 +160,7 @@ class GameWindowPvE(BaseWindow):
             except Exception as e:
                 self.error.emit(e)
 
+
     def __init__(self, navigation, core_api=None, settings=None):
         super().__init__(navigation)
         
@@ -274,6 +279,24 @@ class GameWindowPvE(BaseWindow):
             color = self.player_gtp
             self.gnugo_engine.play_move(color, x, y, is_pass)
     
+    def update_language(self):
+        # Обновляем заголовок окна
+        self.setWindowTitle(f"{self.settings.get_text('game_title')} vs Bot {self.board_size}×{self.board_size}")
+        
+        # Обновляем текст на кнопках
+        self.ui.buttonPass.setText(self.settings.get_text("pass_button"))
+        self.ui.buttonResign.setText(self.settings.get_text("resign_button"))
+        
+        # Обновляем имена с учетом языка
+        black_text = self.settings.get_text("black")
+        white_text = self.settings.get_text("white")
+        
+        if self.player_is_black:
+            self.ui.playerName.setText(f"{self.player_data['name']} ({black_text})")
+            self.ui.opponentName.setText(f"{self.bot_data['name']} ({white_text})")
+        else:
+            self.ui.playerName.setText(f"{self.player_data['name']} ({white_text})")
+            self.ui.opponentName.setText(f"{self.bot_data['name']} ({black_text})")
     def make_bot_move(self):
         if self.game_ended or self.is_bot_thinking:
             return
@@ -440,11 +463,11 @@ class GameWindowPvE(BaseWindow):
         dialog.show()
         
         self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
-        self.analysis_task.finished.connect(lambda result: self._on_analysis_finished(result, dialog))
-        self.analysis_task.error.connect(lambda e: self._on_analysis_error(e, dialog))
+        self.analysis_task.finished.connect(lambda result: self.on_analysis_finished(result, dialog))
+        self.analysis_task.error.connect(lambda e: self.on_analysis_error(e, dialog))
         self.analysis_task.start()
-    
-    def _on_analysis_finished(self, winner, dialog):
+
+    def on_analysis_finished(self, winner, dialog):
         dialog.close()
         
         if winner == 1:
@@ -470,25 +493,22 @@ class GameWindowPvE(BaseWindow):
         QMessageBox.information(self, "Игра окончена", message)
         self.game_finished.emit()
     
-    def _on_analysis_error(self, exception, dialog):
+    def on_analysis_error(self, exception, dialog):
         dialog.close()
         QMessageBox.warning(self, "Ошибка анализа", f"Ошибка при анализе партии.\n{exception}")
         self.game_finished.emit()
     
+
     def resign(self):
-        if self.game_ended or self.is_bot_thinking:
-            return
-        
-        reply = QMessageBox.question(self, "Сдаться",
-                                   "Вы уверены, что хотите сдаться?",
-                                   QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(self, 
+                                self.settings.get_text("resign_title"),
+                                self.settings.get_text("resign_confirm"),
+                                QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
-            self.game_ended = True
-            if self.gnugo_engine:
-                self.gnugo_engine.stop()
-            QMessageBox.information(self, "Игра окончена", "Вы сдались. Победил бот!")
+            self.game_ended = True 
+            QMessageBox.information(self, self.settings.get_text("game_ended"), 
+                                self.settings.get_text("opponent_won"))
             self.game_finished.emit()
-    
     # Методы навигации
     def save_initial_snapshot(self):
         snapshot = self.create_snapshot()

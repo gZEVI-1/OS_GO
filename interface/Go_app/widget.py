@@ -1,4 +1,3 @@
-# This Python file uses the following encoding: utf-8
 import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QVBoxLayout, QWidget, QMessageBox
@@ -10,6 +9,8 @@ from generated.ui_form import Ui_mainWindow
 from windows.game_setting_dialog import GameSettingsDialog
 from windows.game_settings_dialog_pve import GameSettingsDialogPVE
 from PySide6.QtWidgets import QSizePolicy
+from windows.app_settings import AppSettings
+from windows.settings_dialog import SettingsDialog
 
 
 class Widget(QMainWindow):
@@ -33,6 +34,7 @@ class Widget(QMainWindow):
     
         self.navigation = Navigation(self.stacked_widget)
         
+        self.settings = AppSettings()
         self.main_menu = QWidget()
         self.ui = Ui_mainWindow()
         self.ui.setupUi(self.main_menu)
@@ -47,6 +49,10 @@ class Widget(QMainWindow):
         self.ui.buttonAccount.clicked.connect(self.open_windAccount)
         self.ui.buttonSettings.clicked.connect(self.open_windSettings)
         self.navigation.navigate_to("main_menu")
+        self.update_main_menu_language()
+        self.apply_theme()
+        self.settings.settings_changed.connect(self.on_settings_changed)
+
     
     def center_window(self):
         screen = QApplication.primaryScreen().geometry()
@@ -114,8 +120,9 @@ class Widget(QMainWindow):
         QMessageBox.information(self, "Button", "open account window")
 
     def open_windSettings(self):
-        print("Settings button on the sidebar")
-        QMessageBox.information(self, "Button", "open settings window")
+        from windows.settings_dialog import SettingsDialog  
+        dialog = SettingsDialog(self)
+        dialog.exec()
 
     def return_to_menu(self, window_name):
         if window_name in self.navigation.windows:
@@ -125,6 +132,26 @@ class Widget(QMainWindow):
             del self.navigation.windows[window_name]
         
         self.navigation.navigate_to("main_menu")
+
+    def apply_theme(self):
+        self.setStyleSheet(self.settings.get_theme_stylesheet())
+        
+        # Обновляем все открытые окна в стеке
+        for i in range(self.stacked_widget.count()):
+            widget = self.stacked_widget.widget(i)
+            if hasattr(widget, 'apply_theme'):
+                widget.apply_theme()
+
+    def update_main_menu_language(self):
+        # Обновляем текст кнопок главного меню
+        self.ui.buttonWindOnline.setText(self.settings.get_text("open_online"))
+        self.ui.buttonWindOffline.setText(self.settings.get_text("open_offline"))
+        self.ui.buttonWindBot.setText(self.settings.get_text("open_bot"))
+        self.ui.buttonInstruct.setText(self.settings.get_text("open_instruction"))
+
+    def on_settings_changed(self):
+        self.apply_theme()
+        self.update_main_menu_language()    
 
 
 if __name__ == "__main__":
