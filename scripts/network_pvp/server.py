@@ -722,6 +722,10 @@ class GameServer:
             await self.send_error(ws, "INVALID_MOVE", result["error"])
             return
 
+        bs = result["board_state"]
+        if result.get("move"):
+            bs["last_move"] = result["move"]
+
         # Рассылаем всем обновленное состояние
         bs = result["board_state"]
         await room.broadcast(Message.game_state(
@@ -737,7 +741,7 @@ class GameServer:
             room.status = "finished"
             score = room.calculate_score()
 
-            # --- SGF для клиентского анализа ---
+            # SGF для клиентского анализа
             sgf = ""
             if room.session and hasattr(room.session.game, 'get_sgf'):
                 try:
@@ -758,13 +762,8 @@ class GameServer:
                     winner = "draw"
                 result_str = score.get("full_result", "Игра окончена")
             else:
-                # Если score нет, определяем по текущему игроку на доске
-                # (после двух пасов current_player в board_state — тот, чей ход был бы следующим,
-                #  но для совместимости оставляем эвристику)
-                bs = result.get("board_state", {})
-                current = bs.get("current_player", "black")
-                winner = "white" if current == "black" else "black"
-                result_str = "Игра окончена (два паса)"
+                winner = result["board_state"]["current_player"]
+                result_str = "Игра окончена"
 
             await room.broadcast(Message.game_over(
                 winner=winner,
@@ -798,7 +797,7 @@ class GameServer:
             room.status = "finished"
             score = room.calculate_score()
 
-            # --- SGF для клиентского анализа ---
+            # SGF для клиентского анализа
             sgf = ""
             if room.session and hasattr(room.session.game, 'get_sgf'):
                 try:
@@ -819,7 +818,6 @@ class GameServer:
                     winner = "draw"
                 result_str = score.get("full_result", "Игра окончена")
             else:
-                # После двух пасов: победитель противоположен цвету последнего паса
                 move_color = result.get("move", {}).get("color", "")
                 if move_color == "white":
                     winner = "black"
