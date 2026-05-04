@@ -5,7 +5,7 @@ import os
 from typing import Optional, Dict, List, Callable
 from enum import Enum, auto
 
-from requests import session
+# from requests import session
 import config as cfg
 
 from gnugo_adapter import  *

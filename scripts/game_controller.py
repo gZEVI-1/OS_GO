@@ -39,7 +39,12 @@ class GameController(ABC):
 
     @abstractmethod
     def get_game_result(self) -> Optional[tuple]: ...
-    # ^ (winner, result_str) или None
+    
+    @abstractmethod
+    async def wait_for_game_over(self) -> None: ...
+
+    @abstractmethod
+    async def wait_for_update(self) -> None: ...
 
 
 class LocalController(GameController):
@@ -81,6 +86,13 @@ class LocalController(GameController):
             return None
         # Локальный результат можно расширить через GNU Go Analyzer при необходимости
         return ("Игра окончена", "Два паса или сдача")
+    
+    async def wait_for_game_over(self) -> None:
+        while not self.is_game_over():
+            await asyncio.sleep(0.1)
+
+    async def wait_for_update(self) -> None:
+        await asyncio.Event().wait() 
 
 
 class NetworkController(GameController):
@@ -165,3 +177,13 @@ class NetworkController(GameController):
 
     def get_game_result(self) -> Optional[tuple]:
         return self._game_result
+    
+    async def wait_for_game_over(self) -> None:
+        await self._game_ended.wait()
+
+    async def wait_for_update(self) -> None:
+        self.client._state_event.clear()
+        try:
+            await asyncio.wait_for(self.client._state_event.wait(), timeout=30.0)
+        except asyncio.TimeoutError:
+            pass

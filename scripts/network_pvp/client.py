@@ -258,14 +258,18 @@ class NetworkClient:
     async def _on_game_move(self, msg: Message):
         move = msg.payload.get("move", {})
         if move:
-            self.move_history.append(move)          # <-- накопление
+            self.move_history.append(move)
+            if self.game_state:
+                self.game_state.last_move = move
         if self.on_move_received:
             self.on_move_received(move)
 
     async def _on_game_pass(self, msg: Message):
         move = msg.payload.get("move", {})
         if move:
-            self.move_history.append(move)          # <-- накопление
+            self.move_history.append(move)
+            if self.game_state:
+                self.game_state.last_move = move
         await self._on_game_state(Message(MessageType.GAME_STATE, msg.payload.get("board_state", {})))
         if self.on_move_received:
             self.on_move_received(move)
@@ -275,7 +279,7 @@ class NetworkClient:
         self._state_event.set()
         winner = msg.payload.get("winner", "")
         result = msg.payload.get("result", "")
-        self.last_sgf = msg.payload.get("sgf")      # <-- принимаем от сервера
+        self.last_sgf = msg.payload.get("sgf")      # <-- приоритетный SGF от сервера
         if self.on_game_over:
             self.on_game_over(winner, result)
 
@@ -361,5 +365,50 @@ class NetworkClient:
             return True
         except asyncio.TimeoutError:
             return False
+        
+    def get_sgf(self) -> str:
+        """Формирует SGF из накопленной истории ходов (клиентский fallback)."""
+        if self.last_sgf:
+            return self.last_sgf
+
+        if not self.move_history:
+            return ""
+
+        sgf = f"(;GM[1]FF[4]SZ[{self.board_size}]KM[{self.komi}]AP[OS-GO:Network:1.0]\n"
+        for move in self.move_history:
+            color = "B" if move.get("color") == "black" else "W"
+            if move.get("is_pass"):
+                sgf += f";{color}[]"
+            else:
+                x = move.get("x", -1)
+                y = move.get("y", -1)
+                if 0 <= x < self.board_size and 0 <= y < self.board_size:
+                    x_char = chr(ord('a') + x)
+                    y_char = chr(ord('a') + y)
+                    sgf += f";{color}[{x_char}{y_char}]"
+        sgf += ")"
+        return sgf
+
+    def save_game(self, filepath: Optional[str] = None) -> Optional[str]:
+        """Сохраняет текущую партию в SGF. Возвращает путь к файлу."""
+        sgf = self.get_sgf()
+        if not sgf:
+            return None
+        if filepath is None:
+            try:
+                import config as cfg
+                filepath = cfg.get_sgf_path(game_mode="network")
+            except Exception:
+                import os
+                base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                filepath = os.path.join(base, "games", "network", f"game_{id(self)}.sgf")
+        try:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(sgf)
+            return filepath
+        except Exception as e:
+            logger.error(f"Failed to save SGF: {e}")
+            return None
     
     
