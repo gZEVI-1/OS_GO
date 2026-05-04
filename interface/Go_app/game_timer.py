@@ -1,36 +1,71 @@
+# game_timer.py
 from PySide6.QtCore import QTimer, QObject, Signal
+import time
 
 class GameTimer(QObject):
-    time_changed = Signal(int, int)  # player, time_remaining
-    time_expired = Signal(int)  # player
+    time_changed = Signal()
+    time_expired = Signal(int)
     
-    def __init__(self, player, initial_time, parent=None):
+    def __init__(self, player_num, initial_time, parent=None, no_time_limit=False):
         super().__init__(parent)
-        self.player = player
-        self.time_remaining = initial_time
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.decrement)
+        self.player_num = player_num
+        self.initial_time = initial_time
+        self._time_remaining = initial_time  
+        self.no_time_limit = no_time_limit
         self.is_running = False
+        self._start_time = None
         
-    def start(self):
-        self.is_running = True
-        self.timer.start(1000)  # каждую секунду
-        
-    def stop(self):
-        self.is_running = False
-        self.timer.stop()
-        
-    def decrement(self):
-        if self.time_remaining > 0:
-            self.time_remaining -= 1
-            self.time_changed.emit(self.player, self.time_remaining)
-            
-            if self.time_remaining == 0:
-                self.time_expired.emit(self.player)
-                self.stop()
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self._tick)
+        self.update_timer.setInterval(100)  
     
-    def reset(self, new_time):
-        """Сбросить таймер с новым временем"""
+    @property
+    def time_remaining(self):
+        if not self.is_running or self._start_time is None:
+            return self._time_remaining
+        
+        elapsed = time.time() - self._start_time
+        return max(0, self._time_remaining - elapsed)
+    
+    def start(self):
+        if self.no_time_limit:
+            return
+        if self.is_running:
+            return
+        
+        self.is_running = True
+        self._start_time = time.time()
+        self.update_timer.start()
+        self.time_changed.emit()
+    
+    def stop(self):
+        if not self.is_running:
+            return
+        
+        if self._start_time is not None:
+            elapsed = time.time() - self._start_time
+            self._time_remaining = max(0, self._time_remaining - elapsed)
+        
+        self.is_running = False
+        self.update_timer.stop()
+        self._start_time = None
+        self.time_changed.emit()
+    
+    def _tick(self):
+        if not self.is_running or self.no_time_limit:
+            return
+        
+        current_time = self.time_remaining
+        
+        if current_time <= 0:
+            # Время истекло
+            self._time_remaining = 0
+            self.stop()
+            self.time_expired.emit(self.player_num)
+        else:
+            self.time_changed.emit()
+    
+    def reset(self):
         self.stop()
-        self.time_remaining = new_time
-        self.time_changed.emit(self.player, self.time_remaining)
+        self._time_remaining = self.initial_time
+        self.time_changed.emit()
