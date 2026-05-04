@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 
 // Статические члены класса
 std::string KataGoAnalyzer::s_defaultKatagoPath = "..\\bot\\KataGo-1.16.4-OpenCL\\katago.exe";
-std::string KataGoAnalyzer::s_defaultModelPath = "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
+std::string KataGoAnalyzer::s_defaultModelPath = "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz";
 std::string KataGoAnalyzer::s_defaultConfigPath = "";
 bool KataGoAnalyzer::s_pathsSet = false;
 
@@ -137,6 +137,9 @@ struct KataGoAnalyzer::Impl {
         cmd = "komi " + std::to_string(config.komi) + "\n";
         WriteFile(hStdinWrite, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, NULL);
         
+        cmd = config.getRulesGTP() + "\n";
+        WriteFile(hStdinWrite, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, NULL);
+
         cmd = "clear_board\n";
         WriteFile(hStdinWrite, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, NULL);
         
@@ -295,11 +298,11 @@ bool KataGoAnalyzer::autoDetectPaths() {
     };
     
     std::vector<std::string> possibleModels = {
-        "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz",
         "bot\\katago\\models\\kata1.bin.gz",
-        "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz",
         "..\\bot\\katago\\models\\kata1.bin.gz",
-        "C:\\OS_GO\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "C:\\OS_GO\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz",
         "C:\\OS_GO\\bot\\katago\\models\\kata1.bin.gz",
         ".\\kata1.bin.gz"
     };
@@ -607,6 +610,21 @@ KataGoResult KataGoAnalyzer::analyzeSGFFile(const std::string& filepath,
         if (komi < 0) {
             komi = info.komi;
         }
+    }
+
+    Rules sgfRules;
+    std::regex ruRegex(R"(RU\[([^\]]*)\])");
+    std::smatch match;
+    if (std::regex_search(content, match, ruRegex)) {
+        sgfRules = rulesFromString(match[1].str());
+    }
+    
+    pImpl->config.rules = sgfRules;
+    
+    if (sgfRules == Rules::Japanese) {
+        pImpl->sendGTPCommand("japanese-rules");
+    } else {
+        pImpl->sendGTPCommand("chinese-rules");
     }
     
     return analyzeSGF(content, boardSize, komi);

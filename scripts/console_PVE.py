@@ -52,11 +52,27 @@ def run_pve_game():
             break
         else:
             print("❌ Выберите 1 или 2")
-    
+
+    print("\n📜 Выберите правила:")
+    print("1. Китайские [по умолчанию]")
+    print("2. Японские")
+
+    rules = go.Rules.Chinese
+    while True:
+        choice = input("Ваш выбор (1-2) [1]: ").strip() or "1"
+        if choice == '1':
+            rules = go.Rules.Chinese
+            break
+        elif choice == '2':
+            rules = go.Rules.Japanese
+            break
+    else:
+        print("❌ Выберите 1 или 2")
+
     player_name = input("\nВаше имя: ").strip() or "Вы"
     
     # Создаем сессию
-    session = create_pve_session(size, player_color, player_name, gnugo_path)
+    session = create_pve_session(size, player_color, player_name, gnugo_path, rules = rules)
     
     # Callback для анализа KataGo
     def on_katago_analysis(result):

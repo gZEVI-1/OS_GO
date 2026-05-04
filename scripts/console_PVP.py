@@ -1,8 +1,9 @@
 # console_PVP.py
 from console_back import *
 from KataGoAdapter import KataGoGameAnalyzer, add_katago_analysis_to_session
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-
+from core_adapter import create_pvp_session
 def run_pvp_game():
     """Запускает игру PvP с поддержкой KataGo анализа"""
     clear_screen()
@@ -20,6 +21,26 @@ def run_pvp_game():
             print("❌ Размер должен быть 9, 13 или 19")
         except ValueError:
             print("❌ Введите число")
+
+    print("\n📜 Выберите правила:")
+    print("1. Китайские (подсчёт по площади, коми 6.5) [по умолчанию]")
+    print("2. Японские (подсчёт по территории, коми 6.5)")
+    
+    rulez = go.Rules.Chinese  # default
+    komi = 6.5
+    
+    while True:
+        choice = input("Ваш выбор (1-2) [1]: ").strip() or "1"
+        if choice == '1':
+            rulez = go.Rules.Chinese
+            komi = 6.5
+            break
+        elif choice == '2':
+            rulez = go.Rules.Japanese
+            komi = 6.5  # или 0.5 для японских, если хотите
+            break
+        else:
+            print("❌ Выберите 1 или 2")        
     
     # Имена игроков
     print("\n📝 Введите имена игроков:")
@@ -27,8 +48,9 @@ def run_pvp_game():
     white_name = input("Белые: ").strip() or "Игрок 2"
     
     # Создаем сессию
-    session = create_pvp_session(size, black_name, white_name)
+    session = create_pvp_session(size, black_name, white_name, rules = rulez)
     
+    print(f"\n✅ Игра: {size}x{size}, правила: {'Китайские' if rulez == go.Rules.Chinese else 'Японские'}")
     # Callback для анализа KataGo
     def on_katago_analysis(result):
         print("\n" + "=" * 60)

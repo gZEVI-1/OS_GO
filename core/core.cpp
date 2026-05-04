@@ -15,6 +15,8 @@ std::vector<Move> SGFParser::parseString(const std::string& sgfContent) {
     
     int boardSize = 19;
     std::string playerBlack, playerWhite, komi = "6.5", result;
+    Rules pRules = Rules::Chinese;
+    
     
     //размер
     std::regex szRegex(R"(SZ\[(\d+)\])");
@@ -22,6 +24,11 @@ std::vector<Move> SGFParser::parseString(const std::string& sgfContent) {
     std::string sgfStr(sgfContent);
     if (std::regex_search(sgfStr, match, szRegex)) {
         boardSize = std::stoi(match[1]);
+    }
+
+     std::regex ruRegex(R"(RU\[([^\]]*)\])");
+    if (std::regex_search(sgfStr, match, ruRegex)) {
+        pRules = rulesFromString(match[1].str());
     }
     
     //имена
@@ -195,7 +202,7 @@ std::string SGFGame::generateSGF() const
     if (!playerWhite.empty())
         sgf << "PW[" << playerWhite << "]";
     sgf << "KM[" << komi << "]";
-    sgf << "RU[Chinese]";
+    sgf << "RU[" << rulesToString(rules) << "]";
     if (!result.empty())
         sgf << "RE[" << result << "]";
     for (size_t i = 0; i < moves.size(); ++i)
@@ -421,6 +428,8 @@ void Game::reset(int newSize ) {
     gameOver = false;
     moveNumber = 1;
     sgf = SGFGame(newSize);
+    sgf.setRules(rules);
+    sgf.setKomi(std::to_string(komi));
     moveHistory.clear();
     sgf.setPlayerNames("Player1", "Player2");
 }
