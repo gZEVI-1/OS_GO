@@ -7,7 +7,7 @@ WebSocket сервер для сетевой игры в Го.
 
 Запуск:
     python server.py [--host 0.0.0.0] [--port 8765]
-
+    ip сервера 192.168.1.1
 Архитектура:
     - GameServer: главный сервер, управляет подключениями
     - Lobby: управление комнатами
@@ -34,7 +34,7 @@ from websockets.protocol import State  # websockets 16.0+
 # Импорт протокола
 from protocol import Message, MessageType, RoomInfo, PlayerInfo, GameAction
 
-# Импорт go_engine через adapter (как в вашем проекте)
+
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))

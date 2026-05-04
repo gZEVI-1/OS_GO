@@ -41,6 +41,11 @@ PYBIND11_MODULE(go_engine, m) {
         .value("Black", Color::Black)
         .value("White", Color::White);
     
+    // НОВОЕ: enum Rules — объявляем ДО использования
+    py::enum_<Rules>(m, "Rules")
+        .value("Chinese", Rules::Chinese)
+        .value("Japanese", Rules::Japanese);
+    
     // Position struct
     py::class_<Position>(m, "Position")
         .def(py::init<>())
@@ -97,6 +102,9 @@ PYBIND11_MODULE(go_engine, m) {
         .def("add_move", &SGFGame::addMove)
         .def("set_player_names", &SGFGame::setPlayerNames)
         .def("set_result", &SGFGame::setResult)
+        .def("set_rules", &SGFGame::setRules)      // <-- НОВОЕ
+        .def("get_rules", &SGFGame::getRules)      // <-- НОВОЕ
+        .def("set_komi", &SGFGame::setKomi)        // <-- НОВОЕ
         .def("pos_to_sgf", &SGFGame::posToSGF)
         .def("generate_sgf", &SGFGame::generateSGF)
         .def("save_to_file", &SGFGame::saveToFile)
@@ -129,9 +137,13 @@ PYBIND11_MODULE(go_engine, m) {
         .def("get_board", py::overload_cast<>(&Game::getBoard), py::return_value_policy::reference)
         .def("get_board_const", py::overload_cast<>(&Game::getBoard, py::const_))
         .def("reset", &Game::reset, py::arg("newSize") = 9)
-        .def("load_from_sgf", &Game::loadFromSGF);
+        .def("load_from_sgf", &Game::loadFromSGF)
+        // НОВОЕ: правила и коми
+        .def("set_rules", &Game::setRules, py::arg("rules"), "Set game rules (Chinese/Japanese)")
+        .def("get_rules", &Game::getRules, "Get current game rules")
+        .def("set_komi", &Game::setKomi, py::arg("komi"), "Set komi value")
+        .def("get_komi", &Game::getKomi, "Get current komi value");
         
-    
     // KataGoConfig struct
     py::class_<KataGoConfig>(m, "KataGoConfig")
         .def(py::init<>())
@@ -142,7 +154,8 @@ PYBIND11_MODULE(go_engine, m) {
         .def_readwrite("max_time", &KataGoConfig::maxTime)
         .def_readwrite("komi", &KataGoConfig::komi)
         .def_readwrite("board_size", &KataGoConfig::boardSize)
-        .def_readwrite("log_to_stdout", &KataGoConfig::logToStdout);
+        .def_readwrite("log_to_stdout", &KataGoConfig::logToStdout)
+        .def_readwrite("rules", &KataGoConfig::rules, "Game rules: Rules.Chinese or Rules.Japanese");
     
     // KataGoResult struct
     py::class_<KataGoResult>(m, "KataGoResult")
@@ -169,6 +182,7 @@ PYBIND11_MODULE(go_engine, m) {
             }
         });
     
+    // SGFInfo
     py::class_<SGFInfo>(m, "SGFInfo")
         .def(py::init<>())
         .def_readwrite("filename", &SGFInfo::filename)
@@ -187,7 +201,8 @@ PYBIND11_MODULE(go_engine, m) {
                 "', players='" + info.playerBlack + " vs " + info.playerWhite + 
                 "', moves=" + std::to_string(info.moveCount) + ")>";
         });
-    // KataGoAnalyzer class
+    
+    // KataGoAnalyzer class — без изменений, как у вас было
     py::class_<KataGoAnalyzer>(m, "KataGoAnalyzer")
         .def(py::init<>())
         .def("initialize", 
@@ -228,28 +243,22 @@ PYBIND11_MODULE(go_engine, m) {
             },
             py::arg("sgf_content"), py::arg("board_size") = 19, py::arg("komi") = 6.5,
             "Analyze SGF file")
-
         .def("analyze_sgf_file", &KataGoAnalyzer::analyzeSGFFile,
          py::arg("filepath"), 
          py::arg("board_size") = -1, 
          py::arg("komi") = -1.0,
          "Analyze SGF file")
-
         .def_static("get_loaded_sgf_path", &KataGoAnalyzer::getLoadedSGFPath,
          "Get path to games/loaded folder")
-
         .def_static("list_sgf_files", &KataGoAnalyzer::listSGFFiles,
          py::arg("directory") = std::string(""),
          "List all SGF files in the loaded folder")
-
-         .def_static("parse_sgf_info", &KataGoAnalyzer::parseSGFInfo,
+        .def_static("parse_sgf_info", &KataGoAnalyzer::parseSGFInfo,
          py::arg("filepath"),
          "Parse SGF file info")
-    
-    .def_static("read_sgf_file", &KataGoAnalyzer::readSGFFile,
+        .def_static("read_sgf_file", &KataGoAnalyzer::readSGFFile,
          py::arg("filepath"),
          "Read SGF file content")
-
         .def("shutdown", &KataGoAnalyzer::shutdown,
             "Shutdown KataGo")
         .def("__enter__", [](KataGoAnalyzer& self) -> KataGoAnalyzer& { 

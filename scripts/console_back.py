@@ -214,5 +214,61 @@ def test_gnugo_connection():
     input("\nНажмите Enter...")
 
 
-
+def test_katago_connection():
+    """Тестирует соединение с KataGo"""
+    clear_screen()
+    print("=" * 60)
+    print("         ТЕСТ СОЕДИНЕНИЯ С KATAGO")
+    print("=" * 60)
+    
+    print("\n🔍 Проверка доступности KataGo...")
+    
+    # Проверяем доступность (автоопределение путей)
+    if not go.KataGoAnalyzer.is_available(""):
+        print("❌ KataGo не найден. Проверьте пути:")
+        print("   bot\\KataGo-1.16.4-OpenCL\\katago.exe")
+        print("   bot\\katago\\katago.exe")
+        input("\nНажмите Enter...")
+        return
+    
+    print("✅ Исполняемый файл найден")
+    
+    print("\n🔄 Инициализация KataGo (может занять время при первом запуске)...")
+    analyzer = go.KataGoAnalyzer()
+    
+    try:
+        if not analyzer.initialize():
+            print("❌ Не удалось инициализировать KataGo")
+            input("\nНажмите Enter...")
+            return
+        
+        print("✅ KataGo инициализирован и отвечает")
+        
+        # Тестовый анализ простой позиции
+        print("\n🔄 Тестовый анализ позиции...")
+        test_sgf = "(;GM[1]FF[4]SZ[9]PB[Black]PW[White]KM[6.5]RU[Chinese];B[ee];W[de])"
+        
+        result = analyzer.analyze_sgf(test_sgf, 9, 6.5)
+        
+        if result.success:
+            print("\n📊 РЕЗУЛЬТАТ ТЕСТА:")
+            print(f"   Победитель: {result.winner}")
+            print(f"   Отрыв: {result.score_lead}")
+            print(f"   Черные: {result.black_score:.1f}")
+            print(f"   Белые: {result.white_score:.1f}")
+            print("\n✅ Тест завершен успешно!")
+        else:
+            print(f"\n⚠️ Анализ вернул ошибку: {result.error_message}")
+            print("   Но процесс KataGo запущен и отвечает на команды.")
+            
+    except Exception as e:
+        print(f"\n❌ Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    finally:
+        analyzer.shutdown()
+        print("\n🛑 KataGo остановлен")
+    
+    input("\nНажмите Enter...")
 
