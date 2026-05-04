@@ -161,13 +161,13 @@ struct KataGoAnalyzer::Impl {
         DWORD read;
         std::string response;
         
-        DWORD startTime = GetTickCount();
-        const DWORD TIMEOUT_MS = 10000; // 10 секунд
+        // DWORD startTime = GetTickCount();
+        // const DWORD TIMEOUT_MS = 10000; // 10 секунд
         
         while (true) {
-            if (GetTickCount() - startTime > TIMEOUT_MS) {
-                break;
-            }
+            // if (GetTickCount() - startTime > TIMEOUT_MS) {
+            //     break;
+            // }
             
             DWORD bytesAvailable = 0;
             if (!PeekNamedPipe(hStdoutRead, NULL, 0, NULL, &bytesAvailable, NULL)) {
