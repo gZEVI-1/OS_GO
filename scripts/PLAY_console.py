@@ -18,10 +18,11 @@ def main_menu():
         print("2. 🤖 Играть против GNU Go (PvE)")
         print("3. 🔧 Тест соединения с GNU Go")
         print("4. 📊 Анализ SGF файлов (KataGo)")
-        print("5. 🚪 Выход")
+        print("5. 🔥 Тест соединения с KataGo")
+        print("6. 🚪 Выход")
         print()
         
-        choice = input("Ваш выбор (1-5): ")
+        choice = input("Ваш выбор (1-6): ")
         
         if choice == '1':
             run_pvp_game()
@@ -32,6 +33,8 @@ def main_menu():
         elif choice == '4':
             run_sgf_analyzer()
         elif choice == '5':
+            test_katago_connection()
+        elif choice == '6':
             print("\n👋 До свидания!")
             break
         else:
