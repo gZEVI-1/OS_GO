@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 
 // Статические члены класса
 std::string KataGoAnalyzer::s_defaultKatagoPath = "..\\bot\\KataGo-1.16.4-OpenCL\\katago.exe";
-std::string KataGoAnalyzer::s_defaultModelPath = "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
+std::string KataGoAnalyzer::s_defaultModelPath = "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz";
 std::string KataGoAnalyzer::s_defaultConfigPath = "";
 bool KataGoAnalyzer::s_pathsSet = false;
 
@@ -298,11 +298,11 @@ bool KataGoAnalyzer::autoDetectPaths() {
     };
     
     std::vector<std::string> possibleModels = {
-        "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz",
         "bot\\katago\\models\\kata1.bin.gz",
-        "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "..\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz",
         "..\\bot\\katago\\models\\kata1.bin.gz",
-        "C:\\OS_GO\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-zhizi-b28c512nbt-muonfd2.bin.gz",
+        "C:\\OS_GO\\bot\\KataGo-1.16.4-OpenCL\\models\\kata1-b10c128-s182492416-d63545831.txt.gz",
         "C:\\OS_GO\\bot\\katago\\models\\kata1.bin.gz",
         ".\\kata1.bin.gz"
     };
