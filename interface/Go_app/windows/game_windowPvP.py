@@ -26,37 +26,42 @@ sys.path.append(str(root_path / "interface" / "Go_app" ))
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
 from generated.ui_game_windowPvP import Ui_main 
+from KataGoAdapter import KataGoGameAnalyzer
 from windows.game_setting_dialog import GameSettingsDialog
-import GnuGo_Analyzer as gnugo
+#import GnuGo_Analyzer as gnugo
 root_path = Path(__file__).resolve().parent.parent.parent.parent
 GNUGO_PATH = os.path.join(root_path, "bot", "gnugo-3.8", "gnugo.exe")
 print(f"GNUGO_PATH: {GNUGO_PATH}")
 print(f"Существует: {os.path.exists(GNUGO_PATH)}")
 
 
+class SessionAdapter:
+    def __init__(self, game, board_size, komi=6.5):
+        self.game = game
+        self.board_size = board_size
+        self.komi = komi
+
 class GameWindow(BaseWindow):
     game_finished = Signal()
 
-    class GnuGoAnalysisTask(QThread):
-        finished = Signal(object)  # результат анализа
-        error = Signal(object)     # исключение
+    class KataGoAnalysisThread(QThread):
+        finished = Signal(object)
+        error = Signal(str)
 
-        def __init__(self, sgf, board_size, gnugo_path):
+        def __init__(self, session_adapter):
             super().__init__()
-            self.sgf = sgf
-            self.board_size = board_size
-            self.gnugo_path = gnugo_path
+            self.session_adapter = session_adapter
 
         def run(self):
             try:
-                analyzer = gnugo.GnuGoAnalyzer(gnugo_path=self.gnugo_path)
-                try:
-                    result = analyzer.analyze_sgf(self.sgf, self.board_size)
-                finally:
-                    analyzer.cleanup()
-                self.finished.emit(result)
+                analyzer = KataGoGameAnalyzer(self.session_adapter)
+                if analyzer.initialize():
+                    result = analyzer.analyze_current_game()
+                    self.finished.emit(result)
+                else:
+                    self.error.emit("KataGo недоступен")
             except Exception as e:
-                self.error.emit(e)
+                self.error.emit(str(e))
 
     def __init__(self, navigation, core_api=None, settings=None):
         super().__init__(navigation)
@@ -368,63 +373,48 @@ class GameWindow(BaseWindow):
 
 
     def end_game_by_passes(self):
-            if self.game_ended:
-                return
+        if self.game_ended:
+            return
 
-            self.game_ended = True
+        self.game_ended = True
 
-            if not os.path.exists(GNUGO_PATH):
-                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
-                self.game_finished.emit()
-                return
+        sgf = self.core_api.get_sgf()
+        if not sgf or len(sgf) < 30:
+            QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
+            self.game_finished.emit()
+            return
 
-            if not gnugo.check_gnugo_available(GNUGO_PATH):
-                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
-                self.game_finished.emit()
-                return
+        # Создаем адаптер сессии
+        session_adapter = SessionAdapter(self.core_api, self.board_size)
 
-            if not self.core_api:
-                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
-                self.game_finished.emit()
-                return
+        dialog = QProgressDialog("Анализируем позицию с помощью KataGo...", None, 0, 0, self)
+        dialog.setWindowModality(Qt.WindowModal)
+        dialog.show()
 
-            sgf = self.core_api.get_sgf()
-            if not sgf or len(sgf) < 30:
-                QMessageBox.information(
-                    self, "Игра окончена",
-                    "Игра завершена двумя пасами.\nАнализ недоступен: слишком короткая партия."
-                )
-                self.game_finished.emit()
-                return
-
-            dialog = QProgressDialog("Анализируем позицию с помощью GNU Go...", "Отмена", 0, 0, self)
-            dialog.setWindowModality(Qt.WindowModal)
-            dialog.show()
-
-            self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
-            self.analysis_task.finished.connect(lambda result: self.on_analysis_finished(result, dialog))
-            self.analysis_task.error.connect(lambda e: self.on_analysis_error(e, dialog))
-            self.analysis_task.start()
-
+        self.analysis_thread = self.KataGoAnalysisThread(session_adapter)
+        self.analysis_thread.finished.connect(lambda result: self.on_analysis_finished(result, dialog))
+        self.analysis_thread.error.connect(lambda error: self.on_analysis_error(error, dialog))
+        self.analysis_thread.start()
 
     def on_analysis_finished(self, result, dialog):
         dialog.close()
-
-        if result and isinstance(result, dict):
-            winner_text = result.get('winner', 'Не определен')
-            QMessageBox.information(self, "Игра окончена", f"Победитель: {winner_text}!")
+        
+        if result and result.success:
+            message = f"Победитель: {result.winner}\n\n"
+            message += f"⚫ Черные: {result.black_score:.1f}\n"
+            message += f"⚪ Белые: {result.white_score:.1f}\n"
+            message += f"Результат: {result.full_result}\n"
+            
+            QMessageBox.information(self, "Игра окончена", message)
         else:
-            QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
-
+            error_msg = result.error_message if result else "Неизвестная ошибка"
+            QMessageBox.warning(self, "Ошибка анализа", f"Ошибка анализа KataGo:\n{error_msg}")
+        
         self.game_finished.emit()
 
-
-    def on_analysis_error(self, exception, dialog):
+    def on_analysis_error(self, error_msg, dialog):
         dialog.close()
-        QMessageBox.warning(
-            self, "Ошибка анализа",
-            f"Ошибка при анализе партии:\n{exception}\nИгра завершена без анализа."
-        )
+        QMessageBox.warning(self, "Ошибка анализа", f"Ошибка при анализе партии.\n{error_msg}")
         self.game_finished.emit()
 
     def pass_move(self):

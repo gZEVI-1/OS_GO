@@ -139,8 +139,9 @@ class SettingsDialog(QDialog):
         self.apply_theme()
     
     def apply_theme(self):
-        #тема к диалогу
-        self.setStyleSheet(self.settings.get_theme_stylesheet())
+        from windows.app_settings import AppSettings
+        settings = AppSettings()
+        self.setStyleSheet(settings.get_stylesheet())
     
     def open_github(self):
         QDesktopServices.openUrl(QUrl("https://github.com/gZEVI-1/OS_GO"))

@@ -150,14 +150,24 @@ class Widget(QMainWindow):
         self.navigation.navigate_to("main_menu")
 
     def apply_theme(self):
-        self.setStyleSheet(self.settings.get_theme_stylesheet())
+        """Применяет текущую тему к приложению"""
+        print("Применяю тему...")
+        print(f"Текущая тема: {self.settings.theme}")
+        
+        # Используем НОВЫЙ метод get_stylesheet()
+        stylesheet = self.settings.get_stylesheet()
+        
+        if stylesheet:
+            self.setStyleSheet(stylesheet)
+            print("✓ Стиль применен")
+        else:
+            print("✗ Стиль не загружен")
         
         # Обновляем все открытые окна в стеке
         for i in range(self.stacked_widget.count()):
             widget = self.stacked_widget.widget(i)
             if hasattr(widget, 'apply_theme'):
                 widget.apply_theme()
-
     def update_main_menu_language(self):
         # Обновляем текст кнопок главного меню
         self.ui.buttonWindOnline.setText(self.settings.get_text("open_online"))
