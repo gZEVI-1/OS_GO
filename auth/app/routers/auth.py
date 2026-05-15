@@ -1,12 +1,14 @@
 # app/routers/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, EmailStr, Field
 
 from datetime import datetime, timedelta, timezone
 from app.database import get_db
+from app.config import get_settings
 from app.models.user import User
 from app.services.password_service import password_service
 from app.services.totp_service import totp_service
@@ -136,7 +138,8 @@ async def login(
         temp_token = create_internal_token(
             user.id, 
             user.email, 
-            totp_verified=False
+            totp_verified=False,
+            totp_enabled= True
         )
         return {
             **temp_token,
@@ -144,7 +147,7 @@ async def login(
         }
     
     # Обычный вход
-    tokens = create_internal_token(user.id, user.email, totp_verified=True)
+    tokens = create_internal_token(user.id, user.email, totp_verified=True, totp_enabled=user.totp_enabled )
     return {**tokens, "requires_2fa": False}
 
 
@@ -190,10 +193,10 @@ async def auth0_callback(
     
     # Проверка 2FA
     if user.totp_enabled:
-        tokens = create_internal_token(user.id, user.email, totp_verified=False)
+        tokens = create_internal_token(user.id, user.email, totp_verified=False, totp_enabled=True)
         return {**tokens, "requires_2fa": True}
     
-    tokens = create_internal_token(user.id, user.email, totp_verified=True)
+    tokens = create_internal_token(user.id, user.email, totp_verified=True, totp_enabled=user.totp_enabled)
     return {**tokens, "requires_2fa": False}
 
 
@@ -277,18 +280,20 @@ async def verify_2fa_setup(
     
     return {"message": "2FA enabled successfully"}
 
+security = HTTPBearer()
 
 @router.post("/2fa/verify")
 async def verify_2fa(
-    data: TOTPVerifyRequest,
-    temp_token: str,  # Временный токен из login
+    data: TOTPVerifyRequest,  # Временный токен из login
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ):
     """Верификация 2FA при входе"""
     # Декодируем временный токен
     from jose import jwt, JWTError
-    from config import get_settings
+    from app.config import get_settings
     
+    temp_token = credentials.credentials  # ← ЗАБИРАЕМ ИЗ ЗАГОЛОВКА
     settings = get_settings()
     
     try:
@@ -405,12 +410,16 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     if user.is_verified:
         return {"message": "Email already verified"}
 
-    if user.verification_token_expires and user.verification_token_expires < datetime.now(timezone.utc):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification token expired. Request a new one.",
-        )
-
+    if user.verification_token_expires:
+    # SQLite возвращает naive datetime — приводим к aware для сравнения
+        expires = user.verification_token_expires
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Verification token expired. Request a new one.",
+            )
     user.is_verified = True
     user.verification_token = None
     user.verification_token_expires = None
