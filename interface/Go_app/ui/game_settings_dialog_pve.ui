@@ -1,20 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>GameSettingsDialog</class>
- <widget class="QDialog" name="GameSettingsDialog">
+ <class>GameSettingsDialogPVE</class>
+ <widget class="QDialog" name="GameSettingsDialogPVE">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>450</width>
-    <height>400</height>
+    <height>350</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Настройки игры</string>
-  </property>
-  <property name="styleSheet">
-   <string notr="true"/>
+   <string>Настройки игры с ботом</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -42,22 +39,12 @@ QGroupBox::title {
         <property name="checked">
          <bool>true</bool>
         </property>
-        <property name="styleSheet">
-         <string>QRadioButton {
-    spacing: 8px;
-}</string>
-        </property>
        </widget>
       </item>
       <item>
        <widget class="QRadioButton" name="radio13x13">
         <property name="text">
          <string>13x13 (средняя)</string>
-        </property>
-        <property name="styleSheet">
-         <string>QRadioButton {
-    spacing: 8px;
-}</string>
         </property>
        </widget>
       </item>
@@ -66,113 +53,31 @@ QGroupBox::title {
         <property name="text">
          <string>19x19 (стандартная)</string>
         </property>
-        <property name="styleSheet">
-         <string>QRadioButton {
-    spacing: 8px;
-}</string>
-        </property>
        </widget>
       </item>
      </layout>
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="groupTime">
+    <widget class="QGroupBox" name="groupPlayerColor">
      <property name="title">
-      <string>Контроль времени</string>
+      <string>Цвет игрока</string>
      </property>
-     <property name="styleSheet">
-      <string>QGroupBox {
-    font-weight: bold;
-    margin-top: 10px;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 5px 0 5px;
-}</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0" colspan="2">
-       <widget class="QCheckBox" name="checkNoTimeLimit">
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QRadioButton" name="radioBlack">
         <property name="text">
-         <string>Без ограничения времени</string>
+         <string>Черные (ходят первыми)</string>
         </property>
-        <property name="styleSheet">
-         <string>QCheckBox {
-    spacing: 8px;
-    font-weight: normal;
-}</string>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="labelPlayerTime">
+      <item>
+       <widget class="QRadioButton" name="radioWhite">
         <property name="text">
-         <string>Время на игрока (минут):</string>
-        </property>
-        <property name="styleSheet">
-         <string>QLabel {
-    color: #333;
-}</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSpinBox" name="spinPlayerTime">
-        <property name="minimum">
-         <number>1</number>
-        </property>
-        <property name="maximum">
-         <number>60</number>
-        </property>
-        <property name="value">
-         <number>15</number>
-        </property>
-        <property name="styleSheet">
-         <string>QSpinBox {
-    padding: 4px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-QSpinBox:focus {
-    border: 1px solid #4CAF50;
-}</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="labelByoyomi">
-        <property name="text">
-         <string>Бёёми (секунд):</string>
-        </property>
-        <property name="styleSheet">
-         <string>QLabel {
-    color: #333;
-}</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QSpinBox" name="spinByoyomi">
-        <property name="minimum">
-         <number>0</number>
-        </property>
-        <property name="maximum">
-         <number>60</number>
-        </property>
-        <property name="value">
-         <number>30</number>
-        </property>
-        <property name="styleSheet">
-         <string>QSpinBox {
-    padding: 4px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-QSpinBox:focus {
-    border: 1px solid #4CAF50;
-}</string>
+         <string>Белые (ходят вторыми)</string>
         </property>
        </widget>
       </item>
@@ -184,18 +89,7 @@ QSpinBox:focus {
      <property name="title">
       <string>Визуальные подсказки</string>
      </property>
-     <property name="styleSheet">
-      <string>QGroupBox {
-    font-weight: bold;
-    margin-top: 10px;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 5px 0 5px;
-}</string>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout_3">
+     <layout class="QVBoxLayout" name="verticalLayout_4">
       <item>
        <widget class="QCheckBox" name="checkLegalMoves">
         <property name="text">
@@ -203,11 +97,6 @@ QGroupBox::title {
         </property>
         <property name="checked">
          <bool>true</bool>
-        </property>
-        <property name="styleSheet">
-         <string>QCheckBox {
-    spacing: 8px;
-}</string>
         </property>
        </widget>
       </item>
@@ -248,9 +137,6 @@ QGroupBox::title {
 }
 QPushButton:hover {
     background-color: #45a049;
-}
-QPushButton:pressed {
-    background-color: #3d8b40;
 }</string>
        </property>
       </widget>
@@ -271,9 +157,6 @@ QPushButton:pressed {
 }
 QPushButton:hover {
     background-color: #da190b;
-}
-QPushButton:pressed {
-    background-color: #b71c1c;
 }</string>
        </property>
       </widget>

@@ -131,24 +131,38 @@ class GameWindow(BaseWindow):
         self.setWindowTitle(f"Игра Го {self.board_size}×{self.board_size}")
         self.save_initial_snapshot()
 
-        #НАСТРОЙКА ТАЙМЕРОВ
-        self.setup_timers()
+
 
     def setup_timers(self):
-        time_settings = self.game_settings.get('time', {'main_time': 900, 'byoyomi': 30})
-        initial_time = time_settings.get('main_time', 900)
-        self.byoyomi = time_settings.get('byoyomi', 30)
+        time_settings = self.game_settings.get('time', {})
+        no_time_limit = time_settings.get('no_time_limit', False)
         
-        self.player_timer = GameTimer(1, initial_time, self)  # 1 - черные (игрок)
-        self.opponent_timer = GameTimer(2, initial_time, self)  # 2 - белые (противник)
+        self.initial_player_time = time_settings.get('main_time', 900) if not no_time_limit else 0
+        self.initial_opponent_time = time_settings.get('main_time', 900) if not no_time_limit else 0
+        self.byoyomi = time_settings.get('byoyomi', 30) if not no_time_limit else 0
         
-        self.player_timer.time_changed.connect(self.on_time_changed)
-        self.opponent_timer.time_changed.connect(self.on_time_changed)
-        self.player_timer.time_expired.connect(self.on_time_expired)
-        self.opponent_timer.time_expired.connect(self.on_time_expired)
+        if no_time_limit:
+            self.player_timer = GameTimer(1, 0, self, no_time_limit=True)
+            self.opponent_timer = GameTimer(2, 0, self, no_time_limit=True)
+            
+            self.ui.timerPlayer.setText("--:--")
+            self.ui.timerOpponent.setText("--:--")
+            self.ui.timerPlayer.setStyleSheet("color: gray;")
+            self.ui.timerOpponent.setStyleSheet("color: gray;")
+        else:
+            self.player_timer = GameTimer(1, self.initial_player_time, self, no_time_limit=False)
+            self.opponent_timer = GameTimer(2, self.initial_opponent_time, self, no_time_limit=False)
+            
+            self.ui.timerPlayer.setStyleSheet("")
+            self.ui.timerOpponent.setStyleSheet("")
+            
+            self.player_timer.time_changed.connect(self.update_timer_display)
+            self.opponent_timer.time_changed.connect(self.update_timer_display)
+            self.player_timer.time_expired.connect(self.on_time_expired)
+            self.opponent_timer.time_expired.connect(self.on_time_expired)
+            
+            self.player_timer.start()
         
-        self.update_timer_active()
-
         self.update_timer_display()
 
     def update_timer_active(self):
@@ -157,19 +171,38 @@ class GameWindow(BaseWindow):
             self.opponent_timer.stop()
             return
             
-        if self.board_widget.current_player == 1:  # Черные
-            self.player_timer.start()
-            self.opponent_timer.stop()
-        else:  # Белые
-            self.player_timer.stop()
-            self.opponent_timer.start()
+        if self.player_timer.no_time_limit:
+            return
+            
+        if self.board_widget.current_player == 1:
+            if not self.player_timer.is_running:
+                self.opponent_timer.stop()
+                self.player_timer.start()
+        else:
+            if not self.opponent_timer.is_running:
+                self.player_timer.stop()
+                self.opponent_timer.start()
 
-    def on_time_changed(self):
-        self.update_timer_display()
+    def update_timer_display(self):
+        if self.player_timer.no_time_limit:
+            return
+        
+        player_time = int(self.player_timer.time_remaining)
+        opponent_time = int(self.opponent_timer.time_remaining)
+        
+        player_min = player_time // 60
+        player_sec = player_time % 60
+        self.ui.timerPlayer.setText(f"{player_min:02d}:{player_sec:02d}")
+        
+        opponent_min = opponent_time // 60
+        opponent_sec = opponent_time % 60
+        self.ui.timerOpponent.setText(f"{opponent_min:02d}:{opponent_sec:02d}")
 
     def on_time_expired(self, player):
-        #Время игрока истекло
         if self.game_ended:
+            return
+            
+        if self.player_timer.no_time_limit:
             return
             
         self.game_ended = True
@@ -184,17 +217,8 @@ class GameWindow(BaseWindow):
         self.player_timer.stop()
         self.opponent_timer.stop()
         
-        QMessageBox.information(self, "Время вышло", f"Время {winner} вышло! {winner} победил")
-        self.game_finished.emit()                
-
-    def update_timer_display(self):
-        player_min = self.player_timer.time_remaining // 60
-        player_sec = self.player_timer.time_remaining % 60
-        self.ui.timerPlayer.setText(f"{player_min:02d}:{player_sec:02d}")
-
-        opponent_min = self.opponent_timer.time_remaining // 60
-        opponent_sec = self.opponent_timer.time_remaining % 60
-        self.ui.timerOpponent.setText(f"{opponent_min:02d}:{opponent_sec:02d}")
+        QMessageBox.information(self, "Время вышло", f"Время {winner} вышло! {winner} победили!")
+        self.game_finished.emit()
 
     def save_initial_snapshot(self):
         snapshot = self.create_snapshot()
@@ -320,11 +344,8 @@ class GameWindow(BaseWindow):
         if self.game_ended:
             return
 
-        move_num = len(self.move_descriptions) - 1
-        if move_num % 2 == 0:  
-            move_number = move_num // 2 + 1
-        else:  
-            move_number = (move_num + 1) // 2
+        move_number = (len(self.move_descriptions) - 1) // 2 + 1
+        
         col_letter = chr(65 + col)
         player_name = "Черные" if player == 1 else "Белые"
         move_desc = f"{move_number}. {player_name}: {col_letter}{row + 1}"
@@ -334,7 +355,7 @@ class GameWindow(BaseWindow):
         self.save_snapshot_after_move(move_desc)
 
         self.update_timer_active()
-        #Сбрасываем счетчик пасов при обычном ходе
+        # Сбрасываем счетчик пасов при обычном ходе
         self.consecutive_passes = 0
 
 
@@ -399,7 +420,6 @@ class GameWindow(BaseWindow):
         self.game_finished.emit()
 
     def pass_move(self):
-        print(f"=== pass_move, game_ended={self.game_ended}, consecutive_passes={self.consecutive_passes} ===")
         
         if self.game_ended:
             print("Игра окончена, пас игнорируется")
@@ -409,21 +429,19 @@ class GameWindow(BaseWindow):
             
         if self.board_widget.pass_move():
             self.consecutive_passes += 1
-            move_number = self.ui.historyList.count() + 1
+            
+            move_number = (len(self.move_descriptions) - 1) // 2 + 1
             move_desc = f"{move_number}. Пас"
             self.ui.historyList.addItem(move_desc)
             self.ui.historyList.scrollToBottom()
-            print(f"Пас выполнен ({self.consecutive_passes}/2)")
             self.save_snapshot_after_move(move_desc)
-
 
             self.update_timer_active()
 
             if self.consecutive_passes >= 2:
-                print("Достигнуто 2 паса, вызываем end_game_by_passes()")
                 self.end_game_by_passes()
         else:
-            print("Пас не удался") 
+            print("Пас не удался")
              
 
     #def on_invalid_move(self, row, col):

@@ -227,7 +227,7 @@ cd ..
 Запустите:
 ```
 source venv/Scripts/activate
-python core/test_lib_con.py
+python core/test_lib_conection.py
 ```
 Если все хорошо, потом :
 ```bash
@@ -236,10 +236,15 @@ python core/test_bind.py
 ---
 ## Настройка KataGo
 
-Откройте git bash в корне проекта и вставьте следующую команду:
+Откройте git bash в корне проекта и вставьте следующую команду, если нужна слильная модель:
 ```bash 
 cd bot/KataGo-1.16.4-OpenCL
-./katago gtp -config default_gtp.cfg -model model/kata1-zhizi-b28c512nbt-muonfd2.bin.gz
+./katago gtp -config default_gtp.cfg -model models/kata1-zhizi-b28c512nbt-muonfd2.bin.gz
+```
+Если ваш компьютер не запускает сильную модель, то используйте:
+```bash 
+cd bot/KataGo-1.16.4-OpenCL
+./katago gtp -config default_gtp.cfg -model models/kata1-b10c128-s182492416-d63545831.txt.gz
 ```
 
 после чего долен создаться файл с вашей конфигурацией.
