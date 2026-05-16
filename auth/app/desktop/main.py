@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QIcon
 
 
-API_BASE = "http://localhost:8000"  # URL вашего backend
+API_BASE = "http://51.250.64.161:8000"  # URL вашего backend
 
 
 class StyledInput(QLineEdit):
