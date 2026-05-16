@@ -22,11 +22,10 @@ if _network_pvp_dir not in sys.path:
     sys.path.insert(0, _network_pvp_dir)
 
 
-class PlayerType(Enum):
-    """Тип игрока"""
-    HUMAN = auto()
-    GNU_GO = auto()
-    NETWORK = auto()
+# class PlayerType(Enum):
+#     """Тип игрока"""
+#     HUMAN = auto()
+#     GNU_GO = auto()
 
 @dataclass
 class MoveResult:
