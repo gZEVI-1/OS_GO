@@ -1,7 +1,8 @@
 import sys
-
+import os
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QVBoxLayout, QWidget, QMessageBox
 from PySide6.QtCore import QSize
+from PySide6.QtGui import QIcon
 from navigation import Navigation
 from windows.game_windowPvP import GameWindow
 from windows.game_windowPvE import GameWindowPvE
@@ -38,22 +39,9 @@ class Widget(QMainWindow):
         self.main_menu = QWidget()
         self.ui = Ui_mainWindow()
         self.ui.setupUi(self.main_menu)
-        try:
-            # Пробуем установить иконку из темы
-            from PySide6.QtGui import QIcon
-            icon = self.style().standardIcon(self.style().SP_FileDialogDetailedView)
-            if not icon.isNull():
-                self.ui.buttonSettings.setIcon(icon)
-                self.ui.buttonSettings.setText("")
-                self.ui.buttonSettings.setIconSize(QSize(30, 30))
-            else:
-                # Если иконка не загрузилась, используем текст
-                self.ui.buttonSettings.setText("⚙")
-                self.ui.buttonSettings.setStyleSheet("font-size: 24px;")
-        except:
-            # В случае любой ошибки используем текст
-            self.ui.buttonSettings.setText("⚙")
-            self.ui.buttonSettings.setStyleSheet("font-size: 24px;")
+        
+        # ========== НАСТРОЙКА ИКОНОК ==========
+        self.setup_icon_buttons()
         
         self.navigation.add_window("main_menu", self.main_menu)
 
@@ -64,11 +52,63 @@ class Widget(QMainWindow):
 
         self.ui.buttonAccount.clicked.connect(self.open_windAccount)
         self.ui.buttonSettings.clicked.connect(self.open_windSettings)
+        
         self.navigation.navigate_to("main_menu")
         self.update_main_menu_language()
         self.apply_theme()
         self.settings.settings_changed.connect(self.on_settings_changed)
 
+    def setup_icon_buttons(self):
+        """
+        Настраивает иконки для кнопок.
+        Сохраняет имя иконки для каждой кнопки, чтобы потом обновлять.
+        """
+        # Словарь: кнопка -> имя иконки (без расширения)
+        icon_buttons = {
+            self.ui.buttonWindBot: "bot",
+            self.ui.buttonWindOffline: "offline",
+            self.ui.buttonWindOnline: "online",
+            self.ui.buttonSettings: "settings"
+        }
+        
+        for button, icon_name in icon_buttons.items():
+            # Сохраняем имя иконки как атрибут кнопки
+            button._icon_name = icon_name
+            # Устанавливаем иконку
+            self.update_button_icon(button)
+    
+    def update_button_icon(self, button):
+        """
+        Обновляет иконку конкретной кнопки в соответствии с текущей темой.
+        
+        Аргументы:
+            button: QPushButton, кнопка для обновления
+        """
+        if not hasattr(button, '_icon_name'):
+            return
+        
+        icon_name = button._icon_name
+        icon_path = self.settings.get_icon_path(icon_name)
+        
+        if icon_path:
+            button.setIcon(QIcon(icon_path))
+            button.setIconSize(QSize(32, 32))
+            
+            # Для кнопки настроек убираем текст, оставляем только иконку
+            if icon_name == "settings":
+                button.setText("")
+    
+    def update_all_icons(self):
+        """Обновляет иконки всех кнопок после смены темы"""
+        buttons = [
+            self.ui.buttonWindBot,
+            self.ui.buttonWindOffline,
+            self.ui.buttonWindOnline,
+            self.ui.buttonSettings
+        ]
+        
+        for button in buttons:
+            self.update_button_icon(button)
     
     def center_window(self):
         screen = QApplication.primaryScreen().geometry()
@@ -113,7 +153,6 @@ class Widget(QMainWindow):
                 settings=settings
             )
             
-            # Настройка растяжения для всего контента
             game_window.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             
             self.navigation.add_window("bot_game", game_window)
@@ -136,7 +175,6 @@ class Widget(QMainWindow):
         QMessageBox.information(self, "Button", "open account window")
 
     def open_windSettings(self):
-        from windows.settings_dialog import SettingsDialog  
         dialog = SettingsDialog(self)
         dialog.exec()
 
@@ -151,33 +189,27 @@ class Widget(QMainWindow):
 
     def apply_theme(self):
         """Применяет текущую тему к приложению"""
-        print("Применяю тему...")
-        print(f"Текущая тема: {self.settings.theme}")
-        
-        # Используем НОВЫЙ метод get_stylesheet()
         stylesheet = self.settings.get_stylesheet()
-        
         if stylesheet:
             self.setStyleSheet(stylesheet)
-            print("✓ Стиль применен")
-        else:
-            print("✗ Стиль не загружен")
         
-        # Обновляем все открытые окна в стеке
         for i in range(self.stacked_widget.count()):
             widget = self.stacked_widget.widget(i)
             if hasattr(widget, 'apply_theme'):
                 widget.apply_theme()
+
     def update_main_menu_language(self):
-        # Обновляем текст кнопок главного меню
+        """Обновляет текст кнопок главного меню"""
         self.ui.buttonWindOnline.setText(self.settings.get_text("open_online"))
         self.ui.buttonWindOffline.setText(self.settings.get_text("open_offline"))
         self.ui.buttonWindBot.setText(self.settings.get_text("open_bot"))
         self.ui.buttonInstruct.setText(self.settings.get_text("open_instruction"))
 
     def on_settings_changed(self):
+        """Обработчик изменения глобальных настроек"""
         self.apply_theme()
-        self.update_main_menu_language()    
+        self.update_main_menu_language()
+        self.update_all_icons()  # ← ВАЖНО: обновляем иконки при смене темы
 
 
 if __name__ == "__main__":

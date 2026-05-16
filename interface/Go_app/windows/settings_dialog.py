@@ -53,18 +53,8 @@ class SettingsDialog(QDialog):
         
         # Кнопка GitHub
         self.github_button = QPushButton(self.settings.get_text("github_link"))
-        self.github_button.setStyleSheet("""
-            QPushButton {
-                background-color: #24292e;
-                color: white;
-                border: none;
-                padding: 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #0366d6;
-            }
-        """)
+        self.github_button = QPushButton(self.settings.get_text("github_link"))
+        self.github_button.setObjectName("github_button")  # Добавляем objectName для стилизации
         self.github_button.clicked.connect(self.open_github)
         layout.addWidget(self.github_button)
         

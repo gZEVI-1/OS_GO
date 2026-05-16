@@ -168,6 +168,14 @@ QDialog QLabel {
     font-weight: 500;
 }
 
+/* МЕТКИ ВРЕМЕНИ В ДИАЛОГЕ НАСТРОЕК - БЕЛЫЙ ТЕКСТ ДЛЯ ТЕМНОЙ ТЕМЫ */
+QLabel#labelPlayerTime,
+QLabel#labelByoyomi {
+    color: #F0E9E0;
+    background-color: transparent;
+    font-weight: 500;
+}
+
 QDialog QComboBox {
     background-color: #2c303a;
     border: 1px solid #4a4f5a;

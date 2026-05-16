@@ -324,3 +324,22 @@ class AppSettings(QObject):
                         
             except Exception as e:
                 print(f"Error loading settings: {e}")
+
+    def get_icon_path(self, icon_name):
+
+        theme_folders = {
+            Theme.DARK: "light",
+            Theme.LIGHT: "dark",
+            Theme.ASIA: "dark"
+        }
+        
+        theme_folder = theme_folders.get(self._theme, "light")
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        icon_path = os.path.join(base_dir, "icons", theme_folder, f"{icon_name}.svg")
+        
+        if os.path.exists(icon_path):
+            print(f"✓ Иконка найдена: {icon_path}")
+            return icon_path
+        else:
+            print(f"✗ Иконка не найдена: {icon_path}")
+            return ""            
