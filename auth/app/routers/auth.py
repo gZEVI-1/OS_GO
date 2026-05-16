@@ -507,7 +507,7 @@ async def forgot_password(
     await db.commit()
     
     # Отправляем письмо
-    reset_url = f"{settings.app_url}/auth/reset-password?token={reset_token}"
+    reset_url = f"{settings.app_url}/static/reset-password.html?token={reset_token}"
     background_tasks.add_task(
         email_service.send_reset_password_email,
         data.email,
