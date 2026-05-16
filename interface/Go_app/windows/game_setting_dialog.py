@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QDialog
 from PySide6.QtCore import Signal
 from pathlib import Path
 import sys
+from windows.app_settings import Theme 
 
 root_path = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(root_path / "interface" / "Go_app" / "generated"))
@@ -40,11 +41,14 @@ class GameSettingsDialog(QDialog):
         self.settings.settings_changed.connect(self.on_settings_changed)
     
     def apply_theme(self):
-        # Применяем общий стиль из QSS
+         
         self.setStyleSheet(self.settings.get_stylesheet())
-        
-        self.ui.labelPlayerTime.setStyleSheet("color: #F0E9E0; background-color: transparent;")
-        self.ui.labelByoyomi.setStyleSheet("color: #F0E9E0; background-color: transparent;")
+        if self.settings.theme == Theme.DARK:
+            self.ui.labelPlayerTime.setStyleSheet("color: #F0E9E0; background-color: transparent;")
+            self.ui.labelByoyomi.setStyleSheet("color: #F0E9E0; background-color: transparent;")
+        else:
+            self.ui.labelPlayerTime.setStyleSheet("")
+            self.ui.labelByoyomi.setStyleSheet("")
     
     def on_settings_changed(self):
         self.apply_theme()

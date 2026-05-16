@@ -247,7 +247,7 @@ class GoBoardWidget(QWidget):
 
     def draw_move_hints(self, painter):
         """Рисует подсказки для допустимых ходов"""
-        painter.setBrush(QBrush(QColor(150, 150, 150, 60)))
+        painter.setBrush(QBrush(QColor(150, 150, 150, 80)))
         painter.setPen(Qt.NoPen)
         radius = self.cell_size // 6
 
