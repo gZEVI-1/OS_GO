@@ -128,15 +128,9 @@ QGroupBox::title {
        </property>
        <property name="styleSheet">
         <string>QPushButton {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
     padding: 8px 20px;
     border-radius: 4px;
     font-weight: bold;
-}
-QPushButton:hover {
-    background-color: #45a049;
 }</string>
        </property>
       </widget>
@@ -148,15 +142,9 @@ QPushButton:hover {
        </property>
        <property name="styleSheet">
         <string>QPushButton {
-    background-color: #f44336;
-    color: white;
-    border: none;
     padding: 8px 20px;
     border-radius: 4px;
     font-weight: bold;
-}
-QPushButton:hover {
-    background-color: #da190b;
 }</string>
        </property>
       </widget>
