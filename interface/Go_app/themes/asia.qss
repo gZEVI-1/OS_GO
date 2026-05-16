@@ -396,36 +396,46 @@ QListWidget::item:hover:!selected {
    КНОПКИ PASS / RESIGN / PREV / NEXT
    ============================================ */
 
+QPushButton#buttonPrevMove,
+QPushButton#buttonNextMove,
 QPushButton#buttonPass,
 QPushButton#buttonResign {
-    background-color: #EDE1CC;
+    background-color: #FCF5E8;
     border: 1px solid #D6C8B0;
-    border-radius: 12px;
+    border-radius: 10px;
     color: #3D3A36;
     padding: 8px 20px;
     font-weight: 600;
 }
 
+QPushButton#buttonPrevMove:hover,
+QPushButton#buttonNextMove:hover,
 QPushButton#buttonPass:hover,
 QPushButton#buttonResign:hover {
-    background-color: #E5D6C0;
+    background-color: #EDE1CC;
     border-color: #B35C44;
+    color: #B35C44;
 }
 
 QPushButton#buttonPrevMove,
-QPushButton#buttonNextMove {
-    background-color: #EDE1CC;
+QPushButton#buttonNextMove,
+QPushButton#buttonPass,
+QPushButton#buttonResign {
+    background-color: #FCF5E8;
     border: 1px solid #D6C8B0;
-    border-radius: 12px;
+    border-radius: 10px;
     color: #3D3A36;
-    padding: 6px 18px;
+    padding: 8px 20px;
     font-weight: 600;
 }
 
 QPushButton#buttonPrevMove:hover,
-QPushButton#buttonNextMove:hover {
-    background-color: #E5D6C0;
+QPushButton#buttonNextMove:hover,
+QPushButton#buttonPass:hover,
+QPushButton#buttonResign:hover {
+    background-color: #EDE1CC;
     border-color: #B35C44;
+    color: #B35C44;
 }
 
 /* Chat кнопка */
