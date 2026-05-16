@@ -51,17 +51,25 @@ class GameWindow(BaseWindow):
         def __init__(self, session_adapter):
             super().__init__()
             self.session_adapter = session_adapter
+            self._is_cancelled = False
+
+        def cancel(self):
+            self._is_cancelled = True
 
         def run(self):
             try:
+                if self._is_cancelled:
+                    return
                 analyzer = KataGoGameAnalyzer(self.session_adapter)
+                # Внутри анализатора нужно периодически проверять self._is_cancelled
+                # Если нет такой возможности, оставляем как есть, но terminate() сработает.
                 if analyzer.initialize():
                     result = analyzer.analyze_current_game()
-                    self.finished.emit(result)
-                else:
-                    self.error.emit("KataGo недоступен")
+                    if not self._is_cancelled:
+                        self.finished.emit(result)
             except Exception as e:
-                self.error.emit(str(e))
+                if not self._is_cancelled:
+                    self.error.emit(str(e))
 
     def __init__(self, navigation, core_api=None, settings=None):
         super().__init__(navigation)
@@ -233,14 +241,6 @@ class GameWindow(BaseWindow):
         QMessageBox.information(self, "Время вышло", f"Время {winner} вышло! {winner} победили!")
         self.game_finished.emit()
 
-    def save_initial_snapshot(self):
-        snapshot = self.create_snapshot()
-        self.board_snapshots.append(snapshot)
-        self.current_snapshot_index = 0
-        
-        self.move_descriptions.append("Начало партии")
-        
-        self.update_navigation_buttons()
 
     def create_snapshot(self):
         return {
@@ -378,13 +378,31 @@ class GameWindow(BaseWindow):
 
         self.game_ended = True
 
+        self.player_timer.stop()
+        self.opponent_timer.stop()
+
+        if self.board_size == 9:
+            min_moves = 20
+        else:  
+            min_moves = 42
+
+        moves_count = len(self.move_descriptions) - 1
+
+        if moves_count < min_moves:
+            QMessageBox.information(
+                self,
+                "Игра окончена",
+                f"Партия завершена двумя пасами, но сделано слишком мало ходов.\n"
+            )
+            self.game_finished.emit()
+            return
+
         sgf = self.core_api.get_sgf()
         if not sgf or len(sgf) < 30:
             QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
             self.game_finished.emit()
             return
 
-        # Создаем адаптер сессии
         session_adapter = SessionAdapter(self.core_api, self.board_size)
 
         dialog = QProgressDialog("Анализируем позицию с помощью KataGo...", None, 0, 0, self)
@@ -457,6 +475,26 @@ class GameWindow(BaseWindow):
                                 self.settings.get_text("opponent_won"))
             self.game_finished.emit()
 
+    def closeEvent(self, event):
+        # Если есть поток анализа и он запущен
+        if hasattr(self, 'analysis_thread') and self.analysis_thread.isRunning():
+            # Запрашиваем подтверждение
+            reply = QMessageBox.question(
+                self,
+                "Анализ не завершён",
+                "Идёт анализ партии. Прервать и закрыть окно?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                # Отмечаем поток как отменённый (нужно добавить флаг в поток)
+                # и ждём завершения
+                self.analysis_thread.terminate()  # грубо, но безопасно для этого случая
+                self.analysis_thread.wait(2000)
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
 
 
     '''def on_game_over(self, _):

@@ -155,17 +155,26 @@ class GameWindowPvE(BaseWindow):
         def __init__(self, session_adapter):
             super().__init__()
             self.session_adapter = session_adapter
+            self._is_cancelled = False
+
+        def cancel(self):
+            self._is_cancelled = True
 
         def run(self):
             try:
+                if self._is_cancelled:
+                    return
                 analyzer = KataGoGameAnalyzer(self.session_adapter)
                 if analyzer.initialize():
                     result = analyzer.analyze_current_game()
-                    self.finished.emit(result)
+                    if not self._is_cancelled:
+                        self.finished.emit(result)
                 else:
-                    self.error.emit("KataGo недоступен")
+                    if not self._is_cancelled:
+                        self.error.emit("KataGo недоступен")
             except Exception as e:
-                self.error.emit(str(e))
+                if not self._is_cancelled:
+                    self.error.emit(str(e))
 
 
     def __init__(self, navigation, core_api=None, settings=None):
@@ -446,25 +455,37 @@ class GameWindowPvE(BaseWindow):
     def end_game_by_passes(self):
         if self.game_ended:
             return
-        
+
         self.game_ended = True
-        
-        if self.gnugo_engine:
-            self.gnugo_engine.stop()
-        
+
+        if self.board_size == 9:
+            min_moves = 20
+        else:  
+            min_moves = 42
+
+        moves_count = len(self.move_descriptions) - 1
+
+        if moves_count < min_moves:
+            QMessageBox.information(
+                self,
+                "Игра окончена",
+                "Партия завершена двумя пасами, но сделано слишком мало ходов.\n"
+            )
+            self.game_finished.emit()
+            return
+
         sgf = self.core_api.get_sgf()
         if not sgf or len(sgf) < 30:
             QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
             self.game_finished.emit()
             return
-        
-        #адаптер сессии
+
         session_adapter = SessionAdapter(self.core_api, self.board_size)
-        
+
         dialog = QProgressDialog("Анализируем позицию с помощью KataGo...", None, 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
         dialog.show()
-        
+
         self.analysis_thread = self.KataGoAnalysisThread(session_adapter)
         self.analysis_thread.finished.connect(lambda result: self.on_analysis_finished(result, dialog))
         self.analysis_thread.error.connect(lambda error: self.on_analysis_error(error, dialog))
@@ -597,3 +618,13 @@ class GameWindowPvE(BaseWindow):
     def show_player_profile(self):
         profile = ProfileWindow(self.player_data, self)
         profile.exec_()
+    
+    def closeEvent(self, event):
+        if hasattr(self, 'analysis_thread') and self.analysis_thread and self.analysis_thread.isRunning():
+            if hasattr(self.analysis_thread, 'cancel'):
+                self.analysis_thread.cancel()
+            self.analysis_thread.terminate()
+            self.analysis_thread.wait(2000)
+        event.accept()
+     
+        
