@@ -1,11 +1,16 @@
+
 """
-OS-GO Network Protocol v1.0
+OS-GO Network Protocol v1.1 — PySide6-Ready
+===========================================
+Типы сообщений, хелперы для сериализации/десериализации.
+Добавлены методы для обратного преобразования dict → Move (для GUI-рендеринга истории).
 """
 import json
 from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
 import go_engine as go
+
 
 class MessageType(Enum):
     CONNECT = "connect"
@@ -28,10 +33,12 @@ class MessageType(Enum):
     GAME_CHAT = "game_chat"
     LOBBY_READY = "lobby_ready"
 
+
 class PlayerColor(Enum):
     BLACK = "black"
     WHITE = "white"
     SPECTATOR = "spectator"
+
 
 @dataclass
 class RoomInfo:
@@ -56,6 +63,7 @@ class RoomInfo:
             "status": self.status
         }
 
+
 @dataclass
 class PlayerInfo:
     player_id: str
@@ -72,6 +80,7 @@ class PlayerInfo:
             "is_ready": self.is_ready,
             "is_connected": self.is_connected
         }
+
 
 class Message:
     def __init__(self, msg_type: MessageType, payload: Dict[str, Any] = None):
@@ -100,8 +109,13 @@ class Message:
         return cls(MessageType.ROOM_LIST, {"rooms": [r.to_dict() for r in rooms]})
 
     @classmethod
-    def room_create(cls, name: str, board_size: int = 19, password: Optional[str] = None, komi: float = 6.5, rules: str = "japanese") -> "Message":
-        return cls(MessageType.ROOM_CREATE, {"name": name, "board_size": board_size, "password": password, "komi": komi, "rules": rules})
+    def room_create(cls, name: str, board_size: int = 19,
+                    password: Optional[str] = None,
+                    komi: float = 6.5, rules: str = "japanese") -> "Message":
+        return cls(MessageType.ROOM_CREATE, {
+            "name": name, "board_size": board_size,
+            "password": password, "komi": komi, "rules": rules
+        })
 
     @classmethod
     def room_join(cls, room_id: str, password: Optional[str] = None) -> "Message":
@@ -124,11 +138,22 @@ class Message:
         return cls(MessageType.GAME_RESIGN)
 
     @classmethod
-    def game_state(cls, board_array: List[List[int]], current_player: str, move_number: int, passes: int, last_move: Optional[Dict] = None, captures: Dict[str, int] = None) -> "Message":
-        return cls(MessageType.GAME_STATE, {"board": board_array, "current_player": current_player, "move_number": move_number, "passes": passes, "last_move": last_move, "captures": captures or {"black": 0, "white": 0}})
+    def game_state(cls, board_array: List[List[int]], current_player: str,
+                   move_number: int, passes: int,
+                   last_move: Optional[Dict] = None,
+                   captures: Dict[str, int] = None) -> "Message":
+        return cls(MessageType.GAME_STATE, {
+            "board": board_array,
+            "current_player": current_player,
+            "move_number": move_number,
+            "passes": passes,
+            "last_move": last_move,
+            "captures": captures or {"black": 0, "white": 0}
+        })
 
     @classmethod
-    def game_over(cls, winner: str, result: str, reason: str = "two_passes", sgf: Optional[str] = None) -> "Message":
+    def game_over(cls, winner: str, result: str, reason: str = "two_passes",
+                  sgf: Optional[str] = None) -> "Message":
         payload = {"winner": winner, "result": result, "reason": reason}
         if sgf is not None:
             payload["sgf"] = sgf
@@ -136,9 +161,7 @@ class Message:
 
     @classmethod
     def lobby_ready(cls) -> "Message":
-        """Сигнал готовности лобби после подключения"""
         return cls(MessageType.LOBBY_READY, {})
-
 
     @classmethod
     def game_chat(cls, sender: str, text: str) -> "Message":
@@ -152,14 +175,25 @@ class Message:
     def undo_response(cls, accepted: bool) -> "Message":
         return cls(MessageType.GAME_UNDO_RESPONSE, {"accepted": accepted})
 
+
 class GameAction:
+    """Статические хелперы для конвертации между go_engine и сетевыми структурами."""
+
     @staticmethod
     def color_to_str(color: go.Color) -> str:
-        return {go.Color.Black: "black", go.Color.White: "white", go.Color.NONE: "none"}.get(color, "none")
+        return {
+            go.Color.Black: "black",
+            go.Color.White: "white",
+            go.Color.NONE: "none"
+        }.get(color, "none")
 
     @staticmethod
     def str_to_color(color_str: str) -> go.Color:
-        return {"black": go.Color.Black, "white": go.Color.White, "none": go.Color.NONE}.get(color_str, go.Color.NONE)
+        return {
+            "black": go.Color.Black,
+            "white": go.Color.White,
+            "none": go.Color.NONE
+        }.get(color_str, go.Color.NONE)
 
     @staticmethod
     def board_to_array(board: go.Board) -> List[List[int]]:
@@ -174,3 +208,18 @@ class GameAction:
             "move_number": move.move_number,
             "is_pass": move.is_pass
         }
+
+    @staticmethod
+    def dict_to_move(data: Dict[str, Any]) -> go.Move:
+        """
+        Десериализует Move из dict (например, из истории ходов сервера).
+        Используется в GUI для рендеринга вариаций и анализа.
+        """
+        color = GameAction.str_to_color(data.get("color", "none"))
+        move_number = data.get("move_number", 0)
+        is_pass = data.get("is_pass", False)
+        if is_pass:
+            return go.Move(color=color, move_number=move_number)
+        x = data.get("x", -1)
+        y = data.get("y", -1)
+        return go.Move(x, y, color, move_number)

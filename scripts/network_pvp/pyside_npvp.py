@@ -1,80 +1,109 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-OS-GO Network Client — Quick PySide6 GUI
-========================================
-Быстрый интерфейс для онлайн-игры в Го.
-Запуск: python pyside6_go_client.py
+OS-GO Network Client — Quick PySide6 GUI (fixed)
+=================================================
+Исправления:
+- AsyncioThread ждёт готовности loop перед submit()
+- Сигналы эмитятся напрямую из колбэков (PySide6 thread-safe)
+- Добавлены try/except вокруг отправки
 
-Требования: PySide6, websockets
+Запуск: python pyside6_go_client.py
 """
 
 import sys
 import os
 import asyncio
 import threading
+import logging
 from typing import Optional, List, Dict, Any
 
 from PySide6.QtCore import (
-    Qt, QObject, Signal, QThread, QMetaObject, Q_ARG, QSize, QPoint, QRect
+    Qt, QObject, Signal, QThread, Q_ARG, QPoint, QRect
 )
-from PySide6.QtGui import QPainter, QColor, QBrush, QPen, QFont, QMouseEvent
+from PySide6.QtGui import QPainter, QColor, QBrush, QPen, QMouseEvent
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QTextEdit, QTableWidget, QTableWidgetItem,
-    QStackedWidget, QGridLayout, QFrame, QMessageBox, QInputDialog,
-    QHeaderView, QSplitter, QSizePolicy, QDialog, QFormLayout, QSpinBox,
+    QStackedWidget, QFrame, QMessageBox, QInputDialog,
+    QHeaderView, QSizePolicy, QDialog, QFormLayout, QSpinBox,
     QDoubleSpinBox, QComboBox, QDialogButtonBox, QFileDialog
 )
 
 # --- Пути к вашим модулям ---
-# SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# sys.path.insert(0, SCRIPT_DIR)
-# sys.path.insert(0, os.path.join(SCRIPT_DIR, '..'))
+# Меняем рабочую директорию на директорию скрипта
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(SCRIPT_DIR)
+
+# Добавляем текущую директорию в путь
+sys.path.insert(0, SCRIPT_DIR)
 
 try:
-    from client_ad import NetworkClient, ConnectionState
-    from protocol_ad import Message, MessageType, RoomInfo
-    from output_interface_ad import GameDisplayState
+    from client import NetworkClient, ConnectionState
+    from protocol import Message, MessageType, RoomInfo
+    from output_interface import GameDisplayState
 except ImportError as e:
     print(f"Ошибка импорта бэкенда: {e}")
-    print("Убедитесь, что рядом лежат: client_ad.py, protocol_ad.py, output_interface_ad.py")
+    print(f"Текущая директория: {os.getcwd()}")
+    print(f"Файлы: {os.listdir('.')}")
     sys.exit(1)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("GoGUI")
 
 
 # ============================================================================
-# 1. Поток с asyncio event loop (изолирует WebSocket от Qt)
+# 1. Поток с asyncio event loop
 # ============================================================================
 
 class AsyncioThread(QThread):
+    """Поток с собственным asyncio event loop. Ждёт готовности перед submit()."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self._running = True
+        self._ready = threading.Event()
 
     def run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
+        self._ready.set()
+        logger.info("AsyncioThread: loop started")
         self.loop.run_forever()
+        logger.info("AsyncioThread: loop stopped")
 
     def stop(self):
         self._running = False
+        self._ready.set()  # разблокируем wait(), если кто-то ждёт
         if self.loop:
-            self.loop.call_soon_threadsafe(self.loop.stop)
+            try:
+                self.loop.call_soon_threadsafe(self.loop.stop)
+            except Exception as e:
+                logger.warning(f"Error stopping loop: {e}")
         self.wait(3000)
 
     def submit(self, coro):
+        """Безопасно запускает корутину в asyncio-потоке."""
+        ready = self._ready.wait(timeout=5.0)
+        if not ready:
+            logger.error("AsyncioThread не стартовал за 5 сек!")
+            return None
         if self.loop and self._running and not self.loop.is_closed():
-            return asyncio.run_coroutine_threadsafe(coro, self.loop)
+            try:
+                future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+                return future
+            except Exception as e:
+                logger.error(f"submit error: {e}")
+                return None
+        logger.error("Loop недоступен для submit")
         return None
 
 
 # ============================================================================
-# 2. QObject-обёртка: asyncio-колбэки → Qt-сигналы
+# 2. QObject-обёртка
 # ============================================================================
 
 class QtNetworkClient(QObject):
-    # --- Сигналы для GUI ---
+    # --- Сигналы ---
     connected = Signal()
     disconnected = Signal()
     error_occurred = Signal(str, str)          # code, message
@@ -87,7 +116,7 @@ class QtNetworkClient(QObject):
     game_over = Signal(str, str, str)          # winner, result, sgf
     player_joined = Signal(list)               # players list
     player_left = Signal(str)                  # player_name
-    chat_message = Signal(str, str)              # sender, text
+    chat_message = Signal(str, str)            # sender, text
     undo_requested = Signal(str)               # requester name
     undo_responded = Signal(bool)              # accepted
     connection_state_changed = Signal(str)     # state name
@@ -98,89 +127,30 @@ class QtNetworkClient(QObject):
         self._thread = AsyncioThread(self)
         self._thread.start()
 
-        # Подключаем колбэки
-        self._client.on_connected = self._emit_connected
-        self._client.on_disconnected = self._emit_disconnected
-        self._client.on_error = self._emit_error
-        self._client.on_room_list = self._emit_room_list
-        self._client.on_room_joined = self._emit_room_joined
-        self._client.on_room_update = self._emit_room_updated
-        self._client.on_game_started = self._emit_game_started
-        self._client.on_game_state_update = self._emit_game_state
-        self._client.on_move_received = self._emit_move
-        self._client.on_game_over = self._emit_game_over
-        self._client.on_player_joined = self._emit_player_joined
-        self._client.on_player_left = self._emit_player_left
-        self._client.on_chat_message = self._emit_chat
-        self._client.on_undo_request = self._emit_undo_request
-        self._client.on_undo_response = self._emit_undo_response
+        # Колбэки клиента → прямой emit (PySide6 thread-safe)
+        self._client.on_connected = lambda: self.connected.emit()
+        self._client.on_disconnected = lambda: self.disconnected.emit()
+        self._client.on_error = lambda c, m: self.error_occurred.emit(c, m)
+        self._client.on_room_list = lambda r: self.room_list_received.emit(r)
+        self._client.on_room_joined = lambda rid, col: self.room_joined.emit(rid, col)
+        self._client.on_room_update = lambda p: self.room_updated.emit(p)
+        self._client.on_game_started = lambda p: self.game_started.emit(p)
+        self._client.on_game_state_update = self._on_state_update
+        self._client.on_move_received = lambda m: self.move_received.emit(m)
+        self._client.on_game_over = lambda w, r, s=None: self.game_over.emit(w, r, s or "")
+        self._client.on_player_joined = lambda p: self.player_joined.emit(p)
+        self._client.on_player_left = lambda n: self.player_left.emit(n)
+        self._client.on_chat_message = lambda s, t: self.chat_message.emit(s, t)
+        self._client.on_undo_request = lambda r: self.undo_requested.emit(r)
+        self._client.on_undo_response = lambda a: self.undo_responded.emit(a)
 
-    # --- Колбэки-адаптеры (вызываются из asyncio-потока) ---
-    def _emit_connected(self):
-        QMetaObject.invokeMethod(self, "connected", Qt.QueuedConnection)
-        QMetaObject.invokeMethod(self, "connection_state_changed", Qt.QueuedConnection,
-                                 Q_ARG(str, "connected"))
-
-    def _emit_disconnected(self):
-        QMetaObject.invokeMethod(self, "disconnected", Qt.QueuedConnection)
-        QMetaObject.invokeMethod(self, "connection_state_changed", Qt.QueuedConnection,
-                                 Q_ARG(str, "disconnected"))
-
-    def _emit_error(self, code, msg):
-        QMetaObject.invokeMethod(self, "error_occurred", Qt.QueuedConnection,
-                                 Q_ARG(str, code), Q_ARG(str, msg))
-
-    def _emit_room_list(self, rooms):
-        QMetaObject.invokeMethod(self, "room_list_received", Qt.QueuedConnection,
-                                 Q_ARG(list, rooms))
-
-    def _emit_room_joined(self, rid, color):
-        QMetaObject.invokeMethod(self, "room_joined", Qt.QueuedConnection,
-                                 Q_ARG(str, rid), Q_ARG(str, color))
-
-    def _emit_room_updated(self, payload):
-        QMetaObject.invokeMethod(self, "room_updated", Qt.QueuedConnection,
-                                 Q_ARG(dict, payload))
-
-    def _emit_game_started(self, payload):
-        QMetaObject.invokeMethod(self, "game_started", Qt.QueuedConnection,
-                                 Q_ARG(dict, payload))
-
-    def _emit_game_state(self, state):
+    def _on_state_update(self, state):
+        # state — внутренний GameState, конвертируем в GameDisplayState
         display = self._client.get_display_state()
         if display:
-            QMetaObject.invokeMethod(self, "game_state_changed", Qt.QueuedConnection,
-                                     Q_ARG(object, display))
+            self.game_state_changed.emit(display)
 
-    def _emit_move(self, move):
-        QMetaObject.invokeMethod(self, "move_received", Qt.QueuedConnection,
-                                 Q_ARG(dict, move))
-
-    def _emit_game_over(self, winner, result, sgf=None):
-        QMetaObject.invokeMethod(self, "game_over", Qt.QueuedConnection,
-                                 Q_ARG(str, winner), Q_ARG(str, result), Q_ARG(str, sgf or ""))
-
-    def _emit_player_joined(self, players):
-        QMetaObject.invokeMethod(self, "player_joined", Qt.QueuedConnection,
-                                 Q_ARG(list, players))
-
-    def _emit_player_left(self, name):
-        QMetaObject.invokeMethod(self, "player_left", Qt.QueuedConnection,
-                                 Q_ARG(str, name))
-
-    def _emit_chat(self, sender, text):
-        QMetaObject.invokeMethod(self, "chat_message", Qt.QueuedConnection,
-                                 Q_ARG(str, sender), Q_ARG(str, text))
-
-    def _emit_undo_request(self, requester):
-        QMetaObject.invokeMethod(self, "undo_requested", Qt.QueuedConnection,
-                                 Q_ARG(str, requester))
-
-    def _emit_undo_response(self, accepted):
-        QMetaObject.invokeMethod(self, "undo_responded", Qt.QueuedConnection,
-                                 Q_ARG(bool, accepted))
-
-    # --- Публичные методы (вызываются из GUI-потока) ---
+    # --- Публичные методы ---
     def connect_to_server(self):
         self._thread.submit(self._client.connect())
 
@@ -188,7 +158,6 @@ class QtNetworkClient(QObject):
         self._thread.submit(self._client.disconnect())
 
     def refresh_rooms(self):
-        """Повторно запросить список комнат."""
         self._thread.submit(self._client._send(Message.lobby_ready()))
 
     def create_room(self, name, size=19, password=None, komi=6.5, rules="japanese"):
@@ -216,7 +185,6 @@ class QtNetworkClient(QObject):
         self._thread.submit(self._client.request_undo())
 
     def respond_undo(self, accepted: bool):
-        """Ответить на запрос отмены хода."""
         self._thread.submit(self._client._send(Message.undo_response(accepted)))
 
     def send_chat(self, text):
@@ -249,11 +217,11 @@ class QtNetworkClient(QObject):
 
 
 # ============================================================================
-# 3. Виджет игровой доски (QPainter)
+# 3. Виджет доски
 # ============================================================================
 
 class GoBoardWidget(QFrame):
-    stone_clicked = Signal(int, int)   # x, y (0-based)
+    stone_clicked = Signal(int, int)
 
     def __init__(self, board_size: int = 19, parent=None):
         super().__init__(parent)
@@ -302,12 +270,10 @@ class GoBoardWidget(QFrame):
         margin = self._margin()
         cell = self._cell_size()
         if cell <= 0:
+            painter.end()
             return
 
-        # Фон доски
         painter.fillRect(self.rect(), QColor("#dcb35c"))
-
-        # Линии сетки
         pen = QPen(QColor("#000000"))
         pen.setWidth(1)
         painter.setPen(pen)
@@ -318,7 +284,6 @@ class GoBoardWidget(QFrame):
             painter.drawLine(int(margin), int(pos), int(end), int(pos))
             painter.drawLine(int(pos), int(margin), int(pos), int(end))
 
-        # Хоши
         hoshi_points = []
         if size == 19:
             hoshi_points = [(3,3),(3,9),(3,15),(9,3),(9,9),(9,15),(15,3),(15,9),(15,15)]
@@ -333,7 +298,6 @@ class GoBoardWidget(QFrame):
             r = max(2, cell * 0.12)
             painter.drawEllipse(QPoint(int(cx), int(cy)), int(r), int(r))
 
-        # Камни
         for y in range(size):
             for x in range(size):
                 if y >= len(self.board_array) or x >= len(self.board_array[y]):
@@ -352,7 +316,6 @@ class GoBoardWidget(QFrame):
                     painter.setPen(QPen(QColor("#cccccc")))
                 painter.drawEllipse(QPoint(int(cx), int(cy)), int(r), int(r))
 
-        # Последний ход — красный кружок
         if self.last_move and not self.last_move.get("is_pass"):
             lx = self.last_move.get("x", -1)
             ly = self.last_move.get("y", -1)
@@ -370,7 +333,7 @@ class GoBoardWidget(QFrame):
 
 
 # ============================================================================
-# 4. Главное окно (стек экранов)
+# 4. Главное окно
 # ============================================================================
 
 class MainWindow(QMainWindow):
@@ -751,8 +714,7 @@ class MainWindow(QMainWindow):
             f"{requester} просит отменить ход. Согласны?"
         )
         if self.client:
-            accepted = (reply == QMessageBox.Yes)
-            self.client.respond_undo(accepted)
+            self.client.respond_undo(reply == QMessageBox.Yes)
 
     def on_undo_responded(self, accepted: bool):
         if accepted:
@@ -792,10 +754,6 @@ class MainWindow(QMainWindow):
             self.client.shutdown()
         event.accept()
 
-
-# ============================================================================
-# 5. Точка входа
-# ============================================================================
 
 def main():
     app = QApplication(sys.argv)

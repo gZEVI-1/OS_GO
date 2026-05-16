@@ -1,27 +1,27 @@
-
 """
-OS-GO Network Server — PySide6-Ready Edition
-=============================================
-WebSocket сервер для сетевой игры в Го.
+OS-GO Network Server
+====================
 
-Изменения для стабильности GUI-клиентов:
-- Унифицирована логика завершения игры (DRY)
-- Исправлена логика undo (opponent_id, pending_undo)
-- Добавлена обработка внезапного отключения во время игры
-- calculate_score теперь кроссплатформенный (ищет gnugo в PATH)
-- Улучшена надёжность broadcast (изоляция ошибок по клиентам)
+WebSocket сервер для сетевой игры в Го.
+Управляет лобби, комнатами и игровыми сессиями.
 
 Запуск:
     python server.py --host 0.0.0.0 --port 8765
+    ip сервера 192.168.1.1
+Архитектура:
+    - GameServer: главный сервер, управляет подключениями
+    - Lobby: управление комнатами
+    - GameRoom: игровая комната с логикой go_engine
+    - PlayerConnection: обертка над WebSocket соединением
+
+Зависимости:
+    websockets>=16.0, go_engine (через core_adapter)
 """
 
 import asyncio
 import json
 import uuid
 import logging
-import os
-import sys
-import shutil
 from typing import Dict, Optional, Set, List
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -29,13 +29,20 @@ import argparse
 
 import websockets
 from websockets import WebSocketServerProtocol
-from websockets.protocol import State
+from websockets.protocol import State  # websockets 16.0+
 
-from protocol import Message, MessageType, RoomInfo, PlayerInfo, GameAction
+# Импорт протокола
+from scripts.network_pvp.old.protocol import Message, MessageType, RoomInfo, PlayerInfo, GameAction
 
+
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import go_engine as go
-from core_adapter import GameSession, PlayerType
+
+from core_adapter import GameSession, PlayerType 
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,7 +68,7 @@ class ProtocolError(Exception):
 
 @dataclass
 class RoomPlayer:
-    """Игрок в комнате."""
+    """Игрок в комнате"""
     player_id: str
     name: str
     websocket: WebSocketServerProtocol
@@ -82,7 +89,9 @@ class RoomPlayer:
 class GameRoom:
     """
     Игровая комната с полной логикой go_engine.
-    Жизненный цикл: waiting -> playing -> finished
+
+    Жизненный цикл:
+        waiting -> playing -> finished
     """
 
     def __init__(self, room_id: str, name: str, host_id: str,
@@ -96,11 +105,12 @@ class GameRoom:
         self.komi = komi
         self.rules = rules
 
-        self.players: Dict[str, RoomPlayer] = {}
-        self.spectators: Dict[str, RoomPlayer] = {}
+        self.players: Dict[str, RoomPlayer] = {}  # player_id -> RoomPlayer
+        self.spectators: Dict[str, RoomPlayer] = {}  # Зрители
 
         self.status = "waiting"  # waiting, playing, finished
-        self.session: Optional[GameSession] = None
+        self.game: Optional[go.Game] = None
+        self.session: Optional[GameSession] = None 
 
         self.move_history: List[dict] = []
         self.captures = {"black": 0, "white": 0}
@@ -111,7 +121,6 @@ class GameRoom:
 
         # Для отмены хода
         self.pending_undo: Optional[str] = None  # player_id запросивший отмену
-        self.pending_undo_target: Optional[str] = None  # player_id кому отправлять ответ
 
     @property
     def player_count(self) -> int:
@@ -143,18 +152,24 @@ class GameRoom:
         return "Unknown"
 
     def add_player(self, player: RoomPlayer) -> bool:
+        """Добавляет игрока в комнату. Возвращает True если успешно."""
         if self.player_count >= self.max_players:
             return False
+
+        # Назначаем цвет
         if self.player_count == 0:
             player.color = "black"
         else:
             player.color = "white"
+
         self.players[player.player_id] = player
         return True
 
     def remove_player(self, player_id: str):
+        """Удаляет игрока из комнаты"""
         if player_id in self.players:
             del self.players[player_id]
+            # Если ушел host, назначаем нового
             if player_id == self.host_id and self.players:
                 self.host_id = next(iter(self.players.keys()))
 
@@ -167,13 +182,6 @@ class GameRoom:
                 return p
         return None
 
-    def get_opponent_id(self, player_id: str) -> Optional[str]:
-        """Возвращает ID оппонента (для 2 игроков)."""
-        for pid in self.players:
-            if pid != player_id:
-                return pid
-        return None
-
     def set_ready(self, player_id: str, is_ready: bool):
         if player_id in self.players:
             self.players[player_id].is_ready = is_ready
@@ -183,17 +191,23 @@ class GameRoom:
                 all(p.is_ready for p in self.players.values()))
 
     def start_game(self) -> bool:
+        """Инициализирует игру через go_engine"""
         if not self.all_ready():
             return False
+
         self.session = GameSession(self.board_size, self.komi)
+
+        # Регистрируем сетевых игроков
         for pid, player in self.players.items():
             color = GameAction.str_to_color(player.color)
             self.session.set_player(color, player.name, PlayerType.NETWORK)
+
         self.session.game_active = True
         self.status = "playing"
         self.game_started_at = datetime.now()
         self.move_history = []
 
+        # Подписываемся на события сессии
         self.session.add_move_callback(self._on_move)
         self.session.add_pass_callback(self._on_pass)
         self.session.add_game_over_callback(self._on_game_over)
@@ -202,15 +216,19 @@ class GameRoom:
         return True
 
     def make_move(self, player_id: str, x: int, y: int) -> dict:
+        """
+        Выполняет ход. Возвращает результат с флагом success.
+        """
         if self.status != "playing" or not self.session:
             return {"success": False, "error": "Игра не начата"}
+
         player = self.players.get(player_id)
-        if not player:
-            return {"success": False, "error": "Игрок не найден"}
         color = GameAction.str_to_color(player.color)
+
         result = self.session.make_move(x, y, False, color)
         if not result.success:
             return {"success": False, "error": result.message}
+
         return {
             "success": True,
             "move": result.move_info,
@@ -219,13 +237,14 @@ class GameRoom:
         }
 
     def make_pass(self, player_id: str) -> dict:
+        """Пас игрока"""
         player = self.players.get(player_id)
-        if not player or not self.session:
-            return {"success": False, "error": "Игрок не найден"}
         color = GameAction.str_to_color(player.color)
         result = self.session.make_pass(color)
+
         if not result.success:
             return {"success": False, "error": result.message}
+
         return {
             "success": True,
             "move": result.move_info,
@@ -234,34 +253,34 @@ class GameRoom:
         }
 
     def request_undo(self, player_id: str) -> dict:
+        """Запрос отмены хода"""
         if not self.session or len(self.move_history) == 0:
             return {"success": False, "error": "Нет ходов для отмены"}
-        opponent_id = self.get_opponent_id(player_id)
-        if not opponent_id:
-            return {"success": False, "error": "Нет оппонента"}
-        # Отмена через session.undo_move()
+        # Отмена через session.undo_move() — логика без изменений
         success = self.session.undo_move()
         if success:
             self.move_history.pop()
         return {
             "success": success,
-            "opponent_id": opponent_id,
-            "requester": self.players.get(player_id, RoomPlayer("", "", None)).name,
             "board_state": self.session.get_state_dict() if success else None
         }
 
     def confirm_undo(self, accepted: bool) -> dict:
+        """Подтверждение/отклонение отмены"""
         if not self.pending_undo:
             return {"success": False, "error": "Нет активного запроса на отмену"}
+
         if not accepted:
             self.pending_undo = None
-            self.pending_undo_target = None
             return {"success": True, "accepted": False}
-        if self.session and len(self.move_history) > 0:
-            self.session.undo_move()
+
+        # Отменяем последний ход
+        if self.game and len(self.move_history) > 0:
+            self.game.undo_last_move()
             self.move_history.pop()
+
         self.pending_undo = None
-        self.pending_undo_target = None
+
         return {
             "success": True,
             "accepted": True,
@@ -269,9 +288,13 @@ class GameRoom:
         }
 
     def get_game_state(self) -> dict:
+        """Возвращает текущее состояние игры для синхронизации"""
         if not self.session:
             return {}
+        
         state = self.session.get_state_dict()
+        
+        # Берём last_move из надёжной истории комнаты, а не из go_engine
         if self.move_history:
             last = self.move_history[-1]
             state["last_move"] = {
@@ -283,73 +306,69 @@ class GameRoom:
             }
         else:
             state["last_move"] = None
+            
         return state
 
     def calculate_score(self) -> Optional[Dict]:
-        """Пытается подсчитать очки через GNU Go Analyzer. Кроссплатформенный поиск."""
+        """Пытается подсчитать очки через GNU Go Analyzer."""
         if not self.session:
+            logger.warning("calculate_score: нет сессии")
             return None
         try:
-            # Ищем gnugo в PATH и в стандартных локациях
-            gnugo_path = None
-            if sys.platform == "win32":
-                candidates = ["gnugo.exe", "gnugo-3.8\\gnugo.exe", "bot\\gnugo-3.8\\gnugo.exe"]
-            else:
-                candidates = ["gnugo", "gnugo-3.8/gnugo", "bot/gnugo-3.8/gnugo"]
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            gnugo_path = os.path.join(base_dir, "bot", "gnugo-3.8", "gnugo.exe")
             
-            # Поиск в PATH
-            for cand in candidates:
-                path = shutil.which(cand)
-                if path:
-                    gnugo_path = path
-                    break
+            logger.info(f"calculate_score: путь={gnugo_path}, существует={os.path.exists(gnugo_path)}")
             
-            # Поиск относительно скрипта
-            if not gnugo_path:
-                base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                for cand in candidates:
-                    p = os.path.join(base, cand)
-                    if os.path.exists(p):
-                        gnugo_path = p
-                        break
-            
-            if not gnugo_path or not os.path.exists(gnugo_path):
+            if not os.path.exists(gnugo_path):
                 return None
 
-            if base not in sys.path:
-                sys.path.insert(0, base)
+            if base_dir not in sys.path:
+                sys.path.insert(0, base_dir)
             import GnuGo_Analyzer
+            
+            logger.info("calculate_score: модуль GnuGo_Analyzer импортирован")
 
             analyzer = None
+            # Сначала ищем класс/функцию с analyze_sgf
             for name in dir(GnuGo_Analyzer):
                 if name.startswith('_'):
                     continue
                 obj = getattr(GnuGo_Analyzer, name)
                 if isinstance(obj, type) and hasattr(obj, 'analyze_sgf'):
                     analyzer = obj(gnugo_path)
+                    logger.info(f"calculate_score: используем класс {name}")
                     break
                 elif callable(obj) and hasattr(obj, 'analyze_sgf'):
                     analyzer = obj
+                    logger.info(f"calculate_score: используем функцию {name}")
                     break
 
-            if not analyzer or not hasattr(self.session.game, 'get_sgf'):
+            if not analyzer:
+                logger.warning("calculate_score: не найден analyze_sgf")
+                return None
+
+            if not hasattr(self.session.game, 'get_sgf'):
+                logger.warning("calculate_score: у game нет метода get_sgf")
                 return None
 
             sgf = self.session.game.get_sgf()
+            logger.info(f"calculate_score: длина SGF={len(sgf) if sgf else 0}")
+            
             result = analyzer.analyze_sgf(sgf, self.board_size)
+            logger.info(f"calculate_score: результат={result}")
             return result
 
         except Exception:
-            logger.exception("calculate_score error")
+            logger.exception("calculate_score: ошибка подсчёта")
             return None
 
     def resign(self, player_id: str) -> dict:
+        """Игрок сдается"""
         player = self.players.get(player_id)
-        if not player:
-            return {"success": False, "error": "Игрок не найден"}
         color = GameAction.str_to_color(player.color)
-        if self.session:
-            self.session.resign(color)
+        result = self.session.resign(color)
+
         self.status = "finished"
         return {
             "success": True,
@@ -358,37 +377,16 @@ class GameRoom:
             "resigned_player": player.name
         }
 
-    def handle_player_disconnect(self, player_id: str) -> Optional[dict]:
-        """Обрабатывает отключение игрока. Возвращает результат game_over если игра активна."""
-        if player_id in self.players:
-            self.players[player_id].is_connected = False
-        if self.status == "playing":
-            # Игрок отключился во время игры — оппонент побеждает
-            opponent_id = self.get_opponent_id(player_id)
-            if opponent_id and opponent_id in self.players:
-                opponent = self.players[opponent_id]
-                self.status = "finished"
-                return {
-                    "winner": opponent.color,
-                    "result": f"{opponent.name} победил (отключение оппонента)",
-                    "reason": "disconnect"
-                }
-        return None
-
     async def broadcast(self, message: Message, exclude: Optional[str] = None):
-        """Отправляет сообщение всем игрокам. Ошибки изолируются по клиентам."""
+        """Отправляет сообщение всем игрокам в комнате"""
         tasks = []
         for pid, player in self.players.items():
             if pid != exclude and player.is_connected:
-                tasks.append(self._send_safe(player.websocket, message))
+                tasks.append(self._send(player.websocket, message))
         if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for res in results:
-                if isinstance(res, Exception):
-                    logger.warning(f"Broadcast send error: {res}")
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _send_safe(self, ws: WebSocketServerProtocol, message: Message):
-        """Безопасная отправка с обработкой исключения."""
+    async def _send(self, ws: WebSocketServerProtocol, message: Message):
         try:
             await ws.send(message.to_json())
         except Exception as e:
@@ -396,7 +394,7 @@ class GameRoom:
 
     def get_players_info(self) -> List[PlayerInfo]:
         return [p.to_info() for p in self.players.values()]
-
+    
     def _on_move(self, move_info: Dict):
         self.move_history.append(move_info)
 
@@ -406,20 +404,25 @@ class GameRoom:
     def _on_game_over(self):
         self.status = "finished"
 
+    
+
 
 # ============================================================================
 # ЛОББИ
 # ============================================================================
 
 class Lobby:
+    """Управление всеми игровыми комнатами"""
+
     def __init__(self):
         self.rooms: Dict[str, GameRoom] = {}
-        self.player_rooms: Dict[str, str] = {}
+        self.player_rooms: Dict[str, str] = {}  # player_id -> room_id
 
     def create_room(self, name: str, host_id: str, host_ws: WebSocketServerProtocol,
                     host_name: str, **kwargs) -> GameRoom:
         room_id = str(uuid.uuid4())[:8]
         room = GameRoom(room_id=room_id, name=name, host_id=host_id, **kwargs)
+
         host_player = RoomPlayer(
             player_id=host_id,
             name=host_name,
@@ -427,8 +430,10 @@ class Lobby:
             color="black"
         )
         room.add_player(host_player)
+
         self.rooms[room_id] = room
         self.player_rooms[host_id] = room_id
+
         return room
 
     def join_room(self, room_id: str, player_id: str,
@@ -437,17 +442,22 @@ class Lobby:
         room = self.rooms.get(room_id)
         if not room:
             return None
+
         if room.password and room.password != password:
             raise ProtocolError("WRONG_PASSWORD", "Неверный пароль комнаты")
+
         if room.player_count >= room.max_players:
             raise ProtocolError("ROOM_FULL", "Комната заполнена")
+
         if room.status != "waiting":
             raise ProtocolError("GAME_STARTED", "Игра уже начата")
+
         player = RoomPlayer(
             player_id=player_id,
             name=player_name,
             websocket=player_ws
         )
+
         if room.add_player(player):
             self.player_rooms[player_id] = room_id
             return room
@@ -457,11 +467,15 @@ class Lobby:
         room_id = self.player_rooms.get(player_id)
         if not room_id:
             return None
+
         room = self.rooms.get(room_id)
         if room:
             room.remove_player(player_id)
+
+            # Удаляем пустую комнату
             if room.player_count == 0:
                 del self.rooms[room_id]
+
             del self.player_rooms[player_id]
             return room
         return None
@@ -479,26 +493,40 @@ class Lobby:
 # ============================================================================
 
 class GameServer:
+    """
+    Главный WebSocket сервер.
+
+    Использование:
+        server = GameServer(host="0.0.0.0", port=8765)
+        asyncio.run(server.start())
+    """
+
     def __init__(self, host: str = "0.0.0.0", port: int = 8765):
         self.host = host
         self.port = port
         self.lobby = Lobby()
         self.connections: Dict[WebSocketServerProtocol, dict] = {}
-        self.players: Dict[str, dict] = {}
+        self.players: Dict[str, dict] = {}  # player_id -> {name, ws, room}
 
     async def start(self):
         logger.info(f"Starting server on ws://{self.host}:{self.port}")
+        # websockets 16.0+: handler принимает только connection
         async with websockets.serve(self.handle_connection, self.host, self.port):
-            await asyncio.Future()
+            await asyncio.Future()  # run forever
 
+    # ИСПРАВЛЕНО: убран аргумент path для websockets 16.0+
     async def handle_connection(self, websocket: WebSocketServerProtocol):
+        """Обработка нового подключения"""
         player_id = str(uuid.uuid4())[:8]
+
         self.connections[websocket] = {
             "player_id": player_id,
             "name": None,
             "authenticated": False
         }
+
         logger.info(f"New connection: {player_id} from {websocket.remote_address}")
+
         try:
             async for message in websocket:
                 await self.handle_message(websocket, message)
@@ -508,40 +536,55 @@ class GameServer:
             await self.disconnect(websocket)
 
     async def handle_message(self, websocket: WebSocketServerProtocol, data: str):
+        """Маршрутизация сообщений"""
         try:
             msg = Message.from_json(data)
             handler = getattr(self, f"handle_{msg.type.value}", None)
+
             if handler:
                 await handler(websocket, msg)
             else:
-                await self.send_error(websocket, "UNKNOWN_TYPE", f"Unknown: {msg.type.value}")
+                await self.send_error(websocket, "UNKNOWN_TYPE", f"Unknown message type: {msg.type.value}")
+
         except json.JSONDecodeError:
-            await self.send_error(websocket, "INVALID_JSON", "Invalid JSON")
+            await self.send_error(websocket, "INVALID_JSON", "Invalid JSON format")
         except Exception as e:
             logger.exception("Error handling message")
             await self.send_error(websocket, "INTERNAL_ERROR", str(e))
 
-    # --- Обработчики ---
+    # --- Обработчики сообщений ---
 
     async def handle_connect(self, ws: WebSocketServerProtocol, msg: Message):
+        """Первичное подключение игрока"""
         name = msg.payload.get("player_name", f"Player_{uuid.uuid4().hex[:4]}")
         version = msg.payload.get("version", "unknown")
+
         self.connections[ws]["name"] = name
         self.connections[ws]["authenticated"] = True
-        logger.info(f"Player connected: {name} (v{version})")
+
+        logger.info(f"Player connected: {name} (protocol v{version})")
+
+        # Игнорируем запросы списка комнат - клиент получит их через lobby_ready
+        # Список комнат будет отправлен после подтверждения готовности лобби
 
     async def handle_lobby_ready(self, ws: WebSocketServerProtocol, msg: Message):
+        """Обработка сигнала готовности лобби - отправляем список комнат"""
         conn = self.connections.get(ws)
         if not conn or not conn["authenticated"]:
             return
+
+        # Отправляем список комнат только после подтверждения готовности клиента
         rooms = self.lobby.get_room_list()
         await ws.send(Message.room_list(rooms).to_json())
+        logger.debug(f"Sent room list to {conn['name']}")
 
     async def handle_room_create(self, ws: WebSocketServerProtocol, msg: Message):
+        """Создание комнаты"""
         conn = self.connections[ws]
         if not conn["authenticated"]:
             await self.send_error(ws, "NOT_AUTHENTICATED", "Сначала отправьте connect")
             return
+
         player_id = conn["player_id"]
         name = msg.payload.get("name", f"Room_{player_id}")
         board_size = msg.payload.get("board_size", 19)
@@ -550,37 +593,63 @@ class GameServer:
         rules = msg.payload.get("rules", "japanese")
 
         room = self.lobby.create_room(
-            name=name, host_id=player_id, host_ws=ws,
-            host_name=conn["name"], board_size=board_size,
-            password=password, komi=komi, rules=rules
+            name=name,
+            host_id=player_id,
+            host_ws=ws,
+            host_name=conn["name"],
+            board_size=board_size,
+            password=password,
+            komi=komi,
+            rules=rules
         )
-        self.players[player_id] = {"name": conn["name"], "ws": ws, "room_id": room.room_id}
 
+        self.players[player_id] = {
+            "name": conn["name"],
+            "ws": ws,
+            "room_id": room.room_id
+        }
+
+        # Отправляем подтверждение
         await ws.send(Message(MessageType.ROOM_JOIN, {
             "success": True,
             "room_id": room.room_id,
             "player_color": "black",
             "players": [p.to_dict() for p in room.get_players_info()]
         }).to_json())
+
         logger.info(f"Room created: {room.room_id} by {conn['name']}")
 
     async def handle_room_join(self, ws: WebSocketServerProtocol, msg: Message):
+        """Вход в комнату"""
         conn = self.connections[ws]
         if not conn["authenticated"]:
             await self.send_error(ws, "NOT_AUTHENTICATED", "Сначала отправьте connect")
             return
+
         player_id = conn["player_id"]
         room_id = msg.payload.get("room_id")
         password = msg.payload.get("password")
+
         try:
             room = self.lobby.join_room(
-                room_id=room_id, player_id=player_id,
-                player_ws=ws, player_name=conn["name"], password=password
+                room_id=room_id,
+                player_id=player_id,
+                player_ws=ws,
+                player_name=conn["name"],
+                password=password
             )
+
             if not room:
-                await self.send_error(ws, "JOIN_FAILED", "Не удалось войти")
+                await self.send_error(ws, "JOIN_FAILED", "Не удалось войти в комнату")
                 return
-            self.players[player_id] = {"name": conn["name"], "ws": ws, "room_id": room_id}
+
+            self.players[player_id] = {
+                "name": conn["name"],
+                "ws": ws,
+                "room_id": room_id
+            }
+
+            # Уведомляем нового игрока
             player = room.players.get(player_id)
             await ws.send(Message(MessageType.ROOM_JOIN, {
                 "success": True,
@@ -588,30 +657,42 @@ class GameServer:
                 "player_color": player.color,
                 "players": [p.to_dict() for p in room.get_players_info()]
             }).to_json())
+
+            # Уведомляем остальных
             await room.broadcast(Message(MessageType.ROOM_UPDATE, {
                 "event": "player_joined",
                 "players": [p.to_dict() for p in room.get_players_info()]
             }), exclude=player_id)
+
             logger.info(f"Player {conn['name']} joined room {room_id}")
+
         except ProtocolError as e:
             await self.send_error(ws, e.code, e.message)
 
     async def handle_room_ready(self, ws: WebSocketServerProtocol, msg: Message):
+        """Игрок готов к игре"""
         conn = self.connections[ws]
         player_id = conn["player_id"]
         room = self.lobby.get_player_room(player_id)
+
         if not room:
             await self.send_error(ws, "NOT_IN_ROOM", "Вы не в комнате")
             return
+
         is_ready = msg.payload.get("is_ready", True)
         room.set_ready(player_id, is_ready)
+
+        # Обновляем всех
         await room.broadcast(Message(MessageType.ROOM_UPDATE, {
             "event": "player_ready",
             "players": [p.to_dict() for p in room.get_players_info()]
         }))
+
+        # Если все готовы — начинаем игру
         if room.all_ready():
             room.start_game()
             state = room.get_game_state()
+
             await room.broadcast(Message(MessageType.GAME_START, {
                 "board_size": room.board_size,
                 "komi": room.komi,
@@ -619,159 +700,58 @@ class GameServer:
                 "players": [p.to_dict() for p in room.get_players_info()],
                 "initial_state": state
             }))
+
             logger.info(f"Game started in room {room.room_id}")
 
     async def handle_game_move(self, ws: WebSocketServerProtocol, msg: Message):
+        """Обработка хода"""
         conn = self.connections[ws]
         player_id = conn["player_id"]
         room = self.lobby.get_player_room(player_id)
+
         if not room or room.status != "playing":
             await self.send_error(ws, "NOT_PLAYING", "Игра не активна")
             return
+
         x = msg.payload.get("x")
         y = msg.payload.get("y")
+
         result = room.make_move(player_id, x, y)
+
         if not result["success"]:
             await self.send_error(ws, "INVALID_MOVE", result["error"])
             return
+
         bs = result["board_state"]
         if result.get("move"):
             bs["last_move"] = result["move"]
+
+        # Рассылаем всем обновленное состояние
+        bs = result["board_state"]
         await room.broadcast(Message.game_state(
-            board_array=bs["board"], current_player=bs["current_player"],
-            move_number=bs["move_number"], passes=bs["passes"],
+            board_array=bs["board"],
+            current_player=bs["current_player"],
+            move_number=bs["move_number"],
+            passes=bs["passes"],
             last_move=bs.get("last_move"),
             captures=bs.get("captures", {"black": 0, "white": 0})))
+
+        # Если игра окончена
         if result.get("game_over"):
-            await self._finalize_game(room, "two_passes")
+            room.status = "finished"
+            score = room.calculate_score()
 
-    async def handle_game_pass(self, ws: WebSocketServerProtocol, msg: Message):
-        conn = self.connections[ws]
-        player_id = conn["player_id"]
-        room = self.lobby.get_player_room(player_id)
-        if not room or room.status != "playing":
-            await self.send_error(ws, "NOT_PLAYING", "Игра не активна")
-            return
-        result = room.make_pass(player_id)
-        if not result["success"]:
-            await self.send_error(ws, "INVALID_PASS", result["error"])
-            return
-        await room.broadcast(Message(MessageType.GAME_PASS, {
-            "move": result["move"],
-            "board_state": result["board_state"]
-        }))
-        if result.get("game_over"):
-            await self._finalize_game(room, "two_passes")
+            # SGF для клиентского анализа
+            sgf = ""
+            if room.session and hasattr(room.session.game, 'get_sgf'):
+                try:
+                    sgf = room.session.game.get_sgf()
+                except Exception:
+                    pass
 
-    async def handle_game_resign(self, ws: WebSocketServerProtocol, msg: Message):
-        conn = self.connections[ws]
-        player_id = conn["player_id"]
-        room = self.lobby.get_player_room(player_id)
-        if not room or room.status != "playing":
-            return
-        result = room.resign(player_id)
-        await self._finalize_game(room, "resign", winner=result.get("winner"),
-                                    result_text=f"{result['resigned_player']} сдался")
+            winner = "unknown"
+            result_str = "Игра окончена"
 
-    async def handle_game_undo_request(self, ws: WebSocketServerProtocol, msg: Message):
-        conn = self.connections[ws]
-        player_id = conn["player_id"]
-        room = self.lobby.get_player_room(player_id)
-        if not room or room.status != "playing":
-            return
-        result = room.request_undo(player_id)
-        if result["success"]:
-            opponent_ws = room.players.get(result["opponent_id"])
-            if opponent_ws:
-                room.pending_undo = player_id
-                room.pending_undo_target = result["opponent_id"]
-                await opponent_ws.websocket.send(Message(MessageType.GAME_UNDO_REQUEST, {
-                    "requester": result["requester"],
-                    "move_number": msg.payload.get("move_number")
-                }).to_json())
-        else:
-            await self.send_error(ws, "UNDO_FAILED", result.get("error", "Нельзя отменить"))
-
-    async def handle_game_undo_response(self, ws: WebSocketServerProtocol, msg: Message):
-        conn = self.connections[ws]
-        player_id = conn["player_id"]
-        room = self.lobby.get_player_room(player_id)
-        if not room:
-            return
-        accepted = msg.payload.get("accepted", False)
-        result = room.confirm_undo(accepted)
-        if result["success"] and result.get("accepted"):
-            await room.broadcast(Message(MessageType.GAME_STATE, result["board_state"]))
-        else:
-            # Уведомляем запросившего об отказе
-            if room.pending_undo_target:
-                requester = room.players.get(room.pending_undo_target)
-                if requester:
-                    await requester.websocket.send(Message(MessageType.GAME_UNDO_RESPONSE, {
-                        "accepted": False
-                    }).to_json())
-
-    async def handle_room_leave(self, ws: WebSocketServerProtocol, msg: Message):
-        conn = self.connections[ws]
-        player_id = conn["player_id"]
-        room = self.lobby.leave_room(player_id)
-        if room:
-            await room.broadcast(Message(MessageType.ROOM_UPDATE, {
-                "event": "player_left",
-                "players": [p.to_dict() for p in room.get_players_info()]
-            }))
-
-    async def handle_game_chat(self, ws: WebSocketServerProtocol, msg: Message):
-        conn = self.connections[ws]
-        player_id = conn["player_id"]
-        room = self.lobby.get_player_room(player_id)
-        if room:
-            text = msg.payload.get("text", "")
-            room.chat_history.append({
-                "sender": conn["name"], "text": text,
-                "timestamp": datetime.now().isoformat()
-            })
-            await room.broadcast(Message.game_chat(conn["name"], text))
-
-    async def disconnect(self, websocket: WebSocketServerProtocol):
-        conn = self.connections.get(websocket)
-        if not conn:
-            return
-        player_id = conn["player_id"]
-        room = self.lobby.get_player_room(player_id)
-        if room:
-            # Если игра активна — завершаем
-            game_over = room.handle_player_disconnect(player_id)
-            if game_over:
-                await room.broadcast(Message.game_over(
-                    winner=game_over["winner"],
-                    result=game_over["result"],
-                    reason=game_over["reason"]
-                ))
-            else:
-                await room.broadcast(Message(MessageType.ROOM_UPDATE, {
-                    "event": "player_disconnected",
-                    "players": [p.to_dict() for p in room.get_players_info()]
-                }))
-        self.lobby.leave_room(player_id)
-        if player_id in self.players:
-            del self.players[player_id]
-        del self.connections[websocket]
-
-    async def _finalize_game(self, room: GameRoom, reason: str,
-                             winner: Optional[str] = None,
-                             result_text: Optional[str] = None):
-        """Унифицированное завершение игры. DRY."""
-        room.status = "finished"
-        score = room.calculate_score()
-        sgf = ""
-        if room.session and hasattr(room.session.game, 'get_sgf'):
-            try:
-                sgf = room.session.game.get_sgf()
-            except Exception:
-                pass
-
-        if winner is None:
             if score:
                 raw = score.get("winner", "unknown")
                 if "Черные" in raw or "black" in raw.lower():
@@ -780,33 +760,207 @@ class GameServer:
                     winner = "white"
                 else:
                     winner = "draw"
-                result_text = score.get("full_result", "Игра окончена")
+                result_str = score.get("full_result", "Игра окончена")
             else:
-                winner = "unknown"
-                result_text = "Игра окончена"
+                winner = result["board_state"]["current_player"]
+                result_str = "Игра окончена"
 
+            await room.broadcast(Message.game_over(
+                winner=winner,
+                result=result_str,
+                reason="two_passes",
+                sgf=sgf
+            ))
+
+    async def handle_game_pass(self, ws: WebSocketServerProtocol, msg: Message):
+        """Обработка паса"""
+        conn = self.connections[ws]
+        player_id = conn["player_id"]
+        room = self.lobby.get_player_room(player_id)
+
+        if not room or room.status != "playing":
+            await self.send_error(ws, "NOT_PLAYING", "Игра не активна")
+            return
+
+        result = room.make_pass(player_id)
+
+        if not result["success"]:
+            await self.send_error(ws, "INVALID_PASS", result["error"])
+            return
+
+        await room.broadcast(Message(MessageType.GAME_PASS, {
+            "move": result["move"],
+            "board_state": result["board_state"]
+        }))
+
+        if result.get("game_over"):
+            room.status = "finished"
+            score = room.calculate_score()
+
+            # SGF для клиентского анализа
+            sgf = ""
+            if room.session and hasattr(room.session.game, 'get_sgf'):
+                try:
+                    sgf = room.session.game.get_sgf()
+                except Exception:
+                    pass
+
+            winner = "unknown"
+            result_str = "Игра окончена"
+
+            if score:
+                raw = score.get("winner", "unknown")
+                if "Черные" in raw or "black" in raw.lower():
+                    winner = "black"
+                elif "Белые" in raw or "white" in raw.lower():
+                    winner = "white"
+                else:
+                    winner = "draw"
+                result_str = score.get("full_result", "Игра окончена")
+            else:
+                move_color = result.get("move", {}).get("color", "")
+                if move_color == "white":
+                    winner = "black"
+                elif move_color == "black":
+                    winner = "white"
+                else:
+                    winner = "unknown"
+                result_str = "Игра окончена (два паса)"
+
+            await room.broadcast(Message.game_over(
+                winner=winner,
+                result=result_str,
+                reason="two_passes",
+                sgf=sgf
+            ))
+
+    async def handle_game_resign(self, ws: WebSocketServerProtocol, msg: Message):
+        """Сдача"""
+        conn = self.connections[ws]
+        player_id = conn["player_id"]
+        room = self.lobby.get_player_room(player_id)
+
+        if not room or room.status != "playing":
+            return
+
+        result = room.resign(player_id)
         await room.broadcast(Message.game_over(
-            winner=winner, result=result_text, reason=reason, sgf=sgf
+            winner=result["winner"],
+            result=f"{result['resigned_player']} сдался",
+            reason="resign"
         ))
-        logger.info(f"Game over in room {room.room_id}: {winner} — {result_text}")
+
+    async def handle_game_undo_request(self, ws: WebSocketServerProtocol, msg: Message):
+        """Запрос отмены хода"""
+        conn = self.connections[ws]
+        player_id = conn["player_id"]
+        room = self.lobby.get_player_room(player_id)
+
+        if not room or room.status != "playing":
+            return
+
+        result = room.request_undo(player_id)
+        if result["success"]:
+            # Отправляем оппоненту запрос
+            opponent_ws = room.players.get(result["opponent_id"])
+            if opponent_ws:
+                await opponent_ws.websocket.send(Message(MessageType.GAME_UNDO_REQUEST, {
+                    "requester": result["requester"],
+                    "move_number": msg.payload.get("move_number")
+                }).to_json())
+
+    async def handle_game_undo_response(self, ws: WebSocketServerProtocol, msg: Message):
+        """Ответ на запрос отмены"""
+        conn = self.connections[ws]
+        player_id = conn["player_id"]
+        room = self.lobby.get_player_room(player_id)
+
+        if not room:
+            return
+
+        accepted = msg.payload.get("accepted", False)
+        result = room.confirm_undo(accepted)
+
+        if result["success"] and result.get("accepted"):
+            await room.broadcast(Message(MessageType.GAME_STATE, result["board_state"]))
+        else:
+            # Уведомляем запросившего об отказе
+            if room.pending_undo:
+                requester = room.players.get(room.pending_undo)
+                if requester:
+                    await requester.websocket.send(Message(MessageType.GAME_UNDO_RESPONSE, {
+                        "accepted": False
+                    }).to_json())
+
+    async def handle_room_leave(self, ws: WebSocketServerProtocol, msg: Message):
+        """Выход из комнаты"""
+        conn = self.connections[ws]
+        player_id = conn["player_id"]
+
+        room = self.lobby.leave_room(player_id)
+        if room:
+            await room.broadcast(Message(MessageType.ROOM_UPDATE, {
+                "event": "player_left",
+                "players": [p.to_dict() for p in room.get_players_info()]
+            }))
+
+    async def handle_game_chat(self, ws: WebSocketServerProtocol, msg: Message):
+        """Чат в игре"""
+        conn = self.connections[ws]
+        player_id = conn["player_id"]
+        room = self.lobby.get_player_room(player_id)
+
+        if room:
+            text = msg.payload.get("text", "")
+            room.chat_history.append({
+                "sender": conn["name"],
+                "text": text,
+                "timestamp": datetime.now().isoformat()
+            })
+            await room.broadcast(Message.game_chat(conn["name"], text))
+
+    async def disconnect(self, websocket: WebSocketServerProtocol):
+        """Обработка отключения"""
+        conn = self.connections.get(websocket)
+        if not conn:
+            return
+
+        player_id = conn["player_id"]
+
+        # Удаляем из комнаты
+        room = self.lobby.leave_room(player_id)
+        if room:
+            await room.broadcast(Message(MessageType.ROOM_UPDATE, {
+                "event": "player_disconnected",
+                "players": [p.to_dict() for p in room.get_players_info()]
+            }))
+
+        # Очистка
+        if player_id in self.players:
+            del self.players[player_id]
+        del self.connections[websocket]
 
     async def send_error(self, ws: WebSocketServerProtocol, code: str, message: str):
-        try:
-            await ws.send(Message.error(code, message).to_json())
-        except Exception:
-            pass
+        await ws.send(Message.error(code, message).to_json())
 
+
+# ============================================================================
+# ТОЧКА ВХОДА
+# ============================================================================
 
 def main():
     parser = argparse.ArgumentParser(description="OS-GO Network Server")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8765, help="Port to bind (default: 8765)")
     args = parser.parse_args()
+
     server = GameServer(host=args.host, port=args.port)
+
     try:
         asyncio.run(server.start())
     except KeyboardInterrupt:
-        logger.info("Server stopped")
+        logger.info("Server stopped by user")
+
 
 if __name__ == "__main__":
     main()

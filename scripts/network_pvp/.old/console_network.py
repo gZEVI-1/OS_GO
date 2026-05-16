@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 from typing import Optional
-from output_interface import MessageData
+from scripts.network_pvp.old.output_interface import MessageData
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.dirname(__file__))
@@ -19,8 +19,8 @@ except ImportError:
     def is_hoshi_point(x, y, s): return False
     def show_help(): print("Координаты: A1-T19 (без I)")
 
-from client import NetworkClient, ConnectionState, GameState
-from protocol import Message, RoomInfo
+from scripts.network_pvp.old.client import NetworkClient, ConnectionState, GameState
+from scripts.network_pvp.old.protocol import Message, RoomInfo
 import go_engine as go
 
 
@@ -307,7 +307,7 @@ async def wait_for_state_update(client: NetworkClient):
 async def game_loop(client: NetworkClient):
     from game_controller import NetworkController
     from unified_game_loop import run_unified_loop
-    import output_interface as output
+    import scripts.network_pvp.old.output_interface as output
 
     if client.state != ConnectionState.PLAYING:
         game_started = asyncio.Event()
@@ -349,7 +349,7 @@ async def game_loop(client: NetworkClient):
     
 
 async def run_network_game():
-    from output_interface import get_output_interface, OutputType, MessageData
+    from scripts.network_pvp.old.output_interface import get_output_interface, OutputType, MessageData
     output = get_output_interface(OutputType.CONSOLE)
     parser = argparse.ArgumentParser(description="OS-GO Network PvP")
     parser.add_argument("--server", default="ws://localhost:8765")
