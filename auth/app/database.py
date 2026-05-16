@@ -13,9 +13,6 @@ engine = create_async_engine(
     echo=settings.debug,
     future=True,
     pool_pre_ping=True,  # Проверяет соединение перед использованием
-    pool_size=5,
-    max_overflow=10,
-    pool_recycle=3600,  # Пересоздавать соединения каждый час
 )
 
 AsyncSessionLocal = sessionmaker(

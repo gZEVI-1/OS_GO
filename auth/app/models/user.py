@@ -25,6 +25,10 @@ class User(Base):
     # Статус
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
+
+    # Сброс пароля
+    reset_password_token = Column(String(255), nullable=True)
+    reset_password_expires = Column(DateTime(timezone=True), nullable=True)
     
     # Верификация email
     verification_token = Column(String(255), nullable=True)
