@@ -45,7 +45,7 @@
         </spacer>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout" stretch="2,3,7,1,5,1">
+        <layout class="QHBoxLayout" name="horizontalLayout" stretch="2,3,7,1,5">
          <item>
           <widget class="QPushButton" name="opponentAvatar">
            <property name="styleSheet">
@@ -104,13 +104,6 @@ QPushButton#opponentAvatar:hover {
             </size>
            </property>
           </spacer>
-         </item>
-         <item>
-          <widget class="QLabel" name="capturedBToppnent">
-           <property name="text">
-            <string>capOppnent</string>
-           </property>
-          </widget>
          </item>
         </layout>
        </item>
@@ -277,7 +270,7 @@ QPushButton#buttonNextMove:hover {
         </spacer>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="2,3,7,1,5,1">
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="2,3,7,1,5">
          <item>
           <widget class="QPushButton" name="playerAvatar">
            <property name="styleSheet">
@@ -337,17 +330,10 @@ QPushButton#playerAvatar:hover {
            </property>
           </spacer>
          </item>
-         <item>
-          <widget class="QLabel" name="capturedBTplayer">
-           <property name="text">
-            <string>capPlayer</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="5,12">
+        <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="6,14">
          <item>
           <spacer name="horizontalSpacer_10">
            <property name="orientation">
@@ -362,7 +348,7 @@ QPushButton#playerAvatar:hover {
           </spacer>
          </item>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="2,2,0">
+          <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="15,1,15,2">
            <item>
             <widget class="QPushButton" name="buttonResign">
              <property name="styleSheet">
@@ -379,6 +365,19 @@ QPushButton#buttonResign:hover {
               <string>Resign</string>
              </property>
             </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_13">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
            </item>
            <item>
             <widget class="QPushButton" name="buttonPass">

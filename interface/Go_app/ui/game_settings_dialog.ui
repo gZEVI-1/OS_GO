@@ -239,18 +239,9 @@ QGroupBox::title {
        </property>
        <property name="styleSheet">
         <string>QPushButton {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
     padding: 8px 20px;
     border-radius: 4px;
     font-weight: bold;
-}
-QPushButton:hover {
-    background-color: #45a049;
-}
-QPushButton:pressed {
-    background-color: #3d8b40;
 }</string>
        </property>
       </widget>
@@ -262,18 +253,9 @@ QPushButton:pressed {
        </property>
        <property name="styleSheet">
         <string>QPushButton {
-    background-color: #f44336;
-    color: white;
-    border: none;
     padding: 8px 20px;
     border-radius: 4px;
     font-weight: bold;
-}
-QPushButton:hover {
-    background-color: #da190b;
-}
-QPushButton:pressed {
-    background-color: #b71c1c;
 }</string>
        </property>
       </widget>

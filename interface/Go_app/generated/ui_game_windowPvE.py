@@ -75,17 +75,11 @@ class Ui_main(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer_2)
 
-        self.capturedBToppnent = QLabel(main)
-        self.capturedBToppnent.setObjectName(u"capturedBToppnent")
-
-        self.horizontalLayout.addWidget(self.capturedBToppnent)
-
         self.horizontalLayout.setStretch(0, 2)
         self.horizontalLayout.setStretch(1, 3)
         self.horizontalLayout.setStretch(2, 7)
         self.horizontalLayout.setStretch(3, 1)
         self.horizontalLayout.setStretch(4, 5)
-        self.horizontalLayout.setStretch(5, 1)
 
         self.horizontalLayout_8.addLayout(self.horizontalLayout)
 
@@ -232,17 +226,11 @@ class Ui_main(object):
 
         self.horizontalLayout_2.addItem(self.horizontalSpacer_4)
 
-        self.capturedBTplayer = QLabel(main)
-        self.capturedBTplayer.setObjectName(u"capturedBTplayer")
-
-        self.horizontalLayout_2.addWidget(self.capturedBTplayer)
-
         self.horizontalLayout_2.setStretch(0, 2)
         self.horizontalLayout_2.setStretch(1, 3)
         self.horizontalLayout_2.setStretch(2, 7)
         self.horizontalLayout_2.setStretch(3, 1)
         self.horizontalLayout_2.setStretch(4, 5)
-        self.horizontalLayout_2.setStretch(5, 1)
 
         self.horizontalLayout_10.addLayout(self.horizontalLayout_2)
 
@@ -267,6 +255,10 @@ class Ui_main(object):
 
         self.horizontalLayout_3.addWidget(self.buttonResign)
 
+        self.horizontalSpacer_13 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_3.addItem(self.horizontalSpacer_13)
+
         self.buttonPass = QPushButton(main)
         self.buttonPass.setObjectName(u"buttonPass")
         self.buttonPass.setStyleSheet(u"QPushButton#buttonPass {\n"
@@ -284,13 +276,15 @@ class Ui_main(object):
 
         self.horizontalLayout_3.addItem(self.horizontalSpacer_12)
 
-        self.horizontalLayout_3.setStretch(0, 2)
-        self.horizontalLayout_3.setStretch(1, 2)
+        self.horizontalLayout_3.setStretch(0, 15)
+        self.horizontalLayout_3.setStretch(1, 1)
+        self.horizontalLayout_3.setStretch(2, 15)
+        self.horizontalLayout_3.setStretch(3, 2)
 
         self.horizontalLayout_9.addLayout(self.horizontalLayout_3)
 
-        self.horizontalLayout_9.setStretch(0, 5)
-        self.horizontalLayout_9.setStretch(1, 12)
+        self.horizontalLayout_9.setStretch(0, 6)
+        self.horizontalLayout_9.setStretch(1, 14)
 
         self.horizontalLayout_10.addLayout(self.horizontalLayout_9)
 
@@ -323,13 +317,11 @@ class Ui_main(object):
         self.opponentAvatar.setText(QCoreApplication.translate("main", u"opponentAvatar", None))
         self.opponentName.setText(QCoreApplication.translate("main", u"opponentName", None))
         self.timerOpponent.setText(QCoreApplication.translate("main", u"OpponentTimer", None))
-        self.capturedBToppnent.setText(QCoreApplication.translate("main", u"capOppnent", None))
         self.buttonPrevMove.setText(QCoreApplication.translate("main", u"PrevMove", None))
         self.buttonNextMove.setText(QCoreApplication.translate("main", u"NextMove", None))
         self.playerAvatar.setText(QCoreApplication.translate("main", u"playerAvatar", None))
         self.playerName.setText(QCoreApplication.translate("main", u"playerName", None))
         self.timerPlayer.setText(QCoreApplication.translate("main", u"PlayerTimer", None))
-        self.capturedBTplayer.setText(QCoreApplication.translate("main", u"capPlayer", None))
         self.buttonResign.setText(QCoreApplication.translate("main", u"Resign", None))
         self.buttonPass.setText(QCoreApplication.translate("main", u"Pass", None))
     # retranslateUi
