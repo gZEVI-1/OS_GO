@@ -5,7 +5,7 @@ import os
 from typing import Optional, Dict, List, Callable
 from enum import Enum, auto
 
-from requests import session
+# from requests import session
 import config as cfg
 
 from gnugo_adapter import  *
@@ -22,11 +22,10 @@ if _network_pvp_dir not in sys.path:
     sys.path.insert(0, _network_pvp_dir)
 
 
-class PlayerType(Enum):
-    """Тип игрока"""
-    HUMAN = auto()
-    GNU_GO = auto()
-    NETWORK = auto()
+# class PlayerType(Enum):
+#     """Тип игрока"""
+#     HUMAN = auto()
+#     GNU_GO = auto()
 
 @dataclass
 class MoveResult:

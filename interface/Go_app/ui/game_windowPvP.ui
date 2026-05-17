@@ -45,23 +45,18 @@
         </spacer>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout" stretch="2,3,7,1,5,1">
+        <layout class="QHBoxLayout" name="horizontalLayout" stretch="2,3,7,1,5">
          <item>
           <widget class="QPushButton" name="opponentAvatar">
            <property name="styleSheet">
             <string notr="true">QPushButton#opponentAvatar {
-    border: 2px solid #4CAF50;           /* зеленая рамка */
-    border-radius: 25px;                  /* половина от ширины/высоты */
-    background-color: transparent;        /* прозрачный фон */
-    min-width: 50px;                      /* фиксированный размер */
+    border-radius: 25px;
+    min-width: 50px;
     min-height: 50px;
     max-width: 50px;
     max-height: 50px;
 }
-
-/* Эффект при наведении */
-QPushButton#opponentAvatar:hover{
-    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+QPushButton#opponentAvatar:hover {
     opacity: 0.8;
 }</string>
            </property>
@@ -109,13 +104,6 @@ QPushButton#opponentAvatar:hover{
             </size>
            </property>
           </spacer>
-         </item>
-         <item>
-          <widget class="QLabel" name="capturedBToppnent">
-           <property name="text">
-            <string>capOppnent</string>
-           </property>
-          </widget>
          </item>
         </layout>
        </item>
@@ -199,15 +187,12 @@ QPushButton#opponentAvatar:hover{
               <widget class="QPushButton" name="buttonPrevMove">
                <property name="styleSheet">
                 <string notr="true">QPushButton#buttonPrevMove {
-    background-color: #FF9800;
     border-radius: 5px;
-    color: white;
     padding: 5px 20px;
     font-size: 12px;
 }
 QPushButton#buttonPrevMove:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
                </property>
                <property name="text">
@@ -219,15 +204,12 @@ QPushButton#buttonPrevMove:hover {
               <widget class="QPushButton" name="buttonNextMove">
                <property name="styleSheet">
                 <string notr="true">QPushButton#buttonNextMove {
-    background-color: #FF9800;
     border-radius: 5px;
-    color: white;
     padding: 5px 20px;
     font-size: 12px;
 }
 QPushButton#buttonNextMove:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
                </property>
                <property name="text">
@@ -288,23 +270,18 @@ QPushButton#buttonNextMove:hover {
         </spacer>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="2,3,7,1,5,1">
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="2,3,7,1,5">
          <item>
           <widget class="QPushButton" name="playerAvatar">
            <property name="styleSheet">
             <string notr="true">QPushButton#playerAvatar {
-    border: 2px solid #4CAF50;           /* зеленая рамка */
-    border-radius: 25px;                  /* половина от ширины/высоты */
-    background-color: transparent;        /* прозрачный фон */
-    min-width: 50px;                      /* фиксированный размер */
+    border-radius: 25px;
+    min-width: 50px;
     min-height: 50px;
     max-width: 50px;
     max-height: 50px;
 }
-
-/* Эффект при наведении */
-QPushButton#playerAvatar:hover{
-    border-color: #FF9800;                 /* оранжевая рамка при наведении */
+QPushButton#playerAvatar:hover {
     opacity: 0.8;
 }</string>
            </property>
@@ -353,17 +330,10 @@ QPushButton#playerAvatar:hover{
            </property>
           </spacer>
          </item>
-         <item>
-          <widget class="QLabel" name="capturedBTplayer">
-           <property name="text">
-            <string>capPlayer</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="5,12">
+        <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="6,14">
          <item>
           <spacer name="horizontalSpacer_10">
            <property name="orientation">
@@ -378,20 +348,17 @@ QPushButton#playerAvatar:hover{
           </spacer>
          </item>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="2,2,0">
+          <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="15,1,15,2">
            <item>
             <widget class="QPushButton" name="buttonResign">
              <property name="styleSheet">
               <string notr="true">QPushButton#buttonResign {
-    background-color: #4CAF50;
     border-radius: 5px;
-    color: white;
     padding: 5px 15px;
     font-size: 12px;
 }
 QPushButton#buttonResign:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
              </property>
              <property name="text">
@@ -400,18 +367,28 @@ QPushButton#buttonResign:hover {
             </widget>
            </item>
            <item>
+            <spacer name="horizontalSpacer_13">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
             <widget class="QPushButton" name="buttonPass">
              <property name="styleSheet">
               <string notr="true">QPushButton#buttonPass {
-    background-color: #4CAF50;
     border-radius: 5px;
-    color: white;
     padding: 5px 15px;
     font-size: 12px;
 }
 QPushButton#buttonPass:hover {
     opacity: 0.9;
-    filter: brightness(110%);
 }</string>
              </property>
              <property name="text">

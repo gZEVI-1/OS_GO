@@ -669,7 +669,7 @@
                 setup2faData = data;
 
                 document.getElementById('qr-display').innerHTML =
-                    `<img src="data:image/svg+xml;base64,${data.qr_code}" alt="QR">`;
+    `<img src="data:image/png;base64,${data.qr_code}" alt="QR" style="width:200px;height:200px;">`;
 
                 const secret = data.secret;
                 const formatted = secret.match(/.{1,4}/g).join(' ');

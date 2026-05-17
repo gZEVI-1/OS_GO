@@ -27,8 +27,7 @@ import go_engine as go
 def add_katago_analysis_to_network_client(client: NetworkClient, on_analysis_complete=None):
     """
     Адаптирует KataGo-анализ для сетевого клиента.
-    Полностью повторяет поведение add_katago_analysis_to_session(),
-    но работает с NetworkClient вместо GameSession.
+    Полностью повторяет поведение add_katago_analysis_to_session().
     """
     original_on_game_over = client.on_game_over
 
@@ -84,6 +83,8 @@ def add_katago_analysis_to_network_client(client: NetworkClient, on_analysis_com
             original_on_game_over(winner, result)
 
     client.on_game_over = wrapped_on_game_over
+
+    
 # === АСИНХРОННЫЙ ВВОД (не блокирует WebSocket) ===
 async def ainput(prompt: str = "") -> str:
     loop = asyncio.get_event_loop()
@@ -268,12 +269,12 @@ async def room_wait_menu(client: NetworkClient):
         )
 
         # Отменяем висящую задачу
-        for task in pending:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+        # for task in pending:
+        #     task.cancel()
+        #     try:
+        #         await task
+        #     except asyncio.CancelledError:
+        #         pass
 
         # Если игра началась — выходим сразу
         if start_task in done:
@@ -308,7 +309,6 @@ async def game_loop(client: NetworkClient):
     from unified_game_loop import run_unified_loop
     import output_interface as output
 
-    # Ожидание начала игры (если не началась сразу)
     if client.state != ConnectionState.PLAYING:
         game_started = asyncio.Event()
         def on_start(_): game_started.set()
@@ -321,7 +321,7 @@ async def game_loop(client: NetworkClient):
 
     controller = NetworkController(client)
 
-    
+    # --- Подробный анализ KataGo (как в PvP/PvE) ---
     def on_katago_analysis(result):
         output.clear_screen()
         print("\n" + "=" * 60)
@@ -341,7 +341,7 @@ async def game_loop(client: NetworkClient):
             print(f"\n💾 Партия сохранена: {filepath}")
 
     add_katago_analysis_to_network_client(client, on_katago_analysis)
-    
+    # ---
 
     await run_unified_loop(controller)
 

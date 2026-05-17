@@ -45,15 +45,16 @@ class TOTPService:
         )
     
     def generate_qr_code(self, provisioning_uri: str) -> str:
-        """Генерация QR-кода в base64"""
-        factory = qrcode.image.svg.SvgImage
-        qr = qrcode.make(provisioning_uri, image_factory=factory)
-        
+        """Генерация QR-кода в base64 PNG"""
+        import qrcode.image.pil  # PIL/Pillow для растрового изображения
+    
+        qr = qrcode.make(provisioning_uri)
+    
         buffer = io.BytesIO()
-        qr.save(buffer)
-        svg_data = buffer.getvalue().decode()
-        
-        return base64.b64encode(svg_data.encode()).decode()
+        qr.save(buffer, format="PNG")
+        png_data = buffer.getvalue()
+    
+        return base64.b64encode(png_data).decode()
     
     def verify_totp(self, secret: str, token: str) -> bool:
         """Проверка TOTP токена"""
@@ -86,7 +87,7 @@ class TOTPService:
             json.dumps(hashed_codes).encode()
         )
         
-        return codes, encrypted_codes
+        return codes, encrypted_data
     
     def verify_backup_code(self, code: str, encrypted_data: bytes) -> tuple:
         """

@@ -265,18 +265,32 @@ class ConsoleOutput(GameOutputInterface):
     def show_help(self):
         """Показывает справку"""
         print("""
-Справка по командам:
+        Справка по командам:
 
-  • D4, Q16 и т.д. — координаты хода (буква + число)
-  • pass — пропустить ход
-  • undo — отменить последний ход
-  • quit — выход из игры
-  • help — показать эту справку
-  • chat <текст> — отправить сообщение в чате (сетевая игра)
-  • resign — сдаться (сетевая игра)
+        • D4, Q16 и т.д. — координаты хода (буква + число)
+        • pass — пропустить ход
+        • undo — отменить последний ход
+        • quit — выход из игры
+        • help — показать эту справку
+        • chat <текст> — отправить сообщение в чате (сетевая игра)
+        • resign — сдаться (сетевая игра)
 
-  Буква 'I' не используется в координатах!
-""")
+        Буква 'I' не используется в координатах!
+        """)
+    
+
+    def clear_screen(self):
+        import os
+        os.system('cls' if os.name == 'nt' else 'clear')
+        import sys
+        sys.stdout.flush()
+
+    def show_game_state(self, state: GameDisplayState):
+        # ... весь существующий код ...
+        print("-" * 60)
+        self.show_board(state.board_array, state.board_size)
+        import sys
+        sys.stdout.flush()
 
 
 # Глобальный экземпляр для использования в коде

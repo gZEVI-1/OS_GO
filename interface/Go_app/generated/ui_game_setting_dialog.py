@@ -209,33 +209,15 @@ class Ui_GameSettingsDialog(object):
 "}", None))
         self.buttonOk.setText(QCoreApplication.translate("GameSettingsDialog", u"\u041d\u0430\u0447\u0430\u0442\u044c \u0438\u0433\u0440\u0443", None))
         self.buttonOk.setStyleSheet(QCoreApplication.translate("GameSettingsDialog", u"QPushButton {\n"
-"    background-color: #4CAF50;\n"
-"    color: white;\n"
-"    border: none;\n"
 "    padding: 8px 20px;\n"
 "    border-radius: 4px;\n"
 "    font-weight: bold;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #45a049;\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #3d8b40;\n"
 "}", None))
         self.buttonCancel.setText(QCoreApplication.translate("GameSettingsDialog", u"\u041e\u0442\u043c\u0435\u043d\u0430", None))
         self.buttonCancel.setStyleSheet(QCoreApplication.translate("GameSettingsDialog", u"QPushButton {\n"
-"    background-color: #f44336;\n"
-"    color: white;\n"
-"    border: none;\n"
 "    padding: 8px 20px;\n"
 "    border-radius: 4px;\n"
 "    font-weight: bold;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #da190b;\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #b71c1c;\n"
 "}", None))
     # retranslateUi
 

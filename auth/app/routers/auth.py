@@ -1,12 +1,14 @@
 # app/routers/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, EmailStr, Field
 
 from datetime import datetime, timedelta, timezone
 from app.database import get_db
+from app.config import get_settings
 from app.models.user import User
 from app.services.password_service import password_service
 from app.services.totp_service import totp_service
@@ -52,6 +54,13 @@ class LoginResponse(BaseModel):
     token_type: str
     expires_in: int
     requires_2fa: bool = False
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=12)
 
 
 # ========== Регистрация и вход ==========
@@ -136,7 +145,8 @@ async def login(
         temp_token = create_internal_token(
             user.id, 
             user.email, 
-            totp_verified=False
+            totp_verified=False,
+            totp_enabled= True
         )
         return {
             **temp_token,
@@ -144,7 +154,7 @@ async def login(
         }
     
     # Обычный вход
-    tokens = create_internal_token(user.id, user.email, totp_verified=True)
+    tokens = create_internal_token(user.id, user.email, totp_verified=True, totp_enabled=user.totp_enabled )
     return {**tokens, "requires_2fa": False}
 
 
@@ -190,10 +200,10 @@ async def auth0_callback(
     
     # Проверка 2FA
     if user.totp_enabled:
-        tokens = create_internal_token(user.id, user.email, totp_verified=False)
+        tokens = create_internal_token(user.id, user.email, totp_verified=False, totp_enabled=True)
         return {**tokens, "requires_2fa": True}
     
-    tokens = create_internal_token(user.id, user.email, totp_verified=True)
+    tokens = create_internal_token(user.id, user.email, totp_verified=True, totp_enabled=user.totp_enabled)
     return {**tokens, "requires_2fa": False}
 
 
@@ -211,6 +221,9 @@ async def setup_2fa(
         select(User).where(User.id == user_id)
     )
     user = result.scalar_one()
+    
+    if user.email.endswith("@osgo.local"):
+        raise HTTPException(403, detail="Guest users cannot change password")
     
     if user.totp_enabled:
         raise HTTPException(
@@ -277,18 +290,20 @@ async def verify_2fa_setup(
     
     return {"message": "2FA enabled successfully"}
 
+security = HTTPBearer()
 
 @router.post("/2fa/verify")
 async def verify_2fa(
-    data: TOTPVerifyRequest,
-    temp_token: str,  # Временный токен из login
+    data: TOTPVerifyRequest,  # Временный токен из login
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ):
     """Верификация 2FA при входе"""
     # Декодируем временный токен
     from jose import jwt, JWTError
-    from config import get_settings
+    from app.config import get_settings
     
+    temp_token = credentials.credentials  # ← ЗАБИРАЕМ ИЗ ЗАГОЛОВКА
     settings = get_settings()
     
     try:
@@ -405,12 +420,16 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     if user.is_verified:
         return {"message": "Email already verified"}
 
-    if user.verification_token_expires and user.verification_token_expires < datetime.now(timezone.utc):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification token expired. Request a new one.",
-        )
-
+    if user.verification_token_expires:
+    # SQLite возвращает naive datetime — приводим к aware для сравнения
+        expires = user.verification_token_expires
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Verification token expired. Request a new one.",
+            )
     user.is_verified = True
     user.verification_token = None
     user.verification_token_expires = None
@@ -463,6 +482,152 @@ async def resend_verification(
 
     return {"message": "Verification email sent"}
 
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Запрос на сброс пароля — отправляет письмо со ссылкой"""
+    settings = get_settings()
+    result = await db.execute(
+        select(User).where(User.email == data.email)
+    )
+    user = result.scalar_one_or_none()
+    
+    # Даже если пользователь не найден, возвращаем успех
+    # чтобы не раскрывать, есть ли такой email
+    if not user:
+        return {"message": "If email exists, reset link sent"}
+    
+    # Генерируем токен
+    reset_token = email_service.generate_verification_token()
+    user.reset_password_token = reset_token
+    user.reset_password_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+    await db.commit()
+    
+    # Отправляем письмо
+    reset_url = f"{settings.app_url}/auth/reset-password?token={reset_token}"
+    background_tasks.add_task(
+        email_service.send_reset_password_email,
+        data.email,
+        reset_url
+    )
+    
+    return {"message": "If email exists, reset link sent"}
+
+
+@router.get("/reset-password")
+async def verify_reset_token(token: str, db: AsyncSession = Depends(get_db)):
+    """Проверка токена сброса пароля (для фронтенда)"""
+    result = await db.execute(
+        select(User).where(User.reset_password_token == token)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user or not user.reset_password_expires:
+        raise HTTPException(400, detail="Invalid or expired token")
+    
+    # Проверка срока (с учётом SQLite naive datetime)
+    expires = user.reset_password_expires
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    
+    if expires < datetime.now(timezone.utc):
+        raise HTTPException(400, detail="Token expired")
+    
+    return {"valid": True, "token": token}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Установка нового пароля по токену"""
+    result = await db.execute(
+        select(User).where(User.reset_password_token == data.token)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user or not user.reset_password_expires:
+        raise HTTPException(400, detail="Invalid token")
+    
+    # Проверка срока
+    expires = user.reset_password_expires
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    
+    if expires < datetime.now(timezone.utc):
+        raise HTTPException(400, detail="Token expired")
+    
+    # Хешируем новый пароль
+    hashed = password_service.hash_password(data.new_password)
+    user.hashed_password = hashed.encode()
+    
+    # Очищаем токен
+    user.reset_password_token = None
+    user.reset_password_expires = None
+    
+    await db.commit()
+    
+    return {"message": "Password reset successful"}
+
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Смена пароля (когда знаешь старый)"""
+    user_id = int(current_user["sub"])
+    
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one()
+
+    if user.email.endswith("@osgo.local"):
+        raise HTTPException(403, detail="Guest users cannot change password")
+    
+    # Проверяем старый пароль
+    if not user.hashed_password or not password_service.verify_password(
+        data.old_password, user.hashed_password.decode()
+    ):
+        raise HTTPException(400, detail="Invalid old password")
+    
+    # Хешируем новый
+    new_hashed = password_service.hash_password(data.new_password)
+    user.hashed_password = new_hashed.encode()
+    
+    await db.commit()
+    return {"message": "Password changed successfully"}
+
+@router.post("/guest-login", response_model=LoginResponse)
+async def guest_login(db: AsyncSession = Depends(get_db)):
+    """Гостевой вход — создаёт временного пользователя без пароля"""
+    import uuid
+    
+    # Генерируем уникальный guest ID
+    guest_id = str(uuid.uuid4())[:8]
+    email = f"guest_{guest_id}@osgo.local"
+    
+    # Создаём пользователя без пароля
+    user = User(
+        email=email,
+        hashed_password=None,  # Нет пароля
+        is_verified=True,       # Гости не нуждаются в верификации
+        is_active=True,
+    )
+    
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    
+    # Выдаём токен без 2FA
+    tokens = create_internal_token(user.id, user.email, totp_verified=True, totp_enabled=False)
+    return {**tokens, "requires_2fa": False}
 
 # ========== Защищённые эндпоинты ==========
 
@@ -487,38 +652,6 @@ async def get_me(current_user: dict = Depends(get_current_user), db: AsyncSessio
         "is_verified": user.is_verified,
         "totp_enabled": user.totp_enabled,
     }
-
-
-@router.post("/change-password")
-async def change_password(
-    data: ChangePasswordRequest,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Смена пароля"""
-    user_id = int(current_user["sub"])
-    
-    result = await db.execute(
-        select(User).where(User.id == user_id)
-    )
-    user = result.scalar_one()
-    
-    # Проверка старого пароля
-    if not user.hashed_password or not password_service.verify_password(
-        data.old_password, user.hashed_password.decode()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid old password"
-        )
-    
-    # Хешируем новый пароль
-    new_hashed = password_service.hash_password(data.new_password)
-    user.hashed_password = new_hashed.encode()
-    
-    await db.commit()
-    return {"message": "Password changed successfully"}
-
 
 @router.delete("/delete-account")
 async def delete_account(
