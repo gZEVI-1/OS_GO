@@ -20,46 +20,60 @@ root_path = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(root_path / "scripts"))
 import go_engine as go
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 sys.path.append(str(root_path / "interface" / "Go_app" ))
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
 from generated.ui_game_windowPvP import Ui_main 
+from KataGoAdapter import KataGoGameAnalyzer
 from windows.game_setting_dialog import GameSettingsDialog
-import GnuGo_Analyzer as gnugo
+#import GnuGo_Analyzer as gnugo
 root_path = Path(__file__).resolve().parent.parent.parent.parent
 GNUGO_PATH = os.path.join(root_path, "bot", "gnugo-3.8", "gnugo.exe")
 print(f"GNUGO_PATH: {GNUGO_PATH}")
 print(f"Существует: {os.path.exists(GNUGO_PATH)}")
 
 
+class SessionAdapter:
+    def __init__(self, game, board_size, komi=6.5):
+        self.game = game
+        self.board_size = board_size
+        self.komi = komi
+
 class GameWindow(BaseWindow):
     game_finished = Signal()
 
-    class GnuGoAnalysisTask(QThread):
-        finished = Signal(object)  # результат анализа
-        error = Signal(object)     # исключение
+    class KataGoAnalysisThread(QThread):
+        finished = Signal(object)
+        error = Signal(str)
 
-        def __init__(self, sgf, board_size, gnugo_path):
+        def __init__(self, session_adapter):
             super().__init__()
-            self.sgf = sgf
-            self.board_size = board_size
-            self.gnugo_path = gnugo_path
+            self.session_adapter = session_adapter
+            self._is_cancelled = False
+
+        def cancel(self):
+            self._is_cancelled = True
 
         def run(self):
             try:
-                analyzer = gnugo.GnuGoAnalyzer(gnugo_path=self.gnugo_path)
-                try:
-                    result = analyzer.analyze_sgf(self.sgf, self.board_size)
-                finally:
-                    analyzer.cleanup()
-                self.finished.emit(result)
+                if self._is_cancelled:
+                    return
+                analyzer = KataGoGameAnalyzer(self.session_adapter)
+                # Внутри анализатора нужно периодически проверять self._is_cancelled
+                # Если нет такой возможности, оставляем как есть, но terminate() сработает.
+                if analyzer.initialize():
+                    result = analyzer.analyze_current_game()
+                    if not self._is_cancelled:
+                        self.finished.emit(result)
             except Exception as e:
-                self.error.emit(e)
+                if not self._is_cancelled:
+                    self.error.emit(str(e))
 
     def __init__(self, navigation, core_api=None, settings=None):
         super().__init__(navigation)
         
-        # ===== ЗАГРУЖАЕМ НАСТРОЙКИ =====
         self.game_settings = settings or {
             'board_size': 9,
             'time': {'main_time': 900, 'byoyomi': 30},
@@ -132,39 +146,46 @@ class GameWindow(BaseWindow):
         self.save_initial_snapshot()
 
 
-
+    def update_language(self):
+        # Обновляем заголовок окна
+        self.setWindowTitle(f"{self.settings.get_text('game_title')} {self.board_size}×{self.board_size}")
+        
+        # Обновляем текст на кнопках
+        self.ui.buttonPass.setText(self.settings.get_text("pass_button"))
+        self.ui.buttonResign.setText(self.settings.get_text("resign_button"))
+        
     def setup_timers(self):
-        time_settings = self.game_settings.get('time', {})
-        no_time_limit = time_settings.get('no_time_limit', False)
-        
-        self.initial_player_time = time_settings.get('main_time', 900) if not no_time_limit else 0
-        self.initial_opponent_time = time_settings.get('main_time', 900) if not no_time_limit else 0
-        self.byoyomi = time_settings.get('byoyomi', 30) if not no_time_limit else 0
-        
-        if no_time_limit:
-            self.player_timer = GameTimer(1, 0, self, no_time_limit=True)
-            self.opponent_timer = GameTimer(2, 0, self, no_time_limit=True)
+            time_settings = self.game_settings.get('time', {})
+            no_time_limit = time_settings.get('no_time_limit', False)
             
-            self.ui.timerPlayer.setText("--:--")
-            self.ui.timerOpponent.setText("--:--")
-            self.ui.timerPlayer.setStyleSheet("color: gray;")
-            self.ui.timerOpponent.setStyleSheet("color: gray;")
-        else:
-            self.player_timer = GameTimer(1, self.initial_player_time, self, no_time_limit=False)
-            self.opponent_timer = GameTimer(2, self.initial_opponent_time, self, no_time_limit=False)
+            self.initial_player_time = time_settings.get('main_time', 900) if not no_time_limit else 0
+            self.initial_opponent_time = time_settings.get('main_time', 900) if not no_time_limit else 0
+            self.byoyomi = time_settings.get('byoyomi', 30) if not no_time_limit else 0
             
-            self.ui.timerPlayer.setStyleSheet("")
-            self.ui.timerOpponent.setStyleSheet("")
+            if no_time_limit:
+                self.player_timer = GameTimer(1, 0, self, no_time_limit=True)
+                self.opponent_timer = GameTimer(2, 0, self, no_time_limit=True)
+                
+                self.ui.timerPlayer.setText("--:--")
+                self.ui.timerOpponent.setText("--:--")
+                self.ui.timerPlayer.setStyleSheet("color: gray;")
+                self.ui.timerOpponent.setStyleSheet("color: gray;")
+            else:
+                self.player_timer = GameTimer(1, self.initial_player_time, self, no_time_limit=False)
+                self.opponent_timer = GameTimer(2, self.initial_opponent_time, self, no_time_limit=False)
+                
+                self.ui.timerPlayer.setStyleSheet("")
+                self.ui.timerOpponent.setStyleSheet("")
+                
+                self.player_timer.time_changed.connect(self.update_timer_display)
+                self.opponent_timer.time_changed.connect(self.update_timer_display)
+                self.player_timer.time_expired.connect(self.on_time_expired)
+                self.opponent_timer.time_expired.connect(self.on_time_expired)
+                
+                self.player_timer.start()
             
-            self.player_timer.time_changed.connect(self.update_timer_display)
-            self.opponent_timer.time_changed.connect(self.update_timer_display)
-            self.player_timer.time_expired.connect(self.on_time_expired)
-            self.opponent_timer.time_expired.connect(self.on_time_expired)
-            
-            self.player_timer.start()
-        
-        self.update_timer_display()
-
+            self.update_timer_display()
+    
     def update_timer_active(self):
         if self.game_ended:
             self.player_timer.stop()
@@ -187,15 +208,15 @@ class GameWindow(BaseWindow):
         if self.player_timer.no_time_limit:
             return
         
-        player_time = int(self.player_timer.time_remaining)
-        opponent_time = int(self.opponent_timer.time_remaining)
+        player_seconds = int(self.player_timer.time_remaining) 
+        opponent_seconds = int(self.opponent_timer.time_remaining)
         
-        player_min = player_time // 60
-        player_sec = player_time % 60
+        player_min = player_seconds // 60
+        player_sec = player_seconds % 60
         self.ui.timerPlayer.setText(f"{player_min:02d}:{player_sec:02d}")
         
-        opponent_min = opponent_time // 60
-        opponent_sec = opponent_time % 60
+        opponent_min = opponent_seconds // 60
+        opponent_sec = opponent_seconds % 60
         self.ui.timerOpponent.setText(f"{opponent_min:02d}:{opponent_sec:02d}")
 
     def on_time_expired(self, player):
@@ -220,14 +241,6 @@ class GameWindow(BaseWindow):
         QMessageBox.information(self, "Время вышло", f"Время {winner} вышло! {winner} победили!")
         self.game_finished.emit()
 
-    def save_initial_snapshot(self):
-        snapshot = self.create_snapshot()
-        self.board_snapshots.append(snapshot)
-        self.current_snapshot_index = 0
-        
-        self.move_descriptions.append("Начало партии")
-        
-        self.update_navigation_buttons()
 
     def create_snapshot(self):
         return {
@@ -360,63 +373,66 @@ class GameWindow(BaseWindow):
 
 
     def end_game_by_passes(self):
-            if self.game_ended:
-                return
+        if self.game_ended:
+            return
 
-            self.game_ended = True
+        self.game_ended = True
 
-            if not os.path.exists(GNUGO_PATH):
-                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
-                self.game_finished.emit()
-                return
+        self.player_timer.stop()
+        self.opponent_timer.stop()
 
-            if not gnugo.check_gnugo_available(GNUGO_PATH):
-                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
-                self.game_finished.emit()
-                return
+        if self.board_size == 9:
+            min_moves = 20
+        else:  
+            min_moves = 42
 
-            if not self.core_api:
-                QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
-                self.game_finished.emit()
-                return
+        moves_count = len(self.move_descriptions) - 1
 
-            sgf = self.core_api.get_sgf()
-            if not sgf or len(sgf) < 30:
-                QMessageBox.information(
-                    self, "Игра окончена",
-                    "Игра завершена двумя пасами.\nАнализ недоступен: слишком короткая партия."
-                )
-                self.game_finished.emit()
-                return
+        if moves_count < min_moves:
+            QMessageBox.information(
+                self,
+                "Игра окончена",
+                f"Партия завершена двумя пасами, но сделано слишком мало ходов.\n"
+            )
+            self.game_finished.emit()
+            return
 
-            dialog = QProgressDialog("Анализируем позицию с помощью GNU Go...", "Отмена", 0, 0, self)
-            dialog.setWindowModality(Qt.WindowModal)
-            dialog.show()
-
-            self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
-            self.analysis_task.finished.connect(lambda result: self._on_analysis_finished(result, dialog))
-            self.analysis_task.error.connect(lambda e: self._on_analysis_error(e, dialog))
-            self.analysis_task.start()
-
-
-    def _on_analysis_finished(self, result, dialog):
-        dialog.close()
-
-        if result and isinstance(result, dict):
-            winner_text = result.get('winner', 'Не определен')
-            QMessageBox.information(self, "Игра окончена", f"Победитель: {winner_text}!")
-        else:
+        sgf = self.core_api.get_sgf()
+        if not sgf or len(sgf) < 30:
             QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
+            self.game_finished.emit()
+            return
 
+        session_adapter = SessionAdapter(self.core_api, self.board_size)
+
+        dialog = QProgressDialog("Анализируем позицию с помощью KataGo...", None, 0, 0, self)
+        dialog.setWindowModality(Qt.WindowModal)
+        dialog.show()
+
+        self.analysis_thread = self.KataGoAnalysisThread(session_adapter)
+        self.analysis_thread.finished.connect(lambda result: self.on_analysis_finished(result, dialog))
+        self.analysis_thread.error.connect(lambda error: self.on_analysis_error(error, dialog))
+        self.analysis_thread.start()
+
+    def on_analysis_finished(self, result, dialog):
+        dialog.close()
+        
+        if result and result.success:
+            message = f"Победитель: {result.winner}\n\n"
+            message += f"⚫ Черные: {result.black_score:.1f}\n"
+            message += f"⚪ Белые: {result.white_score:.1f}\n"
+            message += f"Результат: {result.full_result}\n"
+            
+            QMessageBox.information(self, "Игра окончена", message)
+        else:
+            error_msg = result.error_message if result else "Неизвестная ошибка"
+            QMessageBox.warning(self, "Ошибка анализа", f"Ошибка анализа KataGo:\n{error_msg}")
+        
         self.game_finished.emit()
 
-
-    def _on_analysis_error(self, exception, dialog):
+    def on_analysis_error(self, error_msg, dialog):
         dialog.close()
-        QMessageBox.warning(
-            self, "Ошибка анализа",
-            f"Ошибка при анализе партии:\n{exception}\nИгра завершена без анализа."
-        )
+        QMessageBox.warning(self, "Ошибка анализа", f"Ошибка при анализе партии.\n{error_msg}")
         self.game_finished.emit()
 
     def pass_move(self):
@@ -449,14 +465,36 @@ class GameWindow(BaseWindow):
 
 
     def resign(self):
-        reply = QMessageBox.question(self, "Сдаться",
-                                   "Вы уверены, что хотите сдаться?",
-                                   QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(self, 
+                                self.settings.get_text("resign_title"),
+                                self.settings.get_text("resign_confirm"),
+                                QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             self.game_ended = True 
-            QMessageBox.information(self, "Игра окончена", "Вы сдались. Победил противник!")
+            QMessageBox.information(self, self.settings.get_text("game_ended"), 
+                                self.settings.get_text("opponent_won"))
             self.game_finished.emit()
 
+    def closeEvent(self, event):
+        # Если есть поток анализа и он запущен
+        if hasattr(self, 'analysis_thread') and self.analysis_thread.isRunning():
+            # Запрашиваем подтверждение
+            reply = QMessageBox.question(
+                self,
+                "Анализ не завершён",
+                "Идёт анализ партии. Прервать и закрыть окно?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                # Отмечаем поток как отменённый (нужно добавить флаг в поток)
+                # и ждём завершения
+                self.analysis_thread.terminate()  # грубо, но безопасно для этого случая
+                self.analysis_thread.wait(2000)
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
 
 
     '''def on_game_over(self, _):

@@ -30,6 +30,8 @@ class GoBoardWidget(QWidget):
         self.black_stone_color = QColor(30, 30, 30)
         self.white_stone_color = Qt.white
         self.highlight_color = QColor(255, 0, 0, 100)
+        self.offset_x = self.margin
+        self.offset_y = self.margin
         
         # Настройки подсказок
         self.show_legal_moves = True
@@ -108,11 +110,18 @@ class GoBoardWidget(QWidget):
     def mousePressEvent(self, event):
         if self.core_api is None:
             return
-            
+
         pos = event.position().toPoint()
-        col = round((pos.x() - self.margin) / self.cell_size)
-        row = round((pos.y() - self.margin) / self.cell_size)
-        
+        # Вычисляем координаты относительно начала сетки
+        x = pos.x() - self.offset_x
+        y = pos.y() - self.offset_y
+
+        if x < 0 or y < 0:
+            return
+
+        col = round(x / self.cell_size)
+        row = round(y / self.cell_size)
+
         if 0 <= row < self.board_size and 0 <= col < self.board_size:
             self.cell_clicked.emit(row, col)
 
@@ -149,15 +158,26 @@ class GoBoardWidget(QWidget):
         super().resizeEvent(event)
 
     def update_cell_size(self):
-        """Обновляет размер клетки"""
         if self.board_size > 1:
-            available_space = self.width() - 2 * self.margin
-            if available_space > 0:
-                self.cell_size = available_space // (self.board_size - 1)
+            available_width = self.width() - 2 * self.margin
+            available_height = self.height() - 2 * self.margin
+
+            if available_width > 0 and available_height > 0:
+                max_cell_by_width = available_width // (self.board_size - 1)
+                max_cell_by_height = available_height // (self.board_size - 1)
+                self.cell_size = min(max_cell_by_width, max_cell_by_height)
+
+                grid_size = (self.board_size - 1) * self.cell_size
+                self.offset_x = (self.width() - grid_size) // 2
+                self.offset_y = (self.height() - grid_size) // 2
             else:
                 self.cell_size = 30
+                self.offset_x = self.margin
+                self.offset_y = self.margin
         else:
             self.cell_size = 30
+            self.offset_x = self.margin
+            self.offset_y = self.margin
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -176,33 +196,35 @@ class GoBoardWidget(QWidget):
     def draw_grid(self, painter):
         """Рисует сетку доски"""
         painter.setPen(QPen(self.line_color, 1))
-        start = self.margin
-        end = self.margin + (self.board_size - 1) * self.cell_size
-        
+        start_x = self.offset_x
+        start_y = self.offset_y
+        end_x = start_x + (self.board_size - 1) * self.cell_size
+        end_y = start_y + (self.board_size - 1) * self.cell_size
+
         for i in range(self.board_size):
-            x = self.margin + i * self.cell_size
-            painter.drawLine(x, start, x, end)
-            y = self.margin + i * self.cell_size
-            painter.drawLine(start, y, end, y)
-        
+            x = start_x + i * self.cell_size
+            painter.drawLine(x, start_y, x, end_y)
+            y = start_y + i * self.cell_size
+            painter.drawLine(start_x, y, end_x, y)
+
         self.draw_hoshi(painter)
 
     def draw_hoshi(self, painter):
         """Рисует звезды (хоси)"""
         painter.setBrush(Qt.black)
         painter.setPen(Qt.NoPen)
-        
+
         hoshi_positions = {
             9: [(2, 2), (6, 2), (4, 4), (2, 6), (6, 6)],
             13: [(3, 3), (9, 3), (6, 6), (3, 9), (9, 9)],
             19: [(3, 3), (15, 3), (3, 15), (15, 15), (9, 9),
-                 (3, 9), (9, 3), (15, 9), (9, 15)]
+                (3, 9), (9, 3), (15, 9), (9, 15)]
         }
-        
+
         if self.board_size in hoshi_positions:
             for row, col in hoshi_positions[self.board_size]:
-                x = self.margin + col * self.cell_size
-                y = self.margin + row * self.cell_size
+                x = self.offset_x + col * self.cell_size
+                y = self.offset_y + row * self.cell_size
                 painter.drawEllipse(QPoint(x, y), 4, 4)
 
     def draw_stones(self, painter):
@@ -210,39 +232,36 @@ class GoBoardWidget(QWidget):
         for row in range(self.board_size):
             for col in range(self.board_size):
                 if self.board_state[row][col] != 0:
-                    x = self.margin + col * self.cell_size
-                    y = self.margin + row * self.cell_size
-                    
+                    x = self.offset_x + col * self.cell_size
+                    y = self.offset_y + row * self.cell_size
+
                     if self.board_state[row][col] == 1:
                         painter.setBrush(QBrush(self.black_stone_color))
                     else:
                         painter.setBrush(QBrush(self.white_stone_color))
-                    
+
                     radius = self.cell_size // 2 - 2
                     painter.setPen(QPen(Qt.gray, 1))
                     painter.drawEllipse(QRect(x - radius, y - radius,
-                                              radius * 2, radius * 2))
+                                            radius * 2, radius * 2))
 
     def draw_move_hints(self, painter):
         """Рисует подсказки для допустимых ходов"""
-        # Более блеклый и прозрачный серо-голубой цвет
-        painter.setBrush(QBrush(QColor(150, 150, 150, 60)))  # Серый, очень прозрачный
+        painter.setBrush(QBrush(QColor(150, 150, 150, 80)))
         painter.setPen(Qt.NoPen)
-        
-        # Маленькие точки
-        radius = self.cell_size // 6  
-        
+        radius = self.cell_size // 6
+
         for row, col in self.legal_moves:
-            x = self.margin + col * self.cell_size
-            y = self.margin + row * self.cell_size
+            x = self.offset_x + col * self.cell_size
+            y = self.offset_y + row * self.cell_size
             painter.drawEllipse(QPoint(x, y), radius, radius)
 
     def draw_last_move_highlight(self, painter):
         """Подсвечивает последний ход"""
         if self.last_move:
             row, col = self.last_move
-            x = self.margin + col * self.cell_size
-            y = self.margin + row * self.cell_size
+            x = self.offset_x + col * self.cell_size
+            y = self.offset_y + row * self.cell_size
             painter.setBrush(QBrush(self.highlight_color))
             painter.setPen(Qt.NoPen)
             radius = self.cell_size // 2 + 4

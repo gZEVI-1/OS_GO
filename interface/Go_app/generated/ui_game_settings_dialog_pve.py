@@ -130,27 +130,15 @@ class Ui_GameSettingsDialogPVE(object):
         self.checkLegalMoves.setText(QCoreApplication.translate("GameSettingsDialogPVE", u"\u041f\u043e\u0434\u0441\u0432\u0435\u0447\u0438\u0432\u0430\u0442\u044c \u0434\u043e\u043f\u0443\u0441\u0442\u0438\u043c\u044b\u0435 \u0445\u043e\u0434\u044b", None))
         self.buttonOk.setText(QCoreApplication.translate("GameSettingsDialogPVE", u"\u041d\u0430\u0447\u0430\u0442\u044c \u0438\u0433\u0440\u0443", None))
         self.buttonOk.setStyleSheet(QCoreApplication.translate("GameSettingsDialogPVE", u"QPushButton {\n"
-"    background-color: #4CAF50;\n"
-"    color: white;\n"
-"    border: none;\n"
 "    padding: 8px 20px;\n"
 "    border-radius: 4px;\n"
 "    font-weight: bold;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #45a049;\n"
 "}", None))
         self.buttonCancel.setText(QCoreApplication.translate("GameSettingsDialogPVE", u"\u041e\u0442\u043c\u0435\u043d\u0430", None))
         self.buttonCancel.setStyleSheet(QCoreApplication.translate("GameSettingsDialogPVE", u"QPushButton {\n"
-"    background-color: #f44336;\n"
-"    color: white;\n"
-"    border: none;\n"
 "    padding: 8px 20px;\n"
 "    border-radius: 4px;\n"
 "    font-weight: bold;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #da190b;\n"
 "}", None))
     # retranslateUi
 

@@ -11,11 +11,15 @@ root_path = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(root_path / "scripts"))
 import go_engine as go
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 sys.path.append(str(root_path / "interface" / "Go_app"))
+sys.path.append(str(root_path / "interface" / "Go_app" / "katago")) 
+from KataGoAdapter import KataGoGameAnalyzer
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
 from generated.ui_game_windowPvE import Ui_main
-import GnuGo_Analyzer as gnugo
+#import GnuGo_Analyzer as gnugo
 
 GNUGO_PATH = os.path.join(root_path, "bot", "gnugo-3.8", "gnugo.exe")
 
@@ -135,26 +139,43 @@ class BotMoveThread(QThread):
         except Exception as e:
             self.error.emit(str(e))
 
+class SessionAdapter:
+    def __init__(self, game, board_size, komi=6.5):
+        self.game = game
+        self.board_size = board_size
+        self.komi = komi
 
 class GameWindowPvE(BaseWindow):
     game_finished = Signal()
 
-    class GnuGoAnalysisTask(QThread):
+    class KataGoAnalysisThread(QThread):
         finished = Signal(object)
-        error = Signal(object)
+        error = Signal(str)
 
-        def __init__(self, sgf, board_size, gnugo_path):
+        def __init__(self, session_adapter):
             super().__init__()
-            self.sgf = sgf
-            self.board_size = board_size
-            self.gnugo_path = gnugo_path
+            self.session_adapter = session_adapter
+            self._is_cancelled = False
+
+        def cancel(self):
+            self._is_cancelled = True
 
         def run(self):
             try:
-                winner = gnugo.get_winner(self.sgf, self.board_size)
-                self.finished.emit(winner)
+                if self._is_cancelled:
+                    return
+                analyzer = KataGoGameAnalyzer(self.session_adapter)
+                if analyzer.initialize():
+                    result = analyzer.analyze_current_game()
+                    if not self._is_cancelled:
+                        self.finished.emit(result)
+                else:
+                    if not self._is_cancelled:
+                        self.error.emit("KataGo недоступен")
             except Exception as e:
-                self.error.emit(e)
+                if not self._is_cancelled:
+                    self.error.emit(str(e))
+
 
     def __init__(self, navigation, core_api=None, settings=None):
         super().__init__(navigation)
@@ -274,6 +295,24 @@ class GameWindowPvE(BaseWindow):
             color = self.player_gtp
             self.gnugo_engine.play_move(color, x, y, is_pass)
     
+    def update_language(self):
+        # Обновляем заголовок окна
+        self.setWindowTitle(f"{self.settings.get_text('game_title')} vs Bot {self.board_size}×{self.board_size}")
+        
+        # Обновляем текст на кнопках
+        self.ui.buttonPass.setText(self.settings.get_text("pass_button"))
+        self.ui.buttonResign.setText(self.settings.get_text("resign_button"))
+        
+        # Обновляем имена с учетом языка
+        black_text = self.settings.get_text("black")
+        white_text = self.settings.get_text("white")
+        
+        if self.player_is_black:
+            self.ui.playerName.setText(f"{self.player_data['name']} ({black_text})")
+            self.ui.opponentName.setText(f"{self.bot_data['name']} ({white_text})")
+        else:
+            self.ui.playerName.setText(f"{self.player_data['name']} ({white_text})")
+            self.ui.opponentName.setText(f"{self.bot_data['name']} ({black_text})")
     def make_bot_move(self):
         if self.game_ended or self.is_bot_thinking:
             return
@@ -416,79 +455,88 @@ class GameWindowPvE(BaseWindow):
     def end_game_by_passes(self):
         if self.game_ended:
             return
-        
+
         self.game_ended = True
-        
-        # Останавливаем GNU Go
-        if self.gnugo_engine:
-            self.gnugo_engine.stop()
-        
-        # Анализ через GNU Go
-        if not os.path.exists(GNUGO_PATH):
-            QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
+
+        if self.board_size == 9:
+            min_moves = 20
+        else:  
+            min_moves = 42
+
+        moves_count = len(self.move_descriptions) - 1
+
+        if moves_count < min_moves:
+            QMessageBox.information(
+                self,
+                "Игра окончена",
+                "Партия завершена двумя пасами, но сделано слишком мало ходов.\n"
+            )
             self.game_finished.emit()
             return
-        
+
         sgf = self.core_api.get_sgf()
         if not sgf or len(sgf) < 30:
             QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
             self.game_finished.emit()
             return
-        
-        dialog = QProgressDialog("Анализируем позицию...", None, 0, 0, self)
+
+        session_adapter = SessionAdapter(self.core_api, self.board_size)
+
+        dialog = QProgressDialog("Анализируем позицию с помощью KataGo...", None, 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
         dialog.show()
-        
-        self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
-        self.analysis_task.finished.connect(lambda result: self._on_analysis_finished(result, dialog))
-        self.analysis_task.error.connect(lambda e: self._on_analysis_error(e, dialog))
-        self.analysis_task.start()
-    
-    def _on_analysis_finished(self, winner, dialog):
+
+        self.analysis_thread = self.KataGoAnalysisThread(session_adapter)
+        self.analysis_thread.finished.connect(lambda result: self.on_analysis_finished(result, dialog))
+        self.analysis_thread.error.connect(lambda error: self.on_analysis_error(error, dialog))
+        self.analysis_thread.start()
+
+    def on_analysis_finished(self, result, dialog):
         dialog.close()
         
-        if winner == 1:
-            winner_text = "Черные"
-            is_player_win = (winner == 1 and self.player_is_black) or (winner == 2 and not self.player_is_black)
-        elif winner == 2:
-            winner_text = "Белые"
-            is_player_win = (winner == 1 and self.player_is_black) or (winner == 2 and not self.player_is_black)
-        elif winner == 0:
-            winner_text = "Ничья"
+        if result and result.success:
+            message = f"Победитель: {result.winner}\n\n"
+            message += f"⚫ Черные: {result.black_score:.1f}\n"
+            message += f"⚪ Белые: {result.white_score:.1f}\n"
+            
+            player_is_black = self.player_is_black
             is_player_win = False
+            
+            if result.winner == "Черные" and player_is_black:
+                is_player_win = True
+            elif result.winner == "Белые" and not player_is_black:
+                is_player_win = True
+            
+            if is_player_win:
+                message += "\n\n ПОЗДРАВЛЯЕМ! ВЫ ВЫИГРАЛИ!"
+            elif result.winner not in ["Черные", "Белые"]:
+                message += "\n\n Ничья!"
+            else:
+                message += "\n\n Победил бот GNU Go."
+            
+            QMessageBox.information(self, "Игра окончена", message)
         else:
-            winner_text = "Не определен"
-            is_player_win = False
+            error_msg = result.error_message if result else "Неизвестная ошибка"
+            QMessageBox.warning(self, "Ошибка анализа", f"Ошибка анализа KataGo:\n{error_msg}")
         
-        if is_player_win and winner != 0:
-            message = f"Победитель: {winner_text}! Поздравляем, вы выиграли!"
-        elif winner != 0:
-            message = f"Победитель: {winner_text}! Победил бот."
-        else:
-            message = f"Игра окончена. Результат: {winner_text}"
-        
-        QMessageBox.information(self, "Игра окончена", message)
         self.game_finished.emit()
-    
-    def _on_analysis_error(self, exception, dialog):
+
+    def on_analysis_error(self, error_msg, dialog):
         dialog.close()
-        QMessageBox.warning(self, "Ошибка анализа", f"Ошибка при анализе партии.\n{exception}")
+        QMessageBox.warning(self, "Ошибка анализа", f"Ошибка при анализе партии.\n{error_msg}")
         self.game_finished.emit()
     
+
     def resign(self):
-        if self.game_ended or self.is_bot_thinking:
-            return
-        
-        reply = QMessageBox.question(self, "Сдаться",
-                                   "Вы уверены, что хотите сдаться?",
-                                   QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(self, 
+                                self.settings.get_text("resign_title"),
+                                self.settings.get_text("resign_confirm"),
+                                QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
-            self.game_ended = True
-            if self.gnugo_engine:
-                self.gnugo_engine.stop()
-            QMessageBox.information(self, "Игра окончена", "Вы сдались. Победил бот!")
+            self.game_ended = True 
+            QMessageBox.information(self, self.settings.get_text("game_ended"), 
+                                self.settings.get_text("opponent_won"))
             self.game_finished.emit()
-    
     # Методы навигации
     def save_initial_snapshot(self):
         snapshot = self.create_snapshot()
@@ -570,3 +618,13 @@ class GameWindowPvE(BaseWindow):
     def show_player_profile(self):
         profile = ProfileWindow(self.player_data, self)
         profile.exec_()
+    
+    def closeEvent(self, event):
+        if hasattr(self, 'analysis_thread') and self.analysis_thread and self.analysis_thread.isRunning():
+            if hasattr(self.analysis_thread, 'cancel'):
+                self.analysis_thread.cancel()
+            self.analysis_thread.terminate()
+            self.analysis_thread.wait(2000)
+        event.accept()
+     
+        

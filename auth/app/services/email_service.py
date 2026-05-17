@@ -100,6 +100,70 @@ class EmailService:
         except Exception as e:
             print(f"❌ Ошибка отправки email: {e}")
             return False
+    def create_reset_password_email(self, email: str, reset_url: str) -> MIMEMultipart:
+        """Создание письма для сброса пароля"""
+        settings = get_settings()
+    
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Сброс пароля"
+        msg["From"] = settings.smtp_from_email
+        msg["To"] = email
+    
+        text = f"""
+    Вы запросили сброс пароля.
 
+    Для установки нового пароля перейдите по ссылке:
+    {reset_url}
+
+    Ссылка действительна 1 час.
+    Если вы не запрашивали сброс пароля, проигнорируйте это письмо.
+    """
+    
+        html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: sans-serif; background: #f5f5f5; padding: 20px;">
+        <div style="max-width: 500px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 30px;">
+            <h2 style="color: #333;">🔐 Сброс пароля</h2>
+            <p>Вы запросили сброс пароля для вашего аккаунта.</p>
+            <p style="text-align: center;">
+                <a href="{reset_url}" style="display: inline-block; background: #667eea; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none;">Сбросить пароль</a>
+            </p>
+            <p>Или перейдите по ссылке:</p>
+            <p style="word-break: break-all; color: #667eea; font-size: 12px;">{reset_url}</p>
+            <p style="color: #999; font-size: 14px;">Ссылка действительна <strong>1 час</strong>.</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+        msg.attach(MIMEText(text, "plain", "utf-8"))
+        msg.attach(MIMEText(html, "html", "utf-8"))
+        return msg
+
+    def send_reset_password_email(self, email: str, reset_url: str) -> bool:
+        """Отправка письма для сброса пароля"""
+        settings = get_settings()
+        msg = self.create_reset_password_email(email, reset_url)
+    
+        if not settings.smtp_user or not settings.smtp_password:
+            print(f"⚠️ SMTP не настроен. Ссылка сброса: {reset_url}")
+            return True
+    
+        try:
+            if settings.smtp_use_tls:
+                server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
+                server.starttls()
+            else:
+                server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
+        
+            server.login(settings.smtp_user, settings.smtp_password)
+            server.send_message(msg)
+            server.quit()
+            return True
+        except Exception as e:
+            print(f"❌ Ошибка отправки email: {e}")
+            return False
 
 email_service = EmailService()

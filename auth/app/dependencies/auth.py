@@ -58,7 +58,7 @@ async def verify_auth0_token(credentials: HTTPAuthorizationCredentials = Depends
         )
 
 
-def create_internal_token(user_id: int, email: str, totp_verified: bool = False) -> dict:
+def create_internal_token(user_id: int, email: str, totp_verified: bool = False, totp_enabled: bool = False) -> dict:
     """Создание внутреннего JWT после успешной аутентификации"""
     from datetime import datetime, timedelta
     
@@ -69,6 +69,7 @@ def create_internal_token(user_id: int, email: str, totp_verified: bool = False)
         "sub": str(user_id),
         "email": email,
         "totp_verified": totp_verified,
+        "totp_enabled": totp_enabled,
         "type": "access",
         "iat": now,
         "exp": now + timedelta(minutes=settings.access_token_expire_minutes)
