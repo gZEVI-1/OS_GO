@@ -106,20 +106,20 @@ class ChangePasswordDialog(QDialog):
         layout.addWidget(QLabel("Новый пароль"))
         layout.addWidget(self.new_input)
         
-        # Кнопка "Забыли пароль?"
-        self.forgot_btn = QPushButton("🔑 Забыли пароль?")
-        self.forgot_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.forgot_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                color: #667eea;
-                border: none;
-                font-size: 13px;
-                text-decoration: underline;
-            }
-        """)
-        self.forgot_btn.clicked.connect(self.handle_forgot)
-        layout.addWidget(self.forgot_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        # # Кнопка "Забыли пароль?"
+        # self.forgot_btn = QPushButton("🔑 Забыли пароль?")
+        # self.forgot_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        # self.forgot_btn.setStyleSheet("""
+        #     QPushButton {
+        #         background: transparent;
+        #         color: #667eea;
+        #         border: none;
+        #         font-size: 13px;
+        #         text-decoration: underline;
+        #     }
+        # """)
+        # self.forgot_btn.clicked.connect(self.handle_forgot)
+        # layout.addWidget(self.forgot_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         
         # OK / Отмена
         btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -149,8 +149,8 @@ class ChangePasswordDialog(QDialog):
         
         layout.addWidget(btn_box)
     
-    def handle_forgot(self):
-        self.done(100)  # Специальный код для "Забыли пароль"
+    # def handle_forgot(self):
+    #     self.done(100)  # Специальный код для "Забыли пароль"
     
     def get_data(self):
         return self.old_input.text(), self.new_input.text()
@@ -287,7 +287,7 @@ class AuthWindow(QMainWindow):
             self.show_message(f"❌ Ошибка соединения: {e}", False)
 
     def show_forgot_password_flow(self):
-        """Полный flow: email → отправка → токен → новый пароль"""
+        """Запрос сброса пароля — ссылка придёт на почту"""
         # Шаг 1: ввод email
         email, ok = QInputDialog.getText(self, "Восстановление пароля", "Введите ваш email:")
         if not ok or not email:
@@ -310,50 +310,11 @@ class AuthWindow(QMainWindow):
             return
         
         self.show_message(
-            "📧 Если email зарегистрирован, письмо отправлено.\n"
-            "Проверьте почту и скопируйте токен из ссылки.",
+            "📧 Если email зарегистрирован, письмо отправлено.\n\n"
+            "Перейдите по ссылке из письма,\n"
+            "чтобы установить новый пароль.",
             success=True
         )
-        
-        # Шаг 3: ввод токена из письма
-        token, ok = QInputDialog.getText(
-            self, 
-            "Подтверждение", 
-            "Вставьте токен из письма (или всю ссылку — программа извлечёт токен):"
-        )
-        if not ok or not token:
-            return
-        
-        # Если пользователь вставил целую ссылку — вытаскиваем token=
-        if "token=" in token:
-            token = token.split("token=")[-1].split("&")[0]
-        
-        # Шаг 4: ввод нового пароля
-        new_pass, ok = QInputDialog.getText(
-            self,
-            "Новый пароль",
-            "Введите новый пароль (мин. 12 символов):",
-            QLineEdit.EchoMode.Password
-        )
-        if not ok or len(new_pass) < 12:
-            self.show_message("Пароль слишком короткий (мин. 12)", False)
-            return
-        
-        # Шаг 5: отправка сброса
-        try:
-            r = requests.post(
-                f"{API_BASE}/auth/reset-password",
-                headers={"Content-Type": "application/json"},
-                json={"token": token, "new_password": new_pass},
-                timeout=10
-            )
-            if r.status_code == 200:
-                self.show_message("✅ Пароль успешно сброшен! Войдите с новым паролем.")
-            else:
-                detail = r.json().get("detail", "Ошибка")
-                self.show_message(f"❌ {detail}", False)
-        except Exception as e:
-            self.show_message(f"❌ Ошибка: {e}", False)
 
     def create_register_widget(self):
         widget = QWidget()
@@ -615,21 +576,13 @@ class AuthWindow(QMainWindow):
         self.setup_2fa_data = None
 
     def do_change_password(self):
-        """Диалог смены пароля с проверкой старого и кнопкой 'Забыли пароль?'"""
+        """Диалог смены пароля (только при входе в аккаунт)"""
         if not self.token:
             self.show_message("Сначала войдите в аккаунт", False)
             return
         
         dialog = ChangePasswordDialog(self)
-        result = dialog.exec()
-        
-        # Нажали "Забыли пароль?"
-        if result == 100:
-            self.show_forgot_password_flow()
-            return
-        
-        # Нажали "Отмена"
-        if result != QDialog.Accepted:
+        if dialog.exec() != QDialog.Accepted:
             return
         
         old_pass, new_pass = dialog.get_data()
