@@ -247,6 +247,10 @@ class AppSettings(QObject):
                 Language.ENGLISH: "Account",
                 Language.RUSSIAN: "Аккаунт"
             },
+            "Close": {
+            Language.ENGLISH: "Close",
+            Language.RUSSIAN: "Закрыть"
+        },
         }
         return texts.get(key, {}).get(self._language, key)
     

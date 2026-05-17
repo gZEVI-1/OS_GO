@@ -525,3 +525,18 @@ QDialog QPushButton#close_button:hover {
     background-color: #4a505c;
     border-color: #a0a830;
 }
+/* ============================================
+   ВНУТРИ RULES
+   ============================================ */
+QPushButton#buttonClose {
+    background-color: #3a3f47;
+    border: none;
+    border-radius: 10px;
+    color: #e8eaed;
+    padding: 8px 20px;
+    font-weight: 600;
+}
+
+QPushButton#buttonClose:hover {
+    background-color: #4a505c;
+}

@@ -167,8 +167,10 @@ class Widget(QMainWindow):
         QMessageBox.information(self, "Button", "open online window")
 
     def open_windInstruct(self):
-        print("Instruction button on the main window")
-        QMessageBox.information(self, "Button", "open instruction window")
+        from windows.rules_window import RulesWindow
+        rules_window = RulesWindow(self.navigation, parent=self)
+        self.navigation.add_window("rules", rules_window)
+        self.navigation.navigate_to("rules")
 
     def open_windAccount(self):
         print("Account button on the sidebar")
