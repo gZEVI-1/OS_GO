@@ -29,3 +29,5 @@ class RulesWindow(BaseWindow):
     def update_language(self):
         self.setWindowTitle(self.settings.get_text("Rules"))
         self.ui.buttonClose.setText(self.settings.get_text("Close"))
+        rules_t = self.settings.get_text("rules_content")
+        self.ui.textBrowser.setPlainText(rules_t)

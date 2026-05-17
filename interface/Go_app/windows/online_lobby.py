@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QStackedWidget,
     QTableWidget, QTableWidgetItem, QLineEdit, QFormLayout, QGroupBox,
     QRadioButton, QSpinBox, QCheckBox, QDialogButtonBox, QMessageBox,
-    QHeaderView, QWidget
+    QHeaderView, QWidget, QInputDialog,QLabel, QTextEdit
 )
 from PySide6.QtCore import Qt, Signal
 
@@ -114,7 +114,7 @@ class OnlineCreateRoomDialog(QDialog):
 
 
 class OnlineLobbyDialog(QDialog):
-    """Главный диалог: Создать комнату / Присоединиться."""
+    """Главный диалог: Создать комнату / Присоединиться / Комната ожидания."""
     game_ready = Signal(dict)
 
     def __init__(self, player_name: str, parent=None):
@@ -124,6 +124,8 @@ class OnlineLobbyDialog(QDialog):
         self.client = None
         self.current_rooms = []
         self.pending_game_settings = {}
+        self._joined_room_id = None
+        self._joined_color = None
 
         self.setWindowTitle("Сетевая игра")
         self.resize(800, 600)
@@ -136,7 +138,7 @@ class OnlineLobbyDialog(QDialog):
         self.stacked = QStackedWidget()
         layout.addWidget(self.stacked)
 
-        # ---- Страница выбора действия ----
+        # ---- Страница 0: Выбор действия ----
         page_choose = QWidget()
         choose_layout = QVBoxLayout(page_choose)
         choose_layout.setAlignment(Qt.AlignCenter)
@@ -148,10 +150,9 @@ class OnlineLobbyDialog(QDialog):
         choose_layout.addWidget(self.btn_join)
         self.stacked.addWidget(page_choose)
 
-        # ---- Страница присоединения (список комнат) ----
+        # ---- Страница 1: Список комнат ----
         page_join = QWidget()
         join_layout = QVBoxLayout(page_join)
-
         self.table_rooms = QTableWidget(0, 6)
         self.table_rooms.setHorizontalHeaderLabels(["ID", "Название", "Хост", "Размер", "Игроки", "Пароль"])
         self.table_rooms.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -173,7 +174,45 @@ class OnlineLobbyDialog(QDialog):
         join_layout.addLayout(bottom_layout)
         self.stacked.addWidget(page_join)
 
-        # Подключения сигналов
+        # ---- Страница 2: Комната ожидания ----
+        page_room = QWidget()
+        room_layout = QVBoxLayout(page_room)
+
+        self.lbl_room_title = QLabel("Комната")
+        room_layout.addWidget(self.lbl_room_title)
+
+        self.list_room_players = QTextEdit()
+        self.list_room_players.setReadOnly(True)
+        self.list_room_players.setMaximumHeight(120)
+        room_layout.addWidget(self.list_room_players)
+
+        self.txt_room_chat = QTextEdit()
+        self.txt_room_chat.setReadOnly(True)
+        self.txt_room_chat.setMaximumHeight(150)
+        room_layout.addWidget(self.txt_room_chat)
+
+        chat_input = QHBoxLayout()
+        self.edit_room_chat = QLineEdit()
+        self.edit_room_chat.setPlaceholderText("Сообщение...")
+        self.edit_room_chat.returnPressed.connect(self._send_room_chat)
+        btn_send_chat = QPushButton("Отправить")
+        btn_send_chat.clicked.connect(self._send_room_chat)
+        chat_input.addWidget(self.edit_room_chat)
+        chat_input.addWidget(btn_send_chat)
+        room_layout.addLayout(chat_input)
+
+        self.btn_ready = QPushButton("✅ Готов")
+        self.btn_ready.clicked.connect(self._on_ready_clicked)
+        btn_leave = QPushButton("🚪 Покинуть комнату")
+        btn_leave.clicked.connect(self._on_leave_room)
+        room_btns = QHBoxLayout()
+        room_btns.addWidget(self.btn_ready)
+        room_btns.addStretch()
+        room_btns.addWidget(btn_leave)
+        room_layout.addLayout(room_btns)
+        self.stacked.addWidget(page_room)
+
+        # Подключения
         self.btn_create.clicked.connect(self._on_create_clicked)
         self.btn_join.clicked.connect(self._on_join_clicked)
         btn_back.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
@@ -206,7 +245,6 @@ class OnlineLobbyDialog(QDialog):
 
     def _create_room(self, board_size, password):
         room_name = f"Комната {self.player_name}"
-        # Передаём стандартные komi и rules
         self.client.create_room(
             name=room_name,
             board_size=board_size,
@@ -238,20 +276,45 @@ class OnlineLobbyDialog(QDialog):
         room = self.current_rooms[row]
         password = None
         if room.has_password:
-            pwd, ok = QMessageBox.getText(self, "Пароль", "Введите пароль комнаты:", QLineEdit.Password)
+            pwd, ok = QInputDialog.getText(self, "Пароль", "Введите пароль комнаты:", QLineEdit.Password)
             if not ok:
                 return
             password = pwd.strip() or None
+
+        # Сохраняем настройки комнаты для GameWindowOnline
+        self.pending_game_settings["board_size"] = room.board_size
         self.client.join_room(room.room_id, password)
+
+    # ---------- Комната ожидания ----------
+    def _on_ready_clicked(self):
+        if self.client:
+            self.client.set_ready(True)
+            self.btn_ready.setEnabled(False)
+            self.btn_ready.setText("⏳ Ожидание соперника...")
+
+    def _on_leave_room(self):
+        if self.client:
+            self.client.leave_room()
+        self.btn_ready.setEnabled(True)
+        self.btn_ready.setText("✅ Готов")
+        self.stacked.setCurrentIndex(0)
+
+    def _send_room_chat(self):
+        text = self.edit_room_chat.text().strip()
+        if text and self.client:
+            self.client.send_chat(text)
+            self.edit_room_chat.clear()
 
     # ---------- Подключение к серверу ----------
     def _connect_to_server(self, callback=None):
         server_url = "ws://localhost:8765"
-        
         self.client = QtNetworkClient(server_url, self.player_name, self)
         self.client.connected.connect(lambda: self._on_client_connected(callback))
         self.client.room_list_received.connect(self._on_room_list)
         self.client.room_joined.connect(self._on_room_joined)
+        self.client.room_updated.connect(self._on_room_updated)
+        self.client.game_started.connect(self._on_game_started)
+        self.client.chat_message.connect(self._on_chat_message)
         self.client.error_occurred.connect(self._on_error)
         self.client.disconnected.connect(self._on_disconnected)
         self.client.connect_to_server()
@@ -273,16 +336,37 @@ class OnlineLobbyDialog(QDialog):
             self.table_rooms.setItem(i, 5, QTableWidgetItem(pwd_mark))
 
     def _on_room_joined(self, room_id: str, color: str):
-        self.accept()
+        self._joined_room_id = room_id
+        self._joined_color = color
+        self.lbl_room_title.setText(f"Комната: {room_id} | Вы играете: {color}")
+        self.stacked.setCurrentIndex(2)   # Переходим в комнату ожидания
+        self.btn_ready.setEnabled(True)
+        self.btn_ready.setText("✅ Готов")
+        self.txt_room_chat.clear()
+        self.list_room_players.clear()
+
+    def _on_room_updated(self, payload: dict):
+        players = payload.get("players", [])
+        text = ""
+        for p in players:
+            ready = "✅" if p.get("is_ready") else "⏳"
+            text += f"{ready} {p.get('name', '?')} ({p.get('color', '?')})\n"
+        self.list_room_players.setPlainText(text)
+
+    def _on_chat_message(self, sender: str, text: str):
+        self.txt_room_chat.append(f"<{sender}> {text}")
+
+    def _on_game_started(self, payload: dict):
         game_data = {
             "client": self.client,
             "player_name": self.player_name,
-            "player_color": color,
-            "room_id": room_id,
-            "board_size": self.pending_game_settings.get("board_size", 19),
+            "player_color": self._joined_color,
+            "room_id": self._joined_room_id,
+            "board_size": payload.get("board_size", self.pending_game_settings.get("board_size", 19)),
             "time_settings": self.pending_game_settings.get("time", {}),
             "visual_settings": self.pending_game_settings.get("visual", {})
         }
+        self.accept()
         self.game_ready.emit(game_data)
 
     def _on_error(self, code, msg):
@@ -291,18 +375,3 @@ class OnlineLobbyDialog(QDialog):
     def _on_disconnected(self):
         QMessageBox.warning(self, "Соединение", "Потеряно соединение с сервером")
         self.reject()
-
-    def _on_room_joined(self, room_id: str, color: str):
-        self.client.set_ready(True)
-        
-        self.accept()
-        game_data = {
-            "client": self.client,
-            "player_name": self.player_name,
-            "player_color": color,
-            "room_id": room_id,
-            "board_size": self.pending_game_settings.get("board_size", 19),
-            "time_settings": self.pending_game_settings.get("time", {}),
-            "visual_settings": self.pending_game_settings.get("visual", {})
-        }
-        self.game_ready.emit(game_data)

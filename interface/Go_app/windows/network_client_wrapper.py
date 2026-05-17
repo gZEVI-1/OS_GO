@@ -1,4 +1,3 @@
-
 import asyncio
 import threading
 import logging
@@ -8,6 +7,11 @@ from PySide6.QtCore import QObject, Signal, QThread
 
 import sys
 from pathlib import Path
+
+# Настройка логирования
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("QtNetworkClient")
+
 current_dir = Path(__file__).resolve().parent 
 project_root = current_dir.parent.parent.parent   
 network_pvp_path = project_root / "scripts" / "network_pvp"
@@ -17,7 +21,6 @@ from client import NetworkClient, ConnectionState
 from protocol import Message, RoomInfo
 from output_interface import GameDisplayState
 
-logger = logging.getLogger("QtNetworkClient")
 
 class AsyncioThread(QThread):
     def __init__(self, parent=None):
@@ -80,14 +83,17 @@ class QtNetworkClient(QObject):
         self._thread = AsyncioThread(self)
         self._thread.start()
 
+        self._last_game_started_payload: Optional[dict] = None
+
+        # Подключение колбэков с логированием
         self._client.on_connected = lambda: self.connected.emit()
         self._client.on_disconnected = lambda: self.disconnected.emit()
         self._client.on_error = lambda c, m: self.error_occurred.emit(c, m)
         self._client.on_room_list = lambda r: self.room_list_received.emit(r)
         self._client.on_room_joined = lambda rid, col: self.room_joined.emit(rid, col)
         self._client.on_room_update = lambda p: self.room_updated.emit(p)
-        self._client.on_game_started = lambda p: self.game_started.emit(p)
-        self._client.on_move_received = lambda m: self.move_received.emit(m)
+        self._client.on_game_started = self._on_game_started
+        self._client.on_move_received = self._on_move_received
         self._client.on_game_over = lambda w, r, s: self.game_over.emit(w, r, s or "")
         self._client.on_player_joined = lambda p: self.player_joined.emit(p)
         self._client.on_player_left = lambda n: self.player_left.emit(n)
@@ -99,14 +105,31 @@ class QtNetworkClient(QObject):
     def _on_state_update(self, _):
         display = self._client.get_display_state()
         if display:
+            logger.debug(f"game_state_changed emitted: move_number={display.move_number}, "
+                         f"current_player={display.current_player}, is_my_turn={display.is_my_turn}")
             self.game_state_changed.emit(display)
+        else:
+            logger.warning("game_state_changed: display is None")
 
+    def _on_game_started(self, payload):
+        self._last_game_started_payload = payload
+        logger.debug(f"game_started emitted with payload keys: {list(payload.keys())}")
+        self.game_started.emit(payload)
+
+    def _on_move_received(self, move):
+        logger.debug(f"move_received: {move}")
+        self.move_received.emit(move)
+
+    @property
+    def last_game_started_payload(self) -> Optional[dict]:
+        return self._last_game_started_payload
 
     def connect_to_server(self):
         """Подключиться к серверу (асинхронно)."""
         self._thread.submit(self._client.connect())
 
     def disconnect_from_server(self):
+        self._last_game_started_payload = None
         self._thread.submit(self._client.disconnect())
 
     def refresh_rooms(self):
@@ -122,18 +145,22 @@ class QtNetworkClient(QObject):
         self._thread.submit(self._client.join_room(room_id, password))
 
     def leave_room(self):
+        self._last_game_started_payload = None
         self._thread.submit(self._client.leave_room())
 
     def set_ready(self, ready: bool = True):
         self._thread.submit(self._client.set_ready(ready))
 
     def send_move(self, x: int, y: int):
+        logger.debug(f"send_move({x}, {y})")
         self._thread.submit(self._client.send_move(x, y))
 
     def send_pass(self):
+        logger.debug("send_pass()")
         self._thread.submit(self._client.send_pass())
 
     def send_resign(self):
+        logger.debug("send_resign()")
         self._thread.submit(self._client.send_resign())
 
     def request_undo(self):
