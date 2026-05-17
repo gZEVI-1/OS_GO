@@ -11,17 +11,6 @@
 
 Положите все файлы в одну папку (или рядом с вашими модулями движка):
 
-```
-your_project/
-├── server_ad.py
-├── client_ad.py
-├── protocol_ad.py
-├── output_interface_ad.py
-├── pyside6_go_client.py   ← наш GUI-клиент
-├── go_engine.py           ← ваш движок
-├── core_adapter.py        ← адаптер сессии
-└── ...
-```
 
 ## 2. Запуск сервера (на одном компьютере в сети)
 
