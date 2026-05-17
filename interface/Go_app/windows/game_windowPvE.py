@@ -248,7 +248,7 @@ class GameWindowPvE(BaseWindow):
             self.ui.playerName.setText(f"{self.player_data['name']} (Белые)")
             self.ui.opponentName.setText(f"{self.bot_data['name']} (Черные)")
         
-        self.ui.playerAvatar.clicked.connect(self.show_player_profile)
+        #self.ui.playerAvatar.clicked.connect(self.show_player_profile)
         
         
         self.ui.buttonPass.clicked.connect(self.pass_move)
@@ -483,9 +483,10 @@ class GameWindowPvE(BaseWindow):
             self.close()
             return
 
-        self.analysis_dialog = QProgressDialog("Анализируем позицию...", "Отмена", 0, 0, self)
+        self.analysis_dialog = QProgressDialog("Анализируем позицию...", None, 0, 0, self)
         self.analysis_dialog.setWindowModality(Qt.WindowModal)
-        self.analysis_dialog.canceled.connect(self.cancel_analysis)
+        self.analysis_dialog.setCancelButton(None)                # убираем кнопку
+        self.analysis_dialog.rejected.connect(self.cancel_analysis)  # крестик → отмена
         self.analysis_dialog.show()
 
         self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
@@ -636,11 +637,11 @@ class GameWindowPvE(BaseWindow):
             self.restore_snapshot(self.current_snapshot_index)
             self.is_navigating = False
             self.update_navigation_buttons()
-    
+    """    
     def show_player_profile(self):
         profile = ProfileWindow(self.player_data, self)
         profile.exec_()
-    
+    """   
     def closeEvent(self, event):
         if hasattr(self, 'analysis_task') and self.analysis_task and self.analysis_task.isRunning():
             self.analysis_task.terminate()

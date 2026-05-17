@@ -128,8 +128,8 @@ class GameWindow(BaseWindow):
         #НАСТРОЙКА UI ЭЛЕМЕНТОВ
         self.ui.playerName.setText(self.player_data['name'])
         self.ui.opponentName.setText(self.opponent_data['name'])
-        self.ui.playerAvatar.clicked.connect(self.show_player_profile)
-        self.ui.opponentAvatar.clicked.connect(self.show_opponent_profile)
+        #self.ui.playerAvatar.clicked.connect(self.show_player_profile)
+        #self.ui.opponentAvatar.clicked.connect(self.show_opponent_profile)
         self.ui.buttonPass.clicked.connect(self.pass_move)
         self.ui.buttonResign.clicked.connect(self.resign)
         self.ui.buttonPrevMove.clicked.connect(self.prev_move)
@@ -330,7 +330,7 @@ class GameWindow(BaseWindow):
 
 
 
-
+    """
     def show_player_profile(self):
         profile = ProfileWindow(self.player_data, self)
         profile.exec_()
@@ -338,7 +338,7 @@ class GameWindow(BaseWindow):
     def show_opponent_profile(self):
         profile = ProfileWindow(self.opponent_data, self)
         profile.exec_()
-
+    """
 
     def on_cell_clicked(self, row, col):
         if self.game_ended:
@@ -390,6 +390,7 @@ class GameWindow(BaseWindow):
                 f"Партия завершена двумя пасами, но сделано слишком мало ходов.\n"
             )
             self.close()
+            return
 
         if not os.path.exists(GNUGO_PATH):
             QMessageBox.information(self, "Игра окончена", "Два паса! Игра завершена.")
@@ -411,11 +412,11 @@ class GameWindow(BaseWindow):
             return
 
         # Сохраняем ссылку на диалог
-        self.analysis_dialog = QProgressDialog("Анализируем позицию...", "Отмена", 0, 0, self)
+        self.analysis_dialog = QProgressDialog("Анализируем позицию...", None, 0, 0, self)
         self.analysis_dialog.setWindowModality(Qt.WindowModal)
-        self.analysis_dialog.canceled.connect(self.cancel_analysis)
+        self.analysis_dialog.setCancelButton(None)                # убираем кнопку
+        self.analysis_dialog.rejected.connect(self.cancel_analysis)  # крестик → отмена
         self.analysis_dialog.show()
-
         self.analysis_task = self.GnuGoAnalysisTask(sgf, self.board_size, GNUGO_PATH)
         self.analysis_task.finished.connect(lambda result: self.on_analysis_finished(result, self.analysis_dialog))
         self.analysis_task.error.connect(lambda e: self.on_analysis_error(e, self.analysis_dialog))

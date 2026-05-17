@@ -347,6 +347,183 @@ class AppSettings(QObject):
             Так как начинают игру черные, белые получают преимущество в очках - это называется коми. Обычно коми составляет 6.5 очков, но можно договориться и о других вариантах. 
         """
         },
+                # ===== ONLINE LOBBY (online_lobby.py) =====
+        "create_room_title": {
+            Language.ENGLISH: "Create Online Room",
+            Language.RUSSIAN: "Создание онлайн-комнаты",
+        },
+        "board_size_label": {
+            Language.ENGLISH: "Board size:",
+            Language.RUSSIAN: "Размер доски:",
+        },
+        "board_9x9": {
+            Language.ENGLISH: "9×9",
+            Language.RUSSIAN: "9×9",
+        },
+        "board_13x13": {
+            Language.ENGLISH: "13×13",
+            Language.RUSSIAN: "13×13",
+        },
+        "board_19x19": {
+            Language.ENGLISH: "19×19",
+            Language.RUSSIAN: "19×19",
+        },
+        "main_time_label": {
+            Language.ENGLISH: "Main time:",
+            Language.RUSSIAN: "Основное время:",
+        },
+        "byoyomi_label": {
+            Language.ENGLISH: "Byoyomi:",
+            Language.RUSSIAN: "Бёёми:",
+        },
+        "no_time_limit": {
+            Language.ENGLISH: "No time limit",
+            Language.RUSSIAN: "Без лимита времени",
+        },
+        "show_legal_moves": {
+            Language.ENGLISH: "Show legal moves",
+            Language.RUSSIAN: "Показывать разрешённые ходы",
+        },
+        "room_password_label": {
+            Language.ENGLISH: "Room password:",
+            Language.RUSSIAN: "Пароль комнаты:",
+        },
+        "password_placeholder": {
+            Language.ENGLISH: "leave empty for open room",
+            Language.RUSSIAN: "оставьте пустым для открытой комнаты",
+        },
+        "online_game_title": {
+            Language.ENGLISH: "Online Game",
+            Language.RUSSIAN: "Сетевая игра",
+        },
+        "create_room_button": {
+            Language.ENGLISH: "Create Room",
+            Language.RUSSIAN: "Создать комнату",
+        },
+        "join_room_button": {
+            Language.ENGLISH: "Join Room",
+            Language.RUSSIAN: "Присоединиться к комнате",
+        },
+        "refresh_button": {
+            Language.ENGLISH: "Refresh list",
+            Language.RUSSIAN: "Обновить список",
+        },
+        "join_selected_button": {
+            Language.ENGLISH: "Join selected",
+            Language.RUSSIAN: "Войти в выбранную",
+        },
+        "back_button": {
+            Language.ENGLISH: "Back",
+            Language.RUSSIAN: "Назад",
+        },
+        "room_label": {
+            Language.ENGLISH: "Room:",
+            Language.RUSSIAN: "Комната:",
+        },
+        "ready_button": {
+            Language.ENGLISH: "Ready",
+            Language.RUSSIAN: "Готов",
+        },
+        "waiting_opponent": {
+            Language.ENGLISH: "Waiting for opponent...",
+            Language.RUSSIAN: "Ожидание соперника...",
+        },
+        "leave_room_button": {
+            Language.ENGLISH: "Leave room",
+            Language.RUSSIAN: "Покинуть комнату",
+        },
+        "chat_placeholder": {
+            Language.ENGLISH: "Message...",
+            Language.RUSSIAN: "Сообщение...",
+        },
+        "send_button": {
+            Language.ENGLISH: "Send",
+            Language.RUSSIAN: "Отправить",
+        },
+        "password_dialog_title": {
+            Language.ENGLISH: "Password",
+            Language.RUSSIAN: "Пароль",
+        },
+        "password_dialog_label": {
+            Language.ENGLISH: "Enter room password:",
+            Language.RUSSIAN: "Введите пароль комнаты:",
+        },
+        "attention": {
+            Language.ENGLISH: "Attention",
+            Language.RUSSIAN: "Внимание",
+        },
+        "select_room_warning": {
+            Language.ENGLISH: "Select a room from the list",
+            Language.RUSSIAN: "Выберите комнату из списка",
+        },
+        "connection_lost": {
+            Language.ENGLISH: "Connection lost to server",
+            Language.RUSSIAN: "Потеряно соединение с сервером",
+        },
+        "connection": {
+            Language.ENGLISH: "Connection",
+            Language.RUSSIAN: "Соединение",
+        },
+
+        # ===== GAME WINDOW ONLINE (game_windowOnline.py) =====
+        "leave_lobby_button": {
+            Language.ENGLISH: "Leave lobby",
+            Language.RUSSIAN: "Выйти из лобби",
+        },
+        "time_expired_title": {
+            Language.ENGLISH: "Time expired",
+            Language.RUSSIAN: "Время вышло",
+        },
+        "time_expired_message": {
+            Language.ENGLISH: "{} exceeded time limit. {} wins!",
+            Language.RUSSIAN: "{} превысили лимит времени. Победили {}.",
+        },
+        "resign_confirm_message": {
+            Language.ENGLISH: "Are you sure?",
+            Language.RUSSIAN: "Вы уверены?",
+        },
+        "game_analysis_progress": {
+            Language.ENGLISH: "Analyzing position...",
+            Language.RUSSIAN: "Анализируем позицию...",
+        },
+        "analysis_error_title": {
+            Language.ENGLISH: "Analysis error",
+            Language.RUSSIAN: "Ошибка анализа",
+        },
+        "analysis_error_message": {
+            Language.ENGLISH: "Error analyzing game:\n{}\nGame finished without analysis.",
+            Language.RUSSIAN: "Ошибка при анализе партии:\n{}\nИгра завершена без анализа.",
+        },
+        "two_passes_finished": {
+            Language.ENGLISH: "Two passes! Game finished.",
+            Language.RUSSIAN: "Два паса! Игра завершена.",
+        },
+        "analysis_unavailable": {
+            Language.ENGLISH: "Game finished by two passes.\nAnalysis unavailable: game too short.",
+            Language.RUSSIAN: "Игра завершена двумя пасами.\nАнализ недоступен: слишком короткая партия.",
+        },
+        "winner_label": {
+            Language.ENGLISH: "Winner: {}",
+            Language.RUSSIAN: "Победитель: {}",
+        },
+        "margin_label": {
+            Language.ENGLISH: "Margin: {:.1f} points",
+            Language.RUSSIAN: "Отрыв: {:.1f} очков",
+        },
+        "black_color": {
+            Language.ENGLISH: "Black",
+            Language.RUSSIAN: "Чёрные",
+        },
+        "white_color": {
+            Language.ENGLISH: "White",
+            Language.RUSSIAN: "Белые",
+        },
+
+        # ===== Дополнительные сообщения об ошибках (network_client_wrapper) =====
+        "error_prefix": {
+            Language.ENGLISH: "Error",
+            Language.RUSSIAN: "Ошибка",
+        },
             "Close": {
             Language.ENGLISH: "Close",
             Language.RUSSIAN: "Закрыть"
