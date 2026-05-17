@@ -4,6 +4,8 @@ from copy import deepcopy
 from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QProgressDialog
 from PySide6.QtCore import Qt,  QThread, Signal
 from game_timer import GameTimer
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtCore import Qt, QSize
 
 
 #НЕ ТАК
@@ -118,13 +120,14 @@ class GameWindow(BaseWindow):
         #ДАННЫЕ ИГРОКОВ
         self.player_data = {
             'name': 'Игрок1', 'rating': 1600, 'wins': 42, 'losses': 17,
-            'country': 'Россия', 'avatar_path': None
+            'country': 'Россия', 'avatar_path':"IMG_8620.PNG"
         }
         self.opponent_data = {
             'name': 'Игрок2', 'rating': 1850, 'wins': 127, 'losses': 83,
-            'country': 'США', 'avatar_path': None
+            'country': 'США', 'avatar_path': "IMG_8619.PNG"
         }
-        
+        self.set_avatar(self.ui.playerAvatar, self.player_data.get('avatar_file'))
+        self.set_avatar(self.ui.opponentAvatar, self.opponent_data.get('avatar_file'))
         #НАСТРОЙКА UI ЭЛЕМЕНТОВ
         self.ui.playerName.setText(self.player_data['name'])
         self.ui.opponentName.setText(self.opponent_data['name'])
@@ -512,7 +515,61 @@ class GameWindow(BaseWindow):
             self.analysis_task.wait(1000)
         event.accept()
 
+    def set_avatar(self, widget, avatar_id, default_avatar_name="default.png"):
+        """
+        Устанавливает аватарку на виджет.
+        :param widget: QPushButton или QLabel
+        :param avatar_id: имя файла (например, "player1.png") или полный путь, или None/пустая строка
+        :param default_avatar_name: имя файла аватарки по умолчанию (лежит в AVATARS_DIR)
+        """
+        if not widget:
+            return
 
+        # Функция загрузки по полному пути
+        def load_pixmap(full_path):
+            if full_path and os.path.exists(full_path):
+                pixmap = QPixmap(full_path)
+                if not pixmap.isNull():
+                    # Масштабируем под размер виджета
+                    target_size = widget.size()
+                    if target_size.width() <= 0:
+                        target_size = widget.minimumSize()
+                    if target_size.width() <= 0:
+                        target_size = QSize(50, 50)
+                    return pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            return None
+
+        # Определяем полный путь к аватарке
+        full_path = None
+        if avatar_id:
+            # Если передан уже абсолютный путь
+            if os.path.isabs(avatar_id) and os.path.exists(avatar_id):
+                full_path = avatar_id
+            else:
+                # Иначе считаем, что avatar_id — это имя файла в папке AVATARS_DIR
+                candidate = os.path.join(AVATARS_DIR, avatar_id)
+                if os.path.exists(candidate):
+                    full_path = candidate
+
+        # Если аватарка не найдена, берём дефолтную
+        if full_path is None:
+            default_path = os.path.join(AVATARS_DIR, default_avatar_name)
+            if os.path.exists(default_path):
+                full_path = default_path
+
+        pixmap = load_pixmap(full_path)
+        if pixmap is not None:
+            if isinstance(widget, QPushButton):
+                widget.setIcon(QIcon(pixmap))
+                widget.setIconSize(pixmap.size())
+            elif isinstance(widget, QLabel):
+                widget.setPixmap(pixmap)
+                widget.setScaledContents(False)
+                widget.setAlignment(Qt.AlignCenter)
+        else:
+            # Если даже дефолтной нет, можно очистить иконку
+            if isinstance(widget, QPushButton):
+                widget.setIcon(QIcon())
     '''def on_game_over(self, _):
         if self.game_ended:
             return

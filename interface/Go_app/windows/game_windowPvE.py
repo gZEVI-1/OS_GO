@@ -2,8 +2,10 @@ import sys
 import os
 import subprocess
 from copy import deepcopy
-from PySide6.QtWidgets import QMessageBox, QProgressDialog
+from PySide6.QtWidgets import QMessageBox, QProgressDialog,QPushButton
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtCore import Qt, QSize
 
 from pathlib import Path
 root_path = Path(__file__).resolve().parent.parent.parent.parent
@@ -19,6 +21,7 @@ sys.path.append(str(root_path / "interface" / "Go_app" / "katago"))
 from windows.base_window import BaseWindow
 from windows.profile_window import ProfileWindow
 from generated.ui_game_windowPvE import Ui_main
+AVATARS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "avatars")
 import GnuGo_Analyzer as gnugo
 
 GNUGO_PATH = os.path.join(root_path, "bot", "gnugo-3.8", "gnugo.exe")
@@ -226,8 +229,8 @@ class GameWindowPvE(BaseWindow):
         
         # Данные игрока
         self.player_data = {
-            'name': 'Игрок', 'rating': 1600, 'wins': 42, 'losses': 17,
-            'country': 'Россия', 'avatar_path': None
+            'name': 'Я', 'rating': 1600, 'wins': 42, 'losses': 17,
+            'country': 'Россия', 'avatar_path': "IMG_8618.PNG"
         }
         
         # Настройка UI для PvE
@@ -237,8 +240,10 @@ class GameWindowPvE(BaseWindow):
         # Данные бота (только для отображения имени, профиль не открывается)
         self.bot_data = {
             'name': 'GNU Go Bot', 'rating': 2000, 'wins': 100, 'losses': 50,
-            'country': 'AI', 'avatar_path': None
+            'country': 'AI', 'avatar_path': "IMG_8621.PNG"
         }
+        self.set_avatar(self.ui.playerAvatar, self.player_data.get('avatar_file'))
+        self.set_avatar(self.ui.opponentAvatar, self.bot_data.get('avatar_file'))
 
         # Настройка имен с цветом
         if self.player_is_black:
@@ -650,4 +655,53 @@ class GameWindowPvE(BaseWindow):
             self.gnugo_engine.stop()
         event.accept()
         
-        
+    def set_avatar(self, widget, avatar_id, default_avatar_name="default.png"):
+       
+        if not widget:
+            return
+
+        # Функция загрузки по полному пути
+        def load_pixmap(full_path):
+            if full_path and os.path.exists(full_path):
+                pixmap = QPixmap(full_path)
+                if not pixmap.isNull():
+                    # Масштабируем под размер виджета
+                    target_size = widget.size()
+                    if target_size.width() <= 0:
+                        target_size = widget.minimumSize()
+                    if target_size.width() <= 0:
+                        target_size = QSize(50, 50)
+                    return pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            return None
+
+        # Определяем полный путь к аватарке
+        full_path = None
+        if avatar_id:
+            # Если передан уже абсолютный путь
+            if os.path.isabs(avatar_id) and os.path.exists(avatar_id):
+                full_path = avatar_id
+            else:
+                # Иначе считаем, что avatar_id — это имя файла в папке AVATARS_DIR
+                candidate = os.path.join(AVATARS_DIR, avatar_id)
+                if os.path.exists(candidate):
+                    full_path = candidate
+
+        # Если аватарка не найдена, берём дефолтную
+        if full_path is None:
+            default_path = os.path.join(AVATARS_DIR, default_avatar_name)
+            if os.path.exists(default_path):
+                full_path = default_path
+
+        pixmap = load_pixmap(full_path)
+        if pixmap is not None:
+            if isinstance(widget, QPushButton):
+                widget.setIcon(QIcon(pixmap))
+                widget.setIconSize(pixmap.size())
+            elif isinstance(widget, QLabel):
+                widget.setPixmap(pixmap)
+                widget.setScaledContents(False)
+                widget.setAlignment(Qt.AlignCenter)
+        else:
+            # Если даже дефолтной нет, можно очистить иконку
+            if isinstance(widget, QPushButton):
+                widget.setIcon(QIcon())    
