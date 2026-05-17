@@ -505,3 +505,20 @@ QToolTip {
     border-radius: 8px;
     padding: 6px 10px;
 }
+/* ============================================
+   ВНУТРИ RULES
+   ============================================ */
+QPushButton#buttonClose {
+    background-color: #FCF5E8;
+    border: 1px solid #D6C8B0;
+    border-radius: 10px;
+    color: #3D3A36;
+    padding: 8px 20px;
+    font-weight: 600;
+}
+
+QPushButton#buttonClose:hover {
+    background-color: #EDE1CC;
+    border-color: #B35C44;
+    color: #B35C44;
+}

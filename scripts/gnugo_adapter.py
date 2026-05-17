@@ -13,6 +13,7 @@ class PlayerType(Enum):
     """Тип игрока"""
     HUMAN = auto()
     GNU_GO = auto()
+    NETWORK = auto()
 
 
 class CoordinateUtils:

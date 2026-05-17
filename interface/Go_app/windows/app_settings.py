@@ -247,6 +247,110 @@ class AppSettings(QObject):
                 Language.ENGLISH: "Account",
                 Language.RUSSIAN: "Аккаунт"
             },
+            "rules_content": {
+            Language.ENGLISH: """
+            Rules of the Game of Go
+
+            ## The beginning
+            The game begins on an empty board, typically 9x9, 13x13, or 19x19.
+            Two players (Black and White) take turns placing stones of their color on the board.
+            Black plays first. You may place a stone on any empty intersection of the lines, even on the edge of the board.
+
+            ## Liberties
+            Points adjacent to a stone (left, right, above, and below, not diagonally) are called liberties.
+            When all liberties of a stone are occupied by opponent’s stones, the stone is captured (removed from the board and given to the opponent).
+
+            ## Groups
+            Stones that are adjacent to each other (left, right, below, above) form a group. The liberties of a group are the liberties of all stones within it. 
+            If all liberties of a group are filled by enemy stones, the entire group is captured and given to the opponent.
+
+            ## Forbidden moves
+            There are forbidden moves: suicidal moves — meaning that after making such a move, your group (or the single stone you place) would have no liberties. 
+            However, a move that removes your group’s last liberty is allowed if it results in capturing an enemy group or stone(s).
+
+            ## "Eyes"
+            There is a shape called an eye. An eye is an empty intersection completely surrounded by stones of one color. 
+            You cannot play inside an eye made by the opponent’s stones, because the stone placed there would be immediately captured. Again, you may play there only if it results in capturing opponent’s stones.
+
+            ## "Immortal" groups
+            It follows that a group with more than one eye in its formation cannot be captured (since it’s impossible to play inside an eye to remove the group’s liberties).
+
+            ## The rule of Ko
+            In Go, there is the Ko rule. It forbids repeating a board position that has already occurred. 
+            Suppose we are in a situation where we can capture an opponent’s stone in one move (call this position 1). We capture it. 
+            Immediately after this move, the opponent might have the chance to capture a stone in return, but if that revenge capture would return the board to position 1, they cannot make that move according to the Ko rule.
+
+            ## Territory
+            Now about the most important part: territory. In Go, most points are gained by capturing territory. 
+            Your territory (empty intersections without stones) is considered yours if it is completely surrounded by your stones. You can invade enemy territory, forcing the opponent to reduce their territory.
+            Enemy stones or groups that do not have two or more eyes and are inside your territory are considered dead (at the end of the game, they are removed from the board and added to your captures).
+
+            ## The end of a game
+            Now about how the game ends. On your turn, you are not required to place a stone; you may pass, and the turn passes to the opponent. 
+            If both players pass or if no more moves are possible on the board, the game ends and territory counting begins.
+
+            ## Score counting
+            During counting, first, all stones and groups considered dead are removed from the board. Such stones increase the number of captured stones. 
+            Each captured enemy stone gives you one point, and each empty intersection in your territory also gives you one point.
+
+            ## Komi
+            Since Black plays first, White receives a point advantage — this is called komi. Usually komi is 6.5 points, but other values can be agreed upon. 
+            """,
+            Language.RUSSIAN: """
+            Правила игры в го
+
+            ## Начало
+            Игра начинается с пустой доски размером обычно 9х9, 13х13 или 19х19.
+            Два игрока(черные и белые) ходят поочереди, ставя камни своего цвета на доску.
+            Черные ходят первыми. Вы можете поставить камень на любое свободное пересечение линий,
+            даже на то, которое у края.
+
+            ## Дыхания
+            Точки рядом с камнем(слева, справа, сверху и снизу, не наискосок) называют
+            дыханиями или свободами. Когда все дыхания камня оказываются перекрыты(на них стоят камни противника) то
+            камень попадает в плен(снимается с доски и уходит к проотивнику).
+
+            ## Группы
+            Соседние друг с другом камни(справа, слева, снизу и сверху)
+            образуют группу. Дыхания группы - это дыхания всех камней, которые в неё входят, соответственно, если перекрыть все дыхания
+            группе(занять их вражескими камнями), то вся группа снимается с доски и переходит к противнику.
+
+            ## Запрещенные ходы
+            Существуют ходы, которые запрещено делать: самоубийственные - это значит, что при совершении этого хода твоя группа(или одиночный камень, который ты поставишь этим ходу на доску) перестанет иметь дыхания.
+            Хотя иногда ход, перекрывающий дыхания для собственной группы совершить можно: когда этот ход приведет к захвату вражеской группы или отдельного(ых) камня.
+
+            ## "Глаза"
+            Существует форма или фигура расстановки камней, которая называется глаз. Глаз - значит одно пустое поле, окруженное камнями одного цвета. В это поле нельзя ходить, так как камень, который туда будет поставлен, сразу снимется с доски и перейдет к противнику.
+            (имеется ввиду, что нельзя ходить в глаз, построенный камнями противника). Опять же, в него ходить можно толлько в том случае, когда это приведет к захвату камней противника.
+
+            ## "Бессмертные" группы
+            Из этого следует, что группа, которая имеет больше одного глаза в своей конфигурации, не может быть съедена ника(невозможно в таком случае поставить камень в глаз, чтобы лишить группу противника дыханий).
+
+            ## Правило Ко
+            В го существует правило Ко. Оно запрещает повторять позицию, которая уже была на доске, одним ходом. 
+            Допустим мы оказались в ситуации, когда можем захватить камень противника одним ходом(пусть это позиция 1) Мы его можем съесть. 
+            У противника сразу после этого хода может появиться возможность съесть камень в ответ, но если эта возможность "отомстить" приведет к к повтору позиции 1, то он не сможет ей воспользоваться, согласно правилу Ко.
+
+            ## Территория
+            Теперь о самом главном: о территории. В го большая часть очков набирается путем захвата территории. Вашей территория(пустые поля, на которых нет камней) назывется, если она полностью окружена вашими камнями. Во вражескую территорию можно вторгаться, заставляя противника уменьшить его территорию.
+            Камни и группы противника, если у них нет двух и более глаз, которые находятся на вашей территории, считаются мертвыми(при завершении игры снимутся с доски и перейдут к вам).
+
+            ## Конец игры
+            Теперь о том, как игра заканчивается. В свой ход вы не обязаны ставить камень на поле, вы можете спасовать, тогда ход перейдет к противнику. 
+            Если оба игрока спасуют или возможные ходы на доске закончатся, то партия завершается и начинается подсчет территории.
+
+            ## Подсчет очков
+            При подсчете территории сначала с доски снимаются все камни и группы, которые считаются мертвыми. Такие камни пополняют число захваченных камней. 
+            Каждый вражеский захваченный камень даёт вам одно очко и каждое поле в вашей территории тоже дает вам одно очко.
+
+            ## Коми
+            Так как начинают игру черные, белые получают преимущество в очках - это называется коми. Обычно коми составляет 6.5 очков, но можно договориться и о других вариантах. 
+        """
+        },
+            "Close": {
+            Language.ENGLISH: "Close",
+            Language.RUSSIAN: "Закрыть"
+        },
         }
         return texts.get(key, {}).get(self._language, key)
     
