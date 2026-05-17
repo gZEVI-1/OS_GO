@@ -182,14 +182,14 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='OS_GO',
+    name='GoST',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # Временно True для отладки, потом можно False
+    console=False,  # Временно True для отладки, потом можно False
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
