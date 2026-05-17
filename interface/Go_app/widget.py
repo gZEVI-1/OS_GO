@@ -12,6 +12,8 @@ from windows.game_settings_dialog_pve import GameSettingsDialogPVE
 from PySide6.QtWidgets import QSizePolicy
 from windows.app_settings import AppSettings
 from windows.settings_dialog import SettingsDialog
+from windows.online_lobby import OnlineLobbyDialog
+from windows.game_windowOnline import GameWindowOnline
 
 
 class Widget(QMainWindow):
@@ -59,11 +61,6 @@ class Widget(QMainWindow):
         self.settings.settings_changed.connect(self.on_settings_changed)
 
     def setup_icon_buttons(self):
-        """
-        Настраивает иконки для кнопок.
-        Сохраняет имя иконки для каждой кнопки, чтобы потом обновлять.
-        """
-        # Словарь: кнопка -> имя иконки (без расширения)
         icon_buttons = {
             self.ui.buttonWindBot: "bot",
             self.ui.buttonWindOffline: "offline",
@@ -72,18 +69,10 @@ class Widget(QMainWindow):
         }
         
         for button, icon_name in icon_buttons.items():
-            # Сохраняем имя иконки как атрибут кнопки
             button._icon_name = icon_name
-            # Устанавливаем иконку
             self.update_button_icon(button)
     
     def update_button_icon(self, button):
-        """
-        Обновляет иконку конкретной кнопки в соответствии с текущей темой.
-        
-        Аргументы:
-            button: QPushButton, кнопка для обновления
-        """
         if not hasattr(button, '_icon_name'):
             return
         
@@ -94,12 +83,10 @@ class Widget(QMainWindow):
             button.setIcon(QIcon(icon_path))
             button.setIconSize(QSize(32, 32))
             
-            # Для кнопки настроек убираем текст, оставляем только иконку
             if icon_name == "settings":
                 button.setText("")
     
     def update_all_icons(self):
-        """Обновляет иконки всех кнопок после смены темы"""
         buttons = [
             self.ui.buttonWindBot,
             self.ui.buttonWindOffline,
@@ -163,8 +150,25 @@ class Widget(QMainWindow):
         dialog.exec()
 
     def open_windOnline(self):
-        print("Online button on the main window")
-        QMessageBox.information(self, "Button", "open online window")
+       #player_name = self.settings.get("player_name", "Player")
+        player_name = "Player"
+        dialog = OnlineLobbyDialog(player_name, self)
+        dialog.game_ready.connect(self.start_online_game)
+        dialog.exec()
+    
+    def start_online_game(self, game_data):
+        game_window = GameWindowOnline(
+            navigation=self.navigation,
+            client=game_data["client"],
+            player_name=game_data["player_name"],
+            player_color=game_data["player_color"],
+            board_size=game_data["board_size"],
+            time_settings=game_data["time_settings"],
+            visual_settings=game_data["visual_settings"]
+        )
+        self.navigation.add_window("online_game", game_window)
+        game_window.game_finished.connect(lambda: self.return_to_menu("online_game"))
+        self.navigation.navigate_to("online_game")
 
     def open_windInstruct(self):
         from windows.rules_window import RulesWindow
@@ -190,7 +194,6 @@ class Widget(QMainWindow):
         self.navigation.navigate_to("main_menu")
 
     def apply_theme(self):
-        """Применяет текущую тему к приложению"""
         stylesheet = self.settings.get_stylesheet()
         if stylesheet:
             self.setStyleSheet(stylesheet)
@@ -201,18 +204,15 @@ class Widget(QMainWindow):
                 widget.apply_theme()
 
     def update_main_menu_language(self):
-        """Обновляет текст кнопок главного меню"""
         self.ui.buttonWindOnline.setText(self.settings.get_text("open_online"))
         self.ui.buttonWindOffline.setText(self.settings.get_text("open_offline"))
         self.ui.buttonWindBot.setText(self.settings.get_text("open_bot"))
         self.ui.buttonInstruct.setText(self.settings.get_text("open_instruction"))
 
     def on_settings_changed(self):
-        """Обработчик изменения глобальных настроек"""
         self.apply_theme()
         self.update_main_menu_language()
-        self.update_all_icons()  # ← ВАЖНО: обновляем иконки при смене темы
-
+        self.update_all_icons()  
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
