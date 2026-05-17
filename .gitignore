@@ -64,3 +64,4 @@ Thumbs.db
 /interface/Go_app/core/__pycache__
 
 auth/.env
+/dist
