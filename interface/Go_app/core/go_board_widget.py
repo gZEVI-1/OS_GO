@@ -32,6 +32,7 @@ class GoBoardWidget(QWidget):
         self.highlight_color = QColor(255, 0, 0, 100)
         self.offset_x = self.margin
         self.offset_y = self.margin
+        self.flipped = False
         
         # Настройки подсказок
         self.show_legal_moves = True
@@ -112,18 +113,24 @@ class GoBoardWidget(QWidget):
             return
 
         pos = event.position().toPoint()
-        # Вычисляем координаты относительно начала сетки
         x = pos.x() - self.offset_x
         y = pos.y() - self.offset_y
 
         if x < 0 or y < 0:
             return
 
-        col = round(x / self.cell_size)
-        row = round(y / self.cell_size)
+        screen_col = round(x / self.cell_size)
+        screen_row = round(y / self.cell_size)
 
-        if 0 <= row < self.board_size and 0 <= col < self.board_size:
-            self.cell_clicked.emit(row, col)
+        if 0 <= screen_row < self.board_size and 0 <= screen_col < self.board_size:
+            # Преобразуем экранные координаты в логические (для сервера)
+            if self.flipped:
+                logical_row = self.board_size - 1 - screen_row
+                logical_col = self.board_size - 1 - screen_col
+            else:
+                logical_row = screen_row
+                logical_col = screen_col
+            self.cell_clicked.emit(logical_row, logical_col)
 
     def request_move(self, row, col):
         """Запрос на выполнение хода"""
@@ -192,9 +199,26 @@ class GoBoardWidget(QWidget):
         if self.board_state:
             self.draw_stones(painter)
         self.draw_last_move_highlight(painter)
+    
+    def draw_last_move_highlight(self, painter):
+        if self.last_move:
+            logical_row, logical_col = self.last_move
+            # Преобразуем логические координаты в экранные
+            if self.flipped:
+                screen_row = self.board_size - 1 - logical_row
+                screen_col = self.board_size - 1 - logical_col
+            else:
+                screen_row = logical_row
+                screen_col = logical_col
+
+            x = self.offset_x + screen_col * self.cell_size
+            y = self.offset_y + screen_row * self.cell_size
+            painter.setBrush(QBrush(self.highlight_color))
+            painter.setPen(Qt.NoPen)
+            radius = self.cell_size // 2 + 4
+            painter.drawEllipse(QPoint(x, y), radius, radius)
 
     def draw_grid(self, painter):
-        """Рисует сетку доски"""
         painter.setPen(QPen(self.line_color, 1))
         start_x = self.offset_x
         start_y = self.offset_y
@@ -210,59 +234,79 @@ class GoBoardWidget(QWidget):
         self.draw_hoshi(painter)
 
     def draw_hoshi(self, painter):
-        """Рисует звезды (хоси)"""
         painter.setBrush(Qt.black)
         painter.setPen(Qt.NoPen)
 
-        hoshi_positions = {
+        hoshi_logical = {
             9: [(2, 2), (6, 2), (4, 4), (2, 6), (6, 6)],
             13: [(3, 3), (9, 3), (6, 6), (3, 9), (9, 9)],
             19: [(3, 3), (15, 3), (3, 15), (15, 15), (9, 9),
                 (3, 9), (9, 3), (15, 9), (9, 15)]
         }
 
-        if self.board_size in hoshi_positions:
-            for row, col in hoshi_positions[self.board_size]:
-                x = self.offset_x + col * self.cell_size
-                y = self.offset_y + row * self.cell_size
+        if self.board_size in hoshi_logical:
+            for logical_row, logical_col in hoshi_logical[self.board_size]:
+                # Преобразуем логические координаты в экранные
+                if self.flipped:
+                    screen_row = self.board_size - 1 - logical_row
+                    screen_col = self.board_size - 1 - logical_col
+                else:
+                    screen_row = logical_row
+                    screen_col = logical_col
+                x = self.offset_x + screen_col * self.cell_size
+                y = self.offset_y + screen_row * self.cell_size
                 painter.drawEllipse(QPoint(x, y), 4, 4)
 
     def draw_stones(self, painter):
-        """Рисует камни"""
-        for row in range(self.board_size):
-            for col in range(self.board_size):
-                if self.board_state[row][col] != 0:
-                    x = self.offset_x + col * self.cell_size
-                    y = self.offset_y + row * self.cell_size
+        for screen_row in range(self.board_size):
+            for screen_col in range(self.board_size):
+                # Определяем логические координаты (в массиве)
+                if self.flipped:
+                    logical_row = self.board_size - 1 - screen_row
+                    logical_col = self.board_size - 1 - screen_col
+                else:
+                    logical_row = screen_row
+                    logical_col = screen_col
 
-                    if self.board_state[row][col] == 1:
-                        painter.setBrush(QBrush(self.black_stone_color))
-                    else:
-                        painter.setBrush(QBrush(self.white_stone_color))
+                stone = self.board_state[logical_row][logical_col] if 0 <= logical_row < self.board_size and 0 <= logical_col < self.board_size else 0
+                if stone == 0:
+                    continue
 
-                    radius = self.cell_size // 2 - 2
-                    painter.setPen(QPen(Qt.gray, 1))
-                    painter.drawEllipse(QRect(x - radius, y - radius,
-                                            radius * 2, radius * 2))
+                x = self.offset_x + screen_col * self.cell_size
+                y = self.offset_y + screen_row * self.cell_size
+
+                if stone == 1:
+                    painter.setBrush(QBrush(self.black_stone_color))
+                else:
+                    painter.setBrush(QBrush(self.white_stone_color))
+
+                radius = self.cell_size // 2 - 2
+                painter.setPen(QPen(Qt.gray, 1))
+                painter.drawEllipse(QRect(x - radius, y - radius, radius * 2, radius * 2))
 
     def draw_move_hints(self, painter):
-        """Рисует подсказки для допустимых ходов"""
         painter.setBrush(QBrush(QColor(150, 150, 150, 80)))
         painter.setPen(Qt.NoPen)
         radius = self.cell_size // 6
 
-        for row, col in self.legal_moves:
-            x = self.offset_x + col * self.cell_size
-            y = self.offset_y + row * self.cell_size
-            painter.drawEllipse(QPoint(x, y), radius, radius)
+        for logical_row, logical_col in self.legal_moves:
+            if self.flipped:
+                screen_row = self.board_size - 1 - logical_row
+                screen_col = self.board_size - 1 - logical_col
+            else:
+                screen_row = logical_row
+                screen_col = logical_col
 
-    def draw_last_move_highlight(self, painter):
-        """Подсвечивает последний ход"""
-        if self.last_move:
-            row, col = self.last_move
-            x = self.offset_x + col * self.cell_size
-            y = self.offset_y + row * self.cell_size
-            painter.setBrush(QBrush(self.highlight_color))
-            painter.setPen(Qt.NoPen)
-            radius = self.cell_size // 2 + 4
+            x = self.offset_x + screen_col * self.cell_size
+            y = self.offset_y + screen_row * self.cell_size
             painter.drawEllipse(QPoint(x, y), radius, radius)
+    
+    def set_flipped(self, flipped: bool):
+        if self.flipped != flipped:
+            self.flipped = flipped
+            self.update()
+
+    def set_board_state(self, board_array, last_move=None):
+        self.board_state = board_array
+        self.last_move = last_move
+        self.update()
